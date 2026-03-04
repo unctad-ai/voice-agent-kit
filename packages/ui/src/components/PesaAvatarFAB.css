@@ -1,0 +1,48 @@
+/* Animated conic-gradient border for the Pesa FAB */
+
+@keyframes pesa-fab-rotate {
+  from {
+    --pesa-angle: 0deg;
+  }
+  to {
+    --pesa-angle: 360deg;
+  }
+}
+
+@property --pesa-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.pesa-fab-border {
+  position: relative;
+  border-radius: 50%;
+  padding: 3px;
+  background: conic-gradient(from var(--pesa-angle), #db2129 0%, #34d399 50%, #db2129 100%);
+  animation: pesa-fab-rotate 3s linear infinite;
+}
+
+.pesa-fab-border-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  background: #fff;
+}
+
+.pesa-fab-border-inner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pesa-fab-border {
+    animation: none;
+  }
+}

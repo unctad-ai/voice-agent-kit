@@ -11,16 +11,25 @@
   },
   "dependencies": {
     "@voice-agent/core": "workspace:*",
-    "@voice-agent/registries": "workspace:*"
+    "@voice-agent/registries": "workspace:*",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.0.0"
   },
   "peerDependencies": {
     "react": ">=18",
-    "framer-motion": "*"
+    "react-dom": ">=18",
+    "framer-motion": "*",
+    "lucide-react": "*",
+    "simplex-noise": "*"
   },
   "devDependencies": {
     "react": "^19.2.4",
-    "framer-motion": "^11.0.0",
+    "react-dom": "^19.2.4",
     "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "framer-motion": "^11.0.0",
+    "lucide-react": "^0.487.0",
+    "simplex-noise": "^4.0.0",
     "typescript": "^5.9.3"
   }
 }
