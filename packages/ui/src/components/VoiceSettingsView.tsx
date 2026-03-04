@@ -79,6 +79,7 @@ function SliderSetting({
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full"
+        style={{ accentColor: 'var(--voice-settings-accent, #DB2129)' }}
       />
     </div>
   );
@@ -142,7 +143,7 @@ function SelectSetting({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-7 text-xs rounded-lg border-neutral-200 bg-neutral-50 px-2"
+        className="h-7 text-xs rounded-lg border border-neutral-200 bg-neutral-50 px-2 outline-none"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>

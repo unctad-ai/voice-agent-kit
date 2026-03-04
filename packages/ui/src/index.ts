@@ -4,7 +4,7 @@ export type { VoiceSettings } from './contexts/VoiceSettingsContext';
 
 // All components use default exports — re-export them as named
 export { default as GlassCopilotPanel } from './components/GlassCopilotPanel';
-export { default as PesaAvatar } from './components/PesaAvatar';
+export { default as AgentAvatar } from './components/AgentAvatar';
 export { default as PipelineMetricsBar } from './components/PipelineMetricsBar';
 export { default as VoiceA11yAnnouncer } from './components/VoiceA11yAnnouncer';
 export { default as VoiceCopilotFAB } from './components/VoiceCopilotFAB';

@@ -31,8 +31,8 @@ import {
 } from '@voice-agent/core';
 import type { OrbState, VoiceToolResult, VoiceState, VoiceMessage, PipelineTimings } from '@voice-agent/core';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
-import PesaAvatar from './PesaAvatar';
-import './PesaAvatarFAB.css';
+import AgentAvatar from './AgentAvatar';
+import './AgentAvatarFAB.css';
 import VoiceTranscript from './VoiceTranscript';
 import VoiceToolCard from './VoiceToolCard';
 import VoiceErrorBoundary from './VoiceErrorBoundary';
@@ -81,6 +81,7 @@ interface GlassCopilotPanelProps {
 // FAB — shown when panel is hidden
 // ---------------------------------------------------------------------------
 function CopilotFAB({ onClick, portraitSrc }: { onClick: () => void; portraitSrc?: string }) {
+  const { colors } = useSiteConfig();
   return (
     <motion.button
       onClick={onClick}
@@ -97,8 +98,8 @@ function CopilotFAB({ onClick, portraitSrc }: { onClick: () => void; portraitSrc
       }}
       aria-label="Open voice assistant"
     >
-      <div className="pesa-fab-border" style={{ width: 54, height: 54 }}>
-        <div className="pesa-fab-border-inner">
+      <div className="agent-fab-border" style={{ width: 54, height: 54, '--agent-primary': colors.primary } as React.CSSProperties}>
+        <div className="agent-fab-border-inner">
           {portraitSrc ? (
             <img
               src={portraitSrc}
@@ -185,7 +186,7 @@ function CollapsedBar({
         className="relative shrink-0"
         style={{ width: 46, height: 46, opacity: isOffline ? 0.4 : 1 }}
       >
-        <PesaAvatar state={orbState} getAmplitude={getAmplitude} size={46} portraitSrc={portraitSrc} />
+        <AgentAvatar state={orbState} getAmplitude={getAmplitude} size={46} portraitSrc={portraitSrc} />
         {!ttsEnabled && (
           <div
             className="absolute flex items-center justify-center"
@@ -649,7 +650,7 @@ function ExpandedContent({
           className="relative shrink-0"
           style={{ width: 46, height: 46, filter: isOffline ? 'grayscale(0.8)' : 'none' }}
         >
-          <PesaAvatar state={orbState} getAmplitude={getAmplitude} size={46} showRing portraitSrc={portraitSrc} />
+          <AgentAvatar state={orbState} getAmplitude={getAmplitude} size={46} showRing portraitSrc={portraitSrc} />
           {!ttsEnabled && (
             <div
               className="absolute flex items-center justify-center"
@@ -796,6 +797,7 @@ function WiredPanelInner({
   onStateChange?: (orbState: OrbState) => void; portraitSrc?: string;
 }) {
   const config = useSiteConfig();
+  const resolvedPortrait = portraitSrc ?? config.avatarUrl;
   const { settings: voiceSettings, volumeRef, speedRef } = useVoiceSettings();
   const { state, start, stop, messages, isLLMLoading, getAmplitude, analyser, sendTextMessage, voiceError, dismissError, sessionEnded, lastTimings, applyVolume, settings } = useVoiceAgent({ settings: voiceSettings, volumeRef, speedRef });
 
@@ -884,12 +886,12 @@ function WiredPanelInner({
   const toggleSettings = useCallback(() => setShowSettings((p) => !p), []);
 
   if (panelState === 'collapsed') {
-    return <CollapsedBar orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} onExpand={onExpand} onClose={onClose} onRetry={handleRetryClick} isRetrying={isRetrying} voiceError={effectiveError} micPaused={micPaused} onMicToggle={handleMicToggle} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={portraitSrc} />;
+    return <CollapsedBar orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} onExpand={onExpand} onClose={onClose} onRetry={handleRetryClick} isRetrying={isRetrying} voiceError={effectiveError} micPaused={micPaused} onMicToggle={handleMicToggle} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} />;
   }
 
   return (
     <div className="relative h-full">
-      <ExpandedContent orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} messages={messages} isTyping={isTyping} toolResult={toolResult} voiceError={effectiveError} dismissError={dismissError} onCollapse={onCollapse} onClose={onClose} onTextSubmit={handleTextSubmit} onMicToggle={handleMicToggle} micPaused={micPaused} onToolDismiss={() => setToolResult(null)} onInteraction={bumpActivity} onRetry={handleRetryClick} isRetrying={isRetrying} lastTimings={lastTimings} showPipelineMetrics={settings.showPipelineMetrics} pipelineMetricsAutoHideMs={settings.pipelineMetricsAutoHideMs} showSettings={showSettings} onSettingsToggle={toggleSettings} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={portraitSrc} />
+      <ExpandedContent orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} messages={messages} isTyping={isTyping} toolResult={toolResult} voiceError={effectiveError} dismissError={dismissError} onCollapse={onCollapse} onClose={onClose} onTextSubmit={handleTextSubmit} onMicToggle={handleMicToggle} micPaused={micPaused} onToolDismiss={() => setToolResult(null)} onInteraction={bumpActivity} onRetry={handleRetryClick} isRetrying={isRetrying} lastTimings={lastTimings} showPipelineMetrics={settings.showPipelineMetrics} pipelineMetricsAutoHideMs={settings.pipelineMetricsAutoHideMs} showSettings={showSettings} onSettingsToggle={toggleSettings} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} />
       <AnimatePresence>
         {showSettings && (<Suspense fallback={null}><VoiceSettingsView onBack={toggleSettings} onVolumeChange={applyVolume} /></Suspense>)}
       </AnimatePresence>
@@ -901,6 +903,8 @@ function WiredPanelInner({
 // Main exported component
 // ---------------------------------------------------------------------------
 export default function GlassCopilotPanel({ isOpen, onOpen, onClose, onStateChange, portraitSrc }: GlassCopilotPanelProps) {
+  const config = useSiteConfig();
+  const resolvedPortrait = portraitSrc ?? config.avatarUrl;
   const [internalState, setInternalState] = useState<'collapsed' | 'expanded'>('collapsed');
   const panelState: PanelState = isOpen ? internalState : 'hidden';
   const handleClose = useCallback(() => { onClose(); }, [onClose]);
@@ -943,7 +947,7 @@ export default function GlassCopilotPanel({ isOpen, onOpen, onClose, onStateChan
       <AnimatePresence>
         {!isVisible && (
           <motion.div ref={fabRef} key="copilot-fab" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.25, ease: 'easeOut' }} className="fixed" style={{ bottom: PANEL_BOTTOM, right: PANEL_RIGHT, zIndex: PANEL_Z_INDEX }}>
-            <CopilotFAB onClick={() => onOpen?.()} portraitSrc={portraitSrc} />
+            <CopilotFAB onClick={() => onOpen?.()} portraitSrc={resolvedPortrait} />
           </motion.div>
         )}
 
@@ -959,7 +963,7 @@ export default function GlassCopilotPanel({ isOpen, onOpen, onClose, onStateChan
             <div className="absolute inset-0 pointer-events-none" style={{ borderRadius: PANEL_BORDER_RADIUS, overflow: 'hidden', backdropFilter: 'blur(14px) saturate(1.4)', WebkitBackdropFilter: 'blur(14px) saturate(1.4)', backgroundColor: 'rgba(230,232,245,0.32)', border: '1px solid rgba(255,255,255,0.4)', boxShadow: 'inset 0 0 20px -5px rgba(255,255,255,0.3), inset 0 1px 0 0 rgba(255,255,255,0.8), 0 0 0 1px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.14), 0 24px 48px rgba(0,0,0,0.10)' }} />
             <div className="absolute inset-0 pointer-events-none" style={{ borderRadius: PANEL_BORDER_RADIUS, background: 'linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 20%)' }} />
             <div style={{ position: 'relative', zIndex: 1, height: '100%', overflow: 'hidden', borderRadius: PANEL_BORDER_RADIUS }}>
-              <WiredPanel panelState={panelState} onCollapse={handleCollapse} onExpand={handleExpand} onClose={handleClose} onStateChange={handleStateChange} portraitSrc={portraitSrc} />
+              <WiredPanel panelState={panelState} onCollapse={handleCollapse} onExpand={handleExpand} onClose={handleClose} onStateChange={handleStateChange} portraitSrc={resolvedPortrait} />
             </div>
           </motion.div>
         )}

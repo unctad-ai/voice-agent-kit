@@ -56,6 +56,7 @@ export interface SiteConfig {
   getServiceFormRoute: (serviceId: string) => string | null;
 
   // Optional
+  avatarUrl?: string;
   extraServerTools?: Record<string, unknown>;
   thresholdOverrides?: Partial<VoiceThresholds>;
 }

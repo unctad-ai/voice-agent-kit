@@ -166,7 +166,7 @@ export const DOT_RING_PEAK_RADIUS = 4;
 export const DOT_RING_SMOOTHING = 0.12;
 
 // ---------------------------------------------------------------------------
-// Pesa Avatar
+// Agent Avatar
 // ---------------------------------------------------------------------------
 
 export const AVATAR_PORTRAIT_RATIO = 0.88;

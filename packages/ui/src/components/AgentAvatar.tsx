@@ -17,7 +17,7 @@ const RING_COLORS: Record<OrbState, [string, string]> = {
   error: ['#DC2626', '#991B1B'],
 };
 
-interface PesaAvatarProps {
+interface AgentAvatarProps {
   state: OrbState;
   getAmplitude: () => number;
   size?: number;
@@ -34,15 +34,17 @@ function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
-export default function PesaAvatar({
+export default function AgentAvatar({
   state,
   getAmplitude,
   size = 36,
   showAura = true,
   showRing = false,
   portraitSrc,
-  monogram = 'P',
-}: PesaAvatarProps) {
+  monogram,
+}: AgentAvatarProps) {
+  const config = useSiteConfig();
+  const initial = monogram ?? config.copilotName?.charAt(0)?.toUpperCase() ?? 'A';
   const { colors } = useSiteConfig();
   const AVATAR_GLOW_COLORS = buildGlowColors(colors);
   const portraitSize = Math.round(size * AVATAR_PORTRAIT_RATIO);
@@ -250,7 +252,7 @@ export default function PesaAvatar({
               fontSize: Math.round(portraitSize * 0.45),
             }}
           >
-            {monogram}
+            {initial}
           </div>
         ) : (
           <img
