@@ -37,6 +37,7 @@ export { createSttHandler } from './createSttHandler.js';
 export { createTtsHandler } from './createTtsHandler.js';
 export { buildSystemPrompt } from './systemPrompt.js';
 export { createBuiltinTools } from './builtinTools.js';
+export { buildSynonymMap, fuzzySearch } from './builtinTools.js';
 export type { ClientState } from './systemPrompt.js';
 export type { ChatHandlerOptions } from './createChatHandler.js';
 export type { SttHandlerOptions } from './createSttHandler.js';
