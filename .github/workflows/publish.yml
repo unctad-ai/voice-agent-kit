@@ -7,8 +7,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      packages: write
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -21,6 +21,4 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm validate
-      - run: pnpm -r publish --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: pnpm -r publish --provenance --access public --no-git-checks
