@@ -143,7 +143,12 @@ function SelectSetting({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-7 text-xs rounded-lg border border-neutral-200 bg-neutral-50 px-2 outline-none"
+        className="h-8 text-xs font-medium text-neutral-700 rounded-full border border-neutral-200 bg-neutral-50 pl-3 pr-7 outline-none appearance-none cursor-pointer hover:border-neutral-300 hover:bg-neutral-100 focus:border-neutral-400 transition-colors"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'no-repeat',
+          backgroundPosition: 'right 8px center',
+        }}
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
