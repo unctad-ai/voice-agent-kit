@@ -345,8 +345,12 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
       const ctx = new AudioContext({ sampleRate: 16000 });
       audioCtxRef.current = ctx;
 
-      // Load the AudioWorklet processor
-      await ctx.audioWorklet.addModule('/ten-vad-processor.js');
+      // Load the AudioWorklet processor via blob URL to bypass stale HTTP cache
+      const workletRes = await fetch('/ten-vad-processor.js', { cache: 'no-store' });
+      const workletBlob = new Blob([await workletRes.text()], { type: 'application/javascript' });
+      const workletUrl = URL.createObjectURL(workletBlob);
+      await ctx.audioWorklet.addModule(workletUrl);
+      URL.revokeObjectURL(workletUrl);
 
       const source = ctx.createMediaStreamSource(stream);
       const worklet = new AudioWorkletNode(ctx, 'ten-vad-processor', {
