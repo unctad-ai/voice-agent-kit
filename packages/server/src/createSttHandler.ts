@@ -5,7 +5,7 @@ import multer from 'multer';
 export interface SttHandlerOptions {
   groqApiKey?: string;
   sttProvider?: string;   // 'kyutai' | 'groq', default 'kyutai'
-  kyutaiSttUrl?: string;  // default 'http://5.9.49.171:8003'
+  kyutaiSttUrl?: string;  // default 'http://localhost:8003'
 }
 
 // --- Response type shared by both providers ---
@@ -24,7 +24,7 @@ export function createSttHandler(options: SttHandlerOptions): Router {
   });
 
   const sttProvider = options.sttProvider || 'kyutai';
-  const kyutaiSttUrl = options.kyutaiSttUrl || 'http://5.9.49.171:8003';
+  const kyutaiSttUrl = options.kyutaiSttUrl || 'http://localhost:8003';
 
   // Groq client — only initialized when needed
   let groq: Groq | null = null;

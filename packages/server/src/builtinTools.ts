@@ -104,7 +104,7 @@ export function createBuiltinTools(config: SiteConfig) {
     listServicesByCategory: tool({
       description: 'List all services in a category. Use when the user asks what services are available or wants to browse.',
       inputSchema: z.object({
-        category: z.string().describe('Category key to list'),
+        category: z.enum(Object.keys(config.categoryMap) as [string, ...string[]]).describe('Category to list'),
       }),
       execute: async ({ category }) => {
         const categoryTitle = config.categoryMap[category];
@@ -133,7 +133,7 @@ export function createBuiltinTools(config: SiteConfig) {
     navigateTo: tool({
       description: `Navigate to a page in ${config.siteTitle}.`,
       inputSchema: z.object({
-        page: z.string().describe('Page name to navigate to'),
+        page: z.enum(Object.keys(config.routeMap) as [string, ...string[]]).describe('Page key from route map'),
       }),
     }),
     viewService: tool({
