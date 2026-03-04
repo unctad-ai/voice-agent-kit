@@ -3,7 +3,7 @@ import { useTenVAD } from './useTenVAD';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from 'ai';
 import { useNavigate, useLocation, useParams } from 'react-router';
-import { useUIActionRegistry, useFormFieldRegistry, createClientToolHandler } from '@voice-agent/registries';
+import { useUIActionRegistry, useFormFieldRegistry, createClientToolHandler } from '@unctad-ai/voice-agent-registries';
 import { float32ToWav } from '../utils/audioUtils';
 import {
   transcribeAudio,

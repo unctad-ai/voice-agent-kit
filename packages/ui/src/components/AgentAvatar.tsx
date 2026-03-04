@@ -5,8 +5,8 @@ import {
   AVATAR_STATE_FILTERS,
   buildGlowColors,
   useSiteConfig,
-} from '@voice-agent/core';
-import type { OrbState } from '@voice-agent/core';
+} from '@unctad-ai/voice-agent-core';
+import type { OrbState } from '@unctad-ai/voice-agent-core';
 
 /** Conic gradient colors per state — [color1, color2] */
 const RING_COLORS: Record<OrbState, [string, string]> = {

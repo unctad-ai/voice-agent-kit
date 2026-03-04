@@ -1,7 +1,7 @@
-import { SiteConfigProvider } from '@voice-agent/core';
-import { CopilotProvider } from '@voice-agent/registries';
+import { SiteConfigProvider } from '@unctad-ai/voice-agent-core';
+import { CopilotProvider } from '@unctad-ai/voice-agent-registries';
 import { VoiceSettingsProvider } from './contexts/VoiceSettingsContext';
-import type { SiteConfig } from '@voice-agent/core';
+import type { SiteConfig } from '@unctad-ai/voice-agent-core';
 
 export function VoiceAgentProvider({
   config,

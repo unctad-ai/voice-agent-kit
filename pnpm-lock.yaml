@@ -20,7 +20,7 @@ importers:
 
   packages/core:
     dependencies:
-      '@voice-agent/registries':
+      '@unctad-ai/voice-agent-registries':
         specifier: workspace:*
         version: link:../registries
     devDependencies:
@@ -48,7 +48,7 @@ importers:
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14
-      '@voice-agent/core':
+      '@unctad-ai/voice-agent-core':
         specifier: workspace:*
         version: link:../core
       react:
@@ -60,7 +60,7 @@ importers:
 
   packages/server:
     dependencies:
-      '@voice-agent/core':
+      '@unctad-ai/voice-agent-core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -94,10 +94,10 @@ importers:
 
   packages/ui:
     dependencies:
-      '@voice-agent/core':
+      '@unctad-ai/voice-agent-core':
         specifier: workspace:*
         version: link:../core
-      '@voice-agent/registries':
+      '@unctad-ai/voice-agent-registries':
         specifier: workspace:*
         version: link:../registries
       clsx:

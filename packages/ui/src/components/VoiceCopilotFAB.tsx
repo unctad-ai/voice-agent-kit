@@ -1,6 +1,6 @@
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { Mic } from 'lucide-react';
-import { useSiteConfig } from '@voice-agent/core';
+import { useSiteConfig } from '@unctad-ai/voice-agent-core';
 
 interface VoiceCopilotFABProps {
   onClick: () => void;

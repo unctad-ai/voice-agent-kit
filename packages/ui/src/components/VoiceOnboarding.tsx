@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../utils';
-import { useSiteConfig } from '@voice-agent/core';
+import { useSiteConfig } from '@unctad-ai/voice-agent-core';
 
 const STORAGE_KEY = 'voice-onboarding-dismissed';
 

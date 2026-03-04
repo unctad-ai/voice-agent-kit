@@ -5,8 +5,8 @@ import {
   DOT_RING_BASE_RADIUS,
   DOT_RING_PEAK_RADIUS,
   DOT_RING_SMOOTHING,
-} from '@voice-agent/core';
-import type { OrbState } from '@voice-agent/core';
+} from '@unctad-ai/voice-agent-core';
+import type { OrbState } from '@unctad-ai/voice-agent-core';
 
 interface VoiceDotRingProps {
   analyserNode: AnalyserNode | null;

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowUpRight } from 'lucide-react';
 import { cn } from '../utils';
-import type { VoiceToolResult } from '@voice-agent/core';
+import type { VoiceToolResult } from '@unctad-ai/voice-agent-core';
 
 interface VoiceToolCardProps {
   result: VoiceToolResult | null;

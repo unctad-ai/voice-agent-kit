@@ -28,8 +28,8 @@ import {
   SPRING_PANEL,
   SPRING_MICRO,
   SPRING_PANEL_EXIT,
-} from '@voice-agent/core';
-import type { OrbState, VoiceToolResult, VoiceState, VoiceMessage, PipelineTimings } from '@voice-agent/core';
+} from '@unctad-ai/voice-agent-core';
+import type { OrbState, VoiceToolResult, VoiceState, VoiceMessage, PipelineTimings } from '@unctad-ai/voice-agent-core';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
 import AgentAvatar from './AgentAvatar';
 import './AgentAvatarFAB.css';

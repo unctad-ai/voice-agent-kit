@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Keyboard, Send, X } from 'lucide-react';
 import { cn } from '../utils';
-import { useSiteConfig } from '@voice-agent/core';
-import type { VoiceState } from '@voice-agent/core';
+import { useSiteConfig } from '@unctad-ai/voice-agent-core';
+import type { VoiceState } from '@unctad-ai/voice-agent-core';
 
 interface VoiceControlsProps {
   state: VoiceState;

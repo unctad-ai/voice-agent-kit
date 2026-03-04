@@ -1,6 +1,6 @@
 import { streamText, convertToModelMessages, stepCountIs } from 'ai';
 import { createGroq } from '@ai-sdk/groq';
-import type { SiteConfig } from '@voice-agent/core';
+import type { SiteConfig } from '@unctad-ai/voice-agent-core';
 import type { Request, Response } from 'express';
 import type { ServerResponse } from 'node:http';
 import { buildSystemPrompt } from './systemPrompt.js';

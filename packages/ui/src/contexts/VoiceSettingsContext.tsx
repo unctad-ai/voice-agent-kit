@@ -17,7 +17,7 @@ import {
   DEFAULT_TTS_TIMEOUT_MS,
   DEFAULT_LLM_TIMEOUT_MS,
   DEFAULT_MIN_AUDIO_RMS,
-} from '@voice-agent/core';
+} from '@unctad-ai/voice-agent-core';
 
 export interface VoiceSettings {
   volume: number;

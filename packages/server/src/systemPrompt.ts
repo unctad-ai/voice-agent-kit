@@ -1,4 +1,4 @@
-import type { SiteConfig } from '@voice-agent/core';
+import type { SiteConfig } from '@unctad-ai/voice-agent-core';
 
 export interface ClientState {
   route?: string;

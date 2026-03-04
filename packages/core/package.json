@@ -1,5 +1,5 @@
 {
-  "name": "@voice-agent/core",
+  "name": "@unctad-ai/voice-agent-core",
   "version": "0.1.1",
   "type": "module",
   "main": "src/index.ts",
@@ -29,7 +29,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@voice-agent/registries": "workspace:*"
+    "@unctad-ai/voice-agent-registries": "workspace:*"
   },
   "peerDependencies": {
     "@ai-sdk/react": "^3.0.0",

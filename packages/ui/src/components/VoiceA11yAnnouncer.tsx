@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { OrbState } from '@voice-agent/core';
+import type { OrbState } from '@unctad-ai/voice-agent-core';
 
 interface VoiceA11yAnnouncerProps {
   isOpen: boolean;

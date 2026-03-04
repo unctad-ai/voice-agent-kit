@@ -8,8 +8,8 @@ import {
   MIN_DISPLAY_LENGTH,
   PANEL_MAX_VISIBLE_MESSAGES,
   PANEL_MAX_TEXT_LENGTH,
-} from '@voice-agent/core';
-import type { VoiceMessage, ActionCategory } from '@voice-agent/core';
+} from '@unctad-ai/voice-agent-core';
+import type { VoiceMessage, ActionCategory } from '@unctad-ai/voice-agent-core';
 import type { VoiceErrorType } from './VoiceErrorDisplay';
 import { ArrowRight, PenLine, MousePointerClick, Search, Info } from 'lucide-react';
 

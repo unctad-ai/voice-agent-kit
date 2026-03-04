@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { createNoise3D } from 'simplex-noise';
-import { ORB_NUM_POINTS, ORB_LERP_SPEED, useSiteConfig } from '@voice-agent/core';
-import type { OrbState } from '@voice-agent/core';
+import { ORB_NUM_POINTS, ORB_LERP_SPEED, useSiteConfig } from '@unctad-ai/voice-agent-core';
+import type { OrbState } from '@unctad-ai/voice-agent-core';
 
 interface VoiceOrbProps {
   state: OrbState;

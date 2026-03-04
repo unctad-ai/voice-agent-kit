@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { SiteConfig, ServiceBase } from '@voice-agent/core';
+import type { SiteConfig, ServiceBase } from '@unctad-ai/voice-agent-core';
 
 // --- Synonym map builder ---
 

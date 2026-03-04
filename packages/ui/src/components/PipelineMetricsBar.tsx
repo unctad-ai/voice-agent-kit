@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import type { PipelineTimings } from '@voice-agent/core';
+import type { PipelineTimings } from '@unctad-ai/voice-agent-core';
 import {
   DEFAULT_SHOW_PIPELINE_METRICS,
   DEFAULT_PIPELINE_METRICS_AUTO_HIDE_MS,
-} from '@voice-agent/core';
+} from '@unctad-ai/voice-agent-core';
 
 function fmt(ms: number): string {
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`;

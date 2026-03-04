@@ -1,4 +1,4 @@
-import type { SiteConfig } from '@voice-agent/core';
+import type { SiteConfig } from '@unctad-ai/voice-agent-core';
 import type { Router } from 'express';
 import { createChatHandler } from './createChatHandler.js';
 import { createSttHandler } from './createSttHandler.js';

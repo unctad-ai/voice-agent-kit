@@ -19,7 +19,7 @@ import {
   Signal,
 } from 'lucide-react';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
-import { VAD, useSiteConfig } from '@voice-agent/core';
+import { VAD, useSiteConfig } from '@unctad-ai/voice-agent-core';
 
 interface VoiceSettingsViewProps {
   onBack: () => void;

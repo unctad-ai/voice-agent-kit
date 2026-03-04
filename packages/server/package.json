@@ -1,5 +1,5 @@
 {
-  "name": "@voice-agent/server",
+  "name": "@unctad-ai/voice-agent-server",
   "version": "0.1.1",
   "type": "module",
   "main": "src/index.ts",
@@ -29,7 +29,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@voice-agent/core": "workspace:*"
+    "@unctad-ai/voice-agent-core": "workspace:*"
   },
   "peerDependencies": {
     "@ai-sdk/groq": "^3.0.0",

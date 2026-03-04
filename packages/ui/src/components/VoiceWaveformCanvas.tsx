@@ -5,8 +5,8 @@ import {
   WAVEFORM_MAX_BAR_HEIGHT,
   WAVEFORM_GAP,
   WAVEFORM_SMOOTHING,
-} from '@voice-agent/core';
-import type { OrbState } from '@voice-agent/core';
+} from '@unctad-ai/voice-agent-core';
+import type { OrbState } from '@unctad-ai/voice-agent-core';
 
 interface VoiceWaveformCanvasProps {
   analyserNode: AnalyserNode | null;
