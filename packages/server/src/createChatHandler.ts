@@ -2,6 +2,7 @@ import { streamText, convertToModelMessages, stepCountIs } from 'ai';
 import { createGroq } from '@ai-sdk/groq';
 import type { SiteConfig } from '@voice-agent/core';
 import type { Request, Response } from 'express';
+import type { ServerResponse } from 'node:http';
 import { buildSystemPrompt } from './systemPrompt.js';
 import { createBuiltinTools } from './builtinTools.js';
 import type { ClientState } from './systemPrompt.js';
@@ -44,7 +45,7 @@ export function createChatHandler(options: ChatHandlerOptions): (req: Request, r
         temperature: 0,
       });
 
-      result.pipeUIMessageStreamToResponse(res);
+      result.pipeUIMessageStreamToResponse(res as unknown as ServerResponse);
 
       // Consume the full text promise to catch async stream errors that would
       // otherwise crash the Node process as unhandled rejections.

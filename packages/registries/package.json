@@ -7,9 +7,15 @@
   "publishConfig": {
     "registry": "https://npm.pkg.github.com",
     "main": "dist/index.js",
-    "types": "dist/index.d.ts"
+    "types": "dist/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    }
   },
-  "files": ["dist", "src"],
+  "files": ["dist"],
   "repository": {
     "type": "git",
     "url": "https://github.com/unctad-ai/voice-agent-kit.git",
@@ -20,14 +26,13 @@
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {
-    "@voice-agent/core": "workspace:*"
-  },
   "peerDependencies": {
-    "react": ">=18"
+    "react": ">=18",
+    "@voice-agent/core": "workspace:*"
   },
   "devDependencies": {
     "react": "^19.2.4",
+    "@voice-agent/core": "workspace:*",
     "@types/react": "^19.0.0",
     "typescript": "^5.9.3"
   }
