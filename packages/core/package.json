@@ -15,7 +15,9 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/unctad-ai/voice-agent-kit.git",
@@ -30,17 +32,17 @@
     "@voice-agent/registries": "workspace:*"
   },
   "peerDependencies": {
-    "react": ">=18",
     "@ai-sdk/react": "^3.0.0",
     "ai": "^6.0.0",
+    "react": ">=18",
     "react-router": ">=6"
   },
   "devDependencies": {
-    "react": "^19.2.4",
-    "@ai-sdk/react": "^3.0.102",
-    "ai": "^6.0.100",
-    "react-router": "^7.0.0",
+    "@ai-sdk/react": "^3.0.114",
     "@types/react": "^19.0.0",
+    "ai": "^6.0.112",
+    "react": "^19.2.4",
+    "react-router": "^7.0.0",
     "typescript": "^5.9.3"
   }
 }

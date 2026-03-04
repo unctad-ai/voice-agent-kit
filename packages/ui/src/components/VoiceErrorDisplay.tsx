@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, Hourglass, Mic, MicOff, VolumeX, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '../utils';
 

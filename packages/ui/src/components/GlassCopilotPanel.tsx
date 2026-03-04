@@ -10,7 +10,7 @@ import {
   type ErrorInfo,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, X, Mic, ArrowUp, Keyboard, RotateCw, Settings, VolumeX } from 'lucide-react';
 import {
   useVoiceAgent,

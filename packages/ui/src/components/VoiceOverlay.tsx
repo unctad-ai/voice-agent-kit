@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { X } from 'lucide-react';
 import { useVoiceAgent, voiceStateToOrbState } from '@voice-agent/core';
 import { IDLE_TIMEOUT_MS, WIND_DOWN_MS, EXIT_ANIMATION_MS } from '@voice-agent/core';
