@@ -4,7 +4,7 @@
   "commit": false,
   "fixed": [["@unctad-ai/voice-agent-core", "@unctad-ai/voice-agent-registries", "@unctad-ai/voice-agent-ui", "@unctad-ai/voice-agent-server"]],
   "linked": [],
-  "access": "restricted",
+  "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
   "ignore": []
