@@ -20,7 +20,7 @@ jobs:
           registry-url: https://npm.pkg.github.com
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - run: pnpm validate
       - run: pnpm -r publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
