@@ -1,2 +1,1 @@
-// @voice-agent/core
-export {};
+export * from './types/index';
