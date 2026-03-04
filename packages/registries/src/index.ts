@@ -1,0 +1,2 @@
+// @voice-agent/registries
+export {};
