@@ -32,7 +32,7 @@ import {
 import type { OrbState, VoiceToolResult, VoiceState, VoiceMessage, PipelineTimings } from '@unctad-ai/voice-agent-core';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
 import AgentAvatar from './AgentAvatar';
-import './AgentAvatarFAB.css';
+import { injectAgentFabCSS } from './agentFabStyles';
 import VoiceTranscript from './VoiceTranscript';
 import VoiceToolCard from './VoiceToolCard';
 import VoiceErrorBoundary from './VoiceErrorBoundary';
@@ -903,6 +903,7 @@ function WiredPanelInner({
 // Main exported component
 // ---------------------------------------------------------------------------
 export default function GlassCopilotPanel({ isOpen, onOpen, onClose, onStateChange, portraitSrc }: GlassCopilotPanelProps) {
+  injectAgentFabCSS();
   const config = useSiteConfig();
   const resolvedPortrait = portraitSrc ?? config.avatarUrl;
   const [internalState, setInternalState] = useState<'collapsed' | 'expanded'>('collapsed');
