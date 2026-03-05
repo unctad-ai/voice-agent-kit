@@ -11,7 +11,7 @@ Built for government service portals (eRegistrations), but adaptable to any doma
 | [`@unctad-ai/voice-agent-core`](./packages/core) | Hooks, types, and configuration for the voice pipeline (VAD, audio, state management) |
 | [`@unctad-ai/voice-agent-ui`](./packages/ui) | Glass-morphism UI components — floating panel, orb, waveform, onboarding, settings |
 | [`@unctad-ai/voice-agent-registries`](./packages/registries) | Dynamic registries for form fields, UI actions, and client-side tool handlers |
-| [`@unctad-ai/voice-agent-server`](./packages/server) | Express route handlers for chat (Groq API), STT (Kyutai / Groq Whisper), and TTS (multiple providers) |
+| [`@unctad-ai/voice-agent-server`](./packages/server) | Express route handlers for chat, STT, and TTS with pluggable providers and automatic fallback chains |
 
 All packages are published to npm under the `@unctad-ai` scope and versioned together.
 
@@ -116,7 +116,7 @@ app.listen(3001);
 
 ```mermaid
 flowchart LR
-    subgraph CLIENT [" Browser "]
+    subgraph BROWSER [" Browser "]
         direction TB
         A["🎤 Mic → VAD → STT"]
         B["GlassCopilotPanel"]
@@ -133,20 +133,71 @@ flowchart LR
         S3["/api/tts"]
     end
 
+    subgraph PROVIDERS [" Providers "]
+        direction TB
+        P1["Kyutai STT\n(self-hosted)"]
+        P2["Groq API\n(cloud)"]
+        P3["TTS Engine\n(self-hosted or cloud)"]
+    end
+
     A -- "audio" --> S1
     S1 -- "text" --> A
     B -- "message" --> S2
     S2 -- "stream" --> B
     C -- "request" --> S3
     S3 -- "audio" --> C
+
+    S1 --> P1
+    S1 -.->|fallback| P2
+    S2 --> P2
+    S3 --> P3
 ```
 
 ### Voice Pipeline
 
 1. **VAD** — TenVAD runs in-browser via WebAssembly, detects when the user starts and stops speaking
-2. **STT** — Audio sent to server, transcribed via Kyutai (with Groq Whisper fallback) — configurable
-3. **LLM** — Transcript sent to Groq API (default model: `openai/gpt-oss-120b`) with tool calling for search, navigation, form filling
-4. **TTS** — LLM response streamed back as audio with barge-in support. Providers: Qwen3-TTS, Chatterbox Turbo, CosyVoice, Pocket TTS, Resemble — configurable with automatic fallback chains
+2. **STT** — Audio sent to server for transcription (see providers below)
+3. **LLM** — Transcript sent to Groq API with tool calling for search, navigation, form filling
+4. **TTS** — LLM response streamed back as audio with barge-in support (see providers below)
+
+### Providers
+
+Each stage of the pipeline uses a configurable provider set via environment variables.
+
+#### STT (Speech-to-Text)
+
+| Provider | Type | Set via | Notes |
+|----------|------|---------|-------|
+| **Kyutai** | Self-hosted | `STT_PROVIDER=kyutai` | Default. Runs as a sidecar container. Falls back to Groq Whisper on failure |
+| **Groq Whisper** | Cloud API | `STT_PROVIDER=groq` | Uses `whisper-large-v3-turbo` via Groq API. Also serves as automatic fallback for Kyutai |
+
+#### LLM (Chat)
+
+| Provider | Type | Set via | Notes |
+|----------|------|---------|-------|
+| **Groq** | Cloud API | `GROQ_API_KEY` | Default model: `openai/gpt-oss-120b`. Override with `GROQ_MODEL` |
+
+#### TTS (Text-to-Speech)
+
+Set with `TTS_PROVIDER`. Each self-hosted provider falls back to Pocket TTS, then to Resemble (cloud).
+
+| Provider | Type | Set via | Notes |
+|----------|------|---------|-------|
+| **Qwen3-TTS** | Self-hosted (GPU) | `TTS_PROVIDER=qwen3-tts` | Token-level streaming, ~200ms TTFA. Requires GPU server |
+| **Chatterbox Turbo** | Self-hosted (GPU) | `TTS_PROVIDER=chatterbox-turbo` | Sentence-level pipelining. Requires GPU server |
+| **CosyVoice** | Self-hosted (GPU) | `TTS_PROVIDER=cosyvoice` | Alibaba's voice synthesis. Requires GPU server |
+| **Pocket TTS** | Self-hosted (CPU) | `TTS_PROVIDER=pocket-tts` | Runs on CPU at ~0.5x realtime. Deployed as Docker sidecar. Middle fallback for GPU providers |
+| **Resemble** | Cloud API | `TTS_PROVIDER=resemble` | Resemble AI streaming API. Last-resort fallback for all other providers |
+
+#### Fallback Chains
+
+```
+qwen3-tts → pocket-tts → resemble
+chatterbox-turbo → pocket-tts → resemble
+cosyvoice → pocket-tts → resemble
+pocket-tts → resemble
+resemble (no fallback)
+```
 
 ## Registries
 
