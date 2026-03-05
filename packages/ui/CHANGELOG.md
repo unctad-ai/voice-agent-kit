@@ -1,5 +1,13 @@
 # @unctad-ai/voice-agent-ui
 
+## 0.1.2
+
+### Patch Changes
+
+- f02994e: Switch UI package to tsup bundler and inject CSS at runtime instead of requiring separate CSS imports
+  - @unctad-ai/voice-agent-core@0.1.2
+  - @unctad-ai/voice-agent-registries@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes
