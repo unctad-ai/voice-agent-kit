@@ -114,37 +114,41 @@ app.listen(3001);
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│  Browser                                            │
-│  ┌──────────┐  ┌───────────┐  ┌──────────────────┐ │
-│  │ VAD      │→ │ STT       │→ │ GlassCopilotPanel│ │
-│  │ (TenVAD) │  │ (Whisper) │  │ (UI + state)     │ │
-│  └──────────┘  └───────────┘  └────────┬─────────┘ │
-│                                        │            │
-│  ┌──────────┐  ┌───────────┐  ┌────────▼─────────┐ │
-│  │ Audio    │← │ TTS       │← │ LLM Chat         │ │
-│  │ Playback │  │ (stream)  │  │ (Groq + tools)   │ │
-│  └──────────┘  └───────────┘  └──────────────────┘ │
-└─────────────────────────────────────────────────────┘
-         ▲                              │
-         │         /api/stt             │  /api/chat
-         │         /api/tts             ▼
-┌─────────────────────────────────────────────────────┐
-│  Server (Express)                                   │
-│  ┌────────────┐ ┌────────────┐ ┌──────────────────┐│
-│  │ STT Handler│ │ TTS Handler│ │ Chat Handler     ││
-│  │ (Whisper)  │ │ (provider) │ │ (Groq + tools)   ││
-│  └────────────┘ └────────────┘ └──────────────────┘│
-└─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Browser
+        direction LR
+        MIC["🎤 Microphone"] --> VAD["VAD<br/><small>TenVAD · WebAssembly</small>"]
+        VAD -->|audio chunks| STT_C["STT Client"]
+        STT_C -->|transcript| PANEL["GlassCopilotPanel<br/><small>UI · state · tools</small>"]
+        PANEL -->|user message| CHAT_C["Chat Client"]
+        CHAT_C -->|AI response| TTS_C["TTS Client"]
+        TTS_C -->|audio stream| PLAY["🔊 Audio Playback<br/><small>barge-in support</small>"]
+
+        PANEL -.-|"form fills · navigation"| REG["Registries<br/><small>FormField · UIAction</small>"]
+    end
+
+    subgraph Server ["Server (Express)"]
+        direction LR
+        STT_H["/api/stt<br/><small>Whisper</small>"]
+        CHAT_H["/api/chat<br/><small>Groq · Llama · tools</small>"]
+        TTS_H["/api/tts<br/><small>streaming provider</small>"]
+    end
+
+    STT_C -->|"POST /api/stt"| STT_H
+    STT_H -->|transcript| STT_C
+    CHAT_C -->|"POST /api/chat"| CHAT_H
+    CHAT_H -->|"streamed response"| CHAT_C
+    TTS_C -->|"POST /api/tts"| TTS_H
+    TTS_H -->|"audio stream"| TTS_C
 ```
 
 ### Voice Pipeline
 
-1. **VAD** (Voice Activity Detection) — TenVAD runs in-browser, detects when the user is speaking
-2. **STT** (Speech-to-Text) — Audio chunks sent to server, transcribed via Whisper
-3. **LLM** — Transcript sent to Groq (Llama), which can call tools (search services, navigate, fill forms)
-4. **TTS** (Text-to-Speech) — LLM response streamed back as audio, played with barge-in support
+1. **VAD** — TenVAD runs in-browser via WebAssembly, detects when the user starts and stops speaking
+2. **STT** — Audio chunks are sent to the server and transcribed via Whisper
+3. **LLM** — Transcript is sent to Groq (Llama) which can call tools (search services, navigate pages, fill forms)
+4. **TTS** — LLM response is streamed back as audio with barge-in support (user can interrupt)
 
 ## Registries
 
