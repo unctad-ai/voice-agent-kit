@@ -11,7 +11,7 @@ Built for government service portals (eRegistrations), but adaptable to any doma
 | [`@unctad-ai/voice-agent-core`](./packages/core) | Hooks, types, and configuration for the voice pipeline (VAD, audio, state management) |
 | [`@unctad-ai/voice-agent-ui`](./packages/ui) | Glass-morphism UI components — floating panel, orb, waveform, onboarding, settings |
 | [`@unctad-ai/voice-agent-registries`](./packages/registries) | Dynamic registries for form fields, UI actions, and client-side tool handlers |
-| [`@unctad-ai/voice-agent-server`](./packages/server) | Express route handlers for chat (Groq API), STT (Kyutai / Groq Whisper), and TTS (Resemble) |
+| [`@unctad-ai/voice-agent-server`](./packages/server) | Express route handlers for chat (Groq API), STT (Kyutai / Groq Whisper), and TTS (multiple providers) |
 
 All packages are published to npm under the `@unctad-ai` scope and versioned together.
 
@@ -146,7 +146,7 @@ flowchart LR
 1. **VAD** — TenVAD runs in-browser via WebAssembly, detects when the user starts and stops speaking
 2. **STT** — Audio sent to server, transcribed via Kyutai (with Groq Whisper fallback) — configurable
 3. **LLM** — Transcript sent to Groq API (default model: `openai/gpt-oss-120b`) with tool calling for search, navigation, form filling
-4. **TTS** — LLM response streamed back as audio via Resemble AI with barge-in support (user can interrupt)
+4. **TTS** — LLM response streamed back as audio with barge-in support. Providers: Qwen3-TTS, Chatterbox Turbo, CosyVoice, Pocket TTS, Resemble — configurable with automatic fallback chains
 
 ## Registries
 
