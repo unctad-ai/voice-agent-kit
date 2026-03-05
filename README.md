@@ -115,32 +115,30 @@ app.listen(3001);
 ## Architecture
 
 ```mermaid
-flowchart TB
-    subgraph Browser
-        direction LR
-        MIC["🎤 Microphone"] --> VAD["VAD<br/><small>TenVAD · WebAssembly</small>"]
-        VAD -->|audio chunks| STT_C["STT Client"]
-        STT_C -->|transcript| PANEL["GlassCopilotPanel<br/><small>UI · state · tools</small>"]
-        PANEL -->|user message| CHAT_C["Chat Client"]
-        CHAT_C -->|AI response| TTS_C["TTS Client"]
-        TTS_C -->|audio stream| PLAY["🔊 Audio Playback<br/><small>barge-in support</small>"]
-
-        PANEL -.-|"form fills · navigation"| REG["Registries<br/><small>FormField · UIAction</small>"]
+flowchart LR
+    subgraph CLIENT [" Browser "]
+        direction TB
+        A["🎤 Mic → VAD → STT"]
+        B["GlassCopilotPanel"]
+        C["TTS → 🔊 Speaker"]
+        A -- transcript --> B
+        B -- AI response --> C
+        B -.- D["Registries\n(forms · navigation)"]
     end
 
-    subgraph Server ["Server (Express)"]
-        direction LR
-        STT_H["/api/stt<br/><small>Whisper</small>"]
-        CHAT_H["/api/chat<br/><small>Groq · Llama · tools</small>"]
-        TTS_H["/api/tts<br/><small>streaming provider</small>"]
+    subgraph SERVER [" Server · Express "]
+        direction TB
+        S1["/api/stt\nWhisper"]
+        S2["/api/chat\nGroq · Llama"]
+        S3["/api/tts\nStreaming"]
     end
 
-    STT_C -->|"POST /api/stt"| STT_H
-    STT_H -->|transcript| STT_C
-    CHAT_C -->|"POST /api/chat"| CHAT_H
-    CHAT_H -->|"streamed response"| CHAT_C
-    TTS_C -->|"POST /api/tts"| TTS_H
-    TTS_H -->|"audio stream"| TTS_C
+    A -- "audio" --> S1
+    S1 -- "text" --> A
+    B -- "message" --> S2
+    S2 -- "stream" --> B
+    C -- "request" --> S3
+    S3 -- "audio" --> C
 ```
 
 ### Voice Pipeline
