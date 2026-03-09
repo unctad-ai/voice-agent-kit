@@ -194,7 +194,7 @@ async function synthesizeWithResemble(
 export function createTtsHandler(options: TtsHandlerOptions): Router {
   const router = Router();
 
-  const ttsProvider = options.ttsProvider || 'resemble';
+  const ttsProvider = options.ttsProvider || 'qwen3-tts';
   const qwen3TtsUrl = options.qwen3TtsUrl || 'http://localhost:8005';
   const chatterboxTurboUrl = options.chatterboxTurboUrl || 'http://localhost:8004';
   const cosyVoiceTtsUrl = options.cosyVoiceTtsUrl || 'http://localhost:8004';

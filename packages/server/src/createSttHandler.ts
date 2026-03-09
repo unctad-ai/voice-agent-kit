@@ -5,7 +5,7 @@ import multer from 'multer';
 export interface SttHandlerOptions {
   groqApiKey?: string;
   sttProvider?: string;   // 'kyutai' | 'groq', default 'kyutai'
-  kyutaiSttUrl?: string;  // default 'http://localhost:8003'
+  kyutaiSttUrl?: string;
 }
 
 // --- Response type shared by both providers ---
