@@ -401,12 +401,18 @@ export function useVoiceAgent({
       if (roundTripCountRef.current > MAX_CLIENT_ROUND_TRIPS) return false;
       const last = msgs[msgs.length - 1];
       if (!last || last.role !== 'assistant') return false;
-      if ((last as any).id === lastAutoSendMsgIdRef.current) return false;
+      // Dedup key includes resolved tool count so successive client-tool
+      // round-trips on the same assistant message are not blocked.
+      const resolvedToolParts = (last as any).parts?.filter(
+        (p: any) => p.type?.startsWith?.('tool-') && p.state === 'output-available',
+      ).length ?? 0;
+      const sendKey = `${(last as any).id}:${resolvedToolParts}`;
+      if (sendKey === lastAutoSendMsgIdRef.current) return false;
       // Use the SDK's own check: filters providerExecuted (server) tools,
       // respects step boundaries, and verifies all client tool parts are resolved.
       const complete = lastAssistantMessageIsCompleteWithToolCalls({ messages: msgs });
       if (complete) {
-        lastAutoSendMsgIdRef.current = (last as any).id;
+        lastAutoSendMsgIdRef.current = sendKey;
         roundTripCountRef.current++;
         console.debug('[sendAutomaticallyWhen] follow-up #' + roundTripCountRef.current);
         return true;
