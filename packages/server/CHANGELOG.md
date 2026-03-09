@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 0.1.4
+
+### Patch Changes
+
+- 4d49081: Strengthen system prompt: agent must call getFormSchema after every fillFormFields and never declare a form complete without verifying no unfilled fields remain.
+  - @unctad-ai/voice-agent-core@0.1.4
+
 ## 0.1.3
 
 ### Patch Changes
