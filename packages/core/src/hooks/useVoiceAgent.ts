@@ -330,7 +330,7 @@ export function useVoiceAgent({
 
   const roundTripCountRef = useRef(0);
   const lastAutoSendMsgIdRef = useRef<string | null>(null);
-  const MAX_CLIENT_ROUND_TRIPS = 3;
+  const MAX_CLIENT_ROUND_TRIPS = 10;
   const NAVIGATION_TOOLS = ['navigateTo', 'viewService', 'startApplication'];
   // Client tools have no server-side `execute` — the client must provide results.
   // Server tools (searchServices, getServiceDetails, etc.) are already executed
