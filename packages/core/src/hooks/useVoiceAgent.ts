@@ -570,9 +570,10 @@ export function useVoiceAgent({
       // from the stream and must not be overwritten via addToolOutput.
       if (!isClientTool) return;
 
-      roundTripCountRef.current++;
-      if (roundTripCountRef.current > MAX_CLIENT_ROUND_TRIPS) {
-        console.warn(`[VoiceAgent] Client round-trip limit reached`);
+      if (roundTripCountRef.current >= MAX_CLIENT_ROUND_TRIPS) {
+        console.warn(
+          `[VoiceAgent] Client round-trip limit reached (${roundTripCountRef.current}/${MAX_CLIENT_ROUND_TRIPS})`
+        );
         return;
       }
 
