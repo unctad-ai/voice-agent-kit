@@ -97,6 +97,7 @@ function CopilotFAB({ onClick, portraitSrc }: { onClick: () => void; portraitSrc
         height: 54,
       }}
       aria-label="Open voice assistant"
+      data-testid="voice-agent-fab"
     >
       <div className="agent-fab-border" style={{ width: 54, height: 54, '--agent-primary': colors.primary } as React.CSSProperties}>
         <div className="agent-fab-border-inner">
@@ -173,6 +174,7 @@ function CollapsedBar({
       style={{ padding: '0 16px' }}
       role="button"
       tabIndex={0}
+      data-testid="voice-agent-bar"
       onClick={onExpand}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -447,6 +449,7 @@ function ComposerBar({
                 color: isListening ? 'white' : 'rgba(0,0,0,0.5)',
               }}
               aria-label={isListening ? 'Stop listening' : 'Start listening'}
+              data-testid="voice-agent-mic"
             >
               {isListening && (
                 <motion.span
@@ -498,6 +501,7 @@ function ComposerBar({
                 color: 'rgba(0,0,0,0.4)',
               }}
               aria-label="Type a message"
+              data-testid="voice-agent-keyboard"
             >
               <Keyboard style={{ width: 18, height: 18 }} />
             </motion.button>
@@ -548,6 +552,7 @@ function ComposerBar({
                 }}
                 placeholder="Ask about services..."
                 aria-label="Type your question"
+                data-testid="voice-agent-input"
                 className="w-full font-[DM_Sans]"
                 style={{
                   fontSize: '14px',
@@ -577,6 +582,7 @@ function ComposerBar({
                     color: 'white',
                   }}
                   aria-label="Send message"
+                  data-testid="voice-agent-send"
                 >
                   <ArrowUp style={{ width: 18, height: 18 }} />
                 </motion.button>
@@ -595,6 +601,7 @@ function ComposerBar({
                 color: 'rgba(0,0,0,0.4)',
               }}
               aria-label="Back to voice mode"
+              data-testid="voice-agent-voice-mode"
             >
               <Mic style={{ width: 18, height: 18 }} />
             </motion.button>
@@ -666,7 +673,7 @@ function ExpandedContent({
 
         <div className="flex-1 min-w-0">
           <p className="font-[DM_Sans] truncate" style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>{copilotName}</p>
-          <p className="font-[DM_Sans] truncate" style={{ fontSize: '12px', fontWeight: 400, color: isOffline ? 'rgba(220,38,38,0.7)' : 'rgba(0,0,0,0.42)', letterSpacing: '0.01em' }}>
+          <p className="font-[DM_Sans] truncate" data-testid="voice-agent-status" style={{ fontSize: '12px', fontWeight: 400, color: isOffline ? 'rgba(220,38,38,0.7)' : 'rgba(0,0,0,0.42)', letterSpacing: '0.01em' }}>
             {isOffline ? (
               <span className="inline-flex items-center gap-1">
                 Offline
@@ -691,19 +698,20 @@ function ExpandedContent({
             backgroundColor: showSettings ? `${colors.primary}14` : 'rgba(0,0,0,0.05)',
           }}
           aria-label={showSettings ? 'Close settings' : 'Open settings'}
+          data-testid="voice-agent-settings"
         >
           <Settings style={{ width: 16, height: 16 }} />
         </button>
-        <button onClick={onCollapse} className="shrink-0 rounded-full transition-colors cursor-pointer" style={{ color: 'rgba(0,0,0,0.4)', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.05)' }} aria-label="Minimize panel">
+        <button onClick={onCollapse} className="shrink-0 rounded-full transition-colors cursor-pointer" style={{ color: 'rgba(0,0,0,0.4)', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.05)' }} aria-label="Minimize panel" data-testid="voice-agent-minimize">
           <ChevronDown style={{ width: 16, height: 16 }} />
         </button>
-        <button onClick={onClose} className="shrink-0 rounded-full transition-colors cursor-pointer" style={{ color: 'rgba(0,0,0,0.4)', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.05)' }} aria-label="Close voice assistant">
+        <button onClick={onClose} className="shrink-0 rounded-full transition-colors cursor-pointer" style={{ color: 'rgba(0,0,0,0.4)', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.05)' }} aria-label="Close voice assistant" data-testid="voice-agent-close">
           <X style={{ width: 16, height: 16 }} />
         </button>
       </motion.div>
 
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <VoiceTranscript messages={messages} isTyping={isTyping} variant="panel" voiceError={voiceError} />
+        <div data-testid="voice-agent-transcript"><VoiceTranscript messages={messages} isTyping={isTyping} variant="panel" voiceError={voiceError} /></div>
         <div className="shrink-0">
           <PipelineMetricsBar timings={lastTimings ?? null} show={showPipelineMetrics} autoHideMs={pipelineMetricsAutoHideMs} />
           {isOffline && onRetry && (
@@ -953,7 +961,7 @@ export default function GlassCopilotPanel({ isOpen, onOpen, onClose, onStateChan
         )}
 
         {isVisible && (
-          <motion.div ref={panelRef} tabIndex={-1} key="copilot-panel" role="dialog" aria-label="Voice Assistant" aria-modal="false"
+          <motion.div ref={panelRef} tabIndex={-1} key="copilot-panel" role="dialog" aria-label="Voice Assistant" aria-modal="false" data-testid="voice-agent-panel"
             initial={{ width: 48, height: 48, borderRadius: 24, opacity: 0, scale: 0.9 }}
             animate={{ width: PANEL_WIDTH, height: Math.min(targetHeight, window.innerHeight - 48), borderRadius: PANEL_BORDER_RADIUS, opacity: 1, scale: 1, transition: SPRING_PANEL }}
             exit={{ width: 48, height: 48, borderRadius: 24, opacity: 0, scale: 0.95, transition: SPRING_PANEL_EXIT }}

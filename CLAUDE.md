@@ -52,7 +52,7 @@ Client tools trigger `sendAutomaticallyWhen` to send follow-up requests with too
 
 ### Multi-Step Client Tool Flow
 
-When the LLM chains client tools (e.g. `fillFormFields` → `getFormSchema`), each tool call appends to the **same** assistant message. The dedup guard in `sendAutomaticallyWhen` uses `${messageId}:${resolvedToolCount}` as key (not just message ID) to allow successive follow-ups on the same message. The `roundTripCountRef` (max 3) prevents infinite loops.
+When the LLM chains client tools (e.g. `fillFormFields` → `getFormSchema`), each tool call appends to the **same** assistant message. The dedup guard in `sendAutomaticallyWhen` uses `${messageId}:${resolvedToolCount}` as key (not just message ID) to allow successive follow-ups on the same message. The `roundTripCountRef` (max 25) prevents infinite loops.
 
 ### TTS/STT Provider Defaults
 
@@ -82,3 +82,31 @@ CLIENT_API_KEY=...
 - `SiteConfig` is the single configuration object shared between client and server
 - Server-side `voice-config.ts` can add `extraServerTools` to SiteConfig for domain-specific tools
 - The `registries` package provides `createClientToolHandler` — consuming apps shouldn't reimplement tool handling
+
+## Browser Automation Test IDs
+
+The `ui` package exposes `data-testid` attributes on key elements for reliable browser automation (Chrome DevTools Protocol, Playwright, etc.):
+
+| Test ID | Element | Location |
+|---------|---------|----------|
+| `voice-agent-fab` | Floating action button (opens panel) | Always visible when panel is closed |
+| `voice-agent-bar` | Collapsed bar (click to expand) | Visible when panel is collapsed |
+| `voice-agent-panel` | Main dialog container | Visible when panel is expanded |
+| `voice-agent-mic` | Microphone / voice orb button | Inside expanded panel |
+| `voice-agent-keyboard` | "Type a message" button | Inside expanded panel (voice mode) |
+| `voice-agent-input` | Text input field | Inside expanded panel (keyboard mode) |
+| `voice-agent-send` | Send message button | Inside expanded panel (keyboard mode) |
+| `voice-agent-voice-mode` | "Back to voice" button | Inside expanded panel (keyboard mode) |
+| `voice-agent-status` | Status text (e.g. "Listening", "Processing") | Inside expanded panel header |
+| `voice-agent-settings` | Settings gear button | Inside expanded panel header |
+| `voice-agent-minimize` | Minimize/collapse button | Inside expanded panel header |
+| `voice-agent-close` | Close button | Inside expanded panel header |
+| `voice-agent-transcript` | Transcript/messages container | Inside expanded panel |
+
+**Usage in browser automation:**
+```javascript
+// Click to open the panel
+document.querySelector('[data-testid="voice-agent-fab"]').click();
+// Or with CDP:
+// {action: "click", selector: "[data-testid='voice-agent-fab']"}
+```
