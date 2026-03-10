@@ -70,7 +70,12 @@ export function UIActionRegistryProvider({ children }: { children: ReactNode }) 
       },
       execute(id: string, params?: Record<string, unknown>) {
         const action = actionsRef.current.get(id);
-        if (!action) return `Action "${id}" not found`;
+        if (!action) {
+          const available = Array.from(actionsRef.current.keys());
+          return available.length > 0
+            ? `Action "${id}" not found. Available actions: ${available.join(', ')}`
+            : `Action "${id}" not found. No UI actions are registered on this page.`;
+        }
         return action.handler(params);
       },
       getActions() {

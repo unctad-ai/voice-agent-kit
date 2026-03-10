@@ -344,6 +344,7 @@ export function useVoiceAgent({
     'fillFormFields',
   ]);
   const actionSeqRef = useRef(0);
+  const processedToolCallsRef = useRef(new Set<string>());
 
   const {
     messages: chatMessages,
@@ -542,6 +543,13 @@ export function useVoiceAgent({
       }
     },
     async onToolCall({ toolCall }) {
+      // Guard: skip tool calls we've already processed. The SDK fires onToolCall
+      // for every tool invocation in the messages array on each re-render, not
+      // just new ones. Without this guard, historical tool calls replay and
+      // flood sendAutomaticallyWhen with spurious evaluations.
+      if (processedToolCallsRef.current.has(toolCall.toolCallId)) return;
+      processedToolCallsRef.current.add(toolCall.toolCallId);
+
       console.debug(
         '[onToolCall]',
         toolCall.toolName,
@@ -1159,6 +1167,25 @@ export function useVoiceAgent({
     },
     [chatSendMessage]
   );
+
+  // Safety net: if the SDK is idle (chatStatus === 'ready') but the voice state
+  // is stuck on PROCESSING for too long, recover to IDLE. This catches edge
+  // cases where sendAutomaticallyWhen fails to fire the next follow-up (e.g.
+  // dedup race, server stream ending without text on the last response).
+  useEffect(() => {
+    if (chatStatus !== 'ready' || stateRef.current !== 'PROCESSING') return;
+    const timer = setTimeout(() => {
+      if (chatStatus === 'ready' && stateRef.current === 'PROCESSING') {
+        console.warn('[VoiceAgent] Recovering from stale PROCESSING state (SDK is idle)');
+        const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
+        textPipelineRef.current = false;
+        stateRef.current = nextState;
+        setState(nextState);
+        processingRef.current = false;
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [chatStatus, state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     state,
