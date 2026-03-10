@@ -398,7 +398,7 @@ export function useVoiceAgent({
     // invocation in the last assistant message has resolved, the SDK sends the
     // results back to the model for the next step.
     sendAutomaticallyWhen({ messages: msgs }) {
-      if (roundTripCountRef.current > MAX_CLIENT_ROUND_TRIPS) return false;
+      if (roundTripCountRef.current >= MAX_CLIENT_ROUND_TRIPS) return false;
       const last = msgs[msgs.length - 1];
       if (!last || last.role !== 'assistant') return false;
       // Dedup key includes resolved tool count so successive client-tool
