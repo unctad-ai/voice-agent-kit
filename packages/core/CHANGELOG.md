@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 0.1.5
+
+### Patch Changes
+
+- 4e4c7f2: Fix client tool round-trip counter that prevented multi-step form filling. The counter was double-incrementing (in both onToolCall and sendAutomaticallyWhen), exhausting the budget of 3 after just one fill cycle. Now counts only actual HTTP round-trips, raised limit to 25, and provides a graceful fallback instead of silently freezing.
+  - @unctad-ai/voice-agent-registries@0.1.5
+
 ## 0.1.4
 
 ### Patch Changes
