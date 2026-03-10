@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
 import { VAD, useSiteConfig } from '@unctad-ai/voice-agent-core';
+import { PersonaSettings } from './PersonaSettings.js';
 
 interface VoiceSettingsViewProps {
   onBack: () => void;
@@ -45,7 +46,7 @@ function bargeInLabel(v: number): string {
 }
 
 /** Slider setting row */
-function SliderSetting({
+export function SliderSetting({
   icon,
   label,
   value,
@@ -86,7 +87,7 @@ function SliderSetting({
 }
 
 /** Toggle setting row */
-function ToggleSetting({
+export function ToggleSetting({
   icon,
   label,
   description,
@@ -143,7 +144,7 @@ function ToggleSetting({
 }
 
 /** Select setting row */
-function SelectSetting({
+export function SelectSetting({
   icon,
   label,
   value,
@@ -205,7 +206,8 @@ function SelectSetting({
 
 export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSettingsViewProps) {
   const { settings, updateSetting, resetSettings } = useVoiceSettings();
-  const { colors } = useSiteConfig();
+  const config = useSiteConfig();
+  const { colors } = config;
   const iconClass = 'w-4 h-4 shrink-0';
   const iconStyle = { color: colors.primary };
 
@@ -259,6 +261,16 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
 
       {/* Scrollable content */}
       <div className="flex-1 min-h-0 overflow-y-auto">
+        {/* Agent Persona */}
+        {config.personaEndpoint && (
+          <>
+            <SettingsSection title="Agent Persona">
+              <PersonaSettings />
+            </SettingsSection>
+            <Divider />
+          </>
+        )}
+
         {/* Voice Input */}
         <SettingsSection title="Voice Input">
           <ToggleSetting
@@ -481,7 +493,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
   );
 }
 
-function SettingsSection({
+export function SettingsSection({
   title,
   children,
   last,
@@ -503,6 +515,6 @@ function SettingsSection({
   );
 }
 
-function Divider() {
+export function Divider() {
   return <div style={{ height: 1, backgroundColor: '#f3f4f6' }} />;
 }
