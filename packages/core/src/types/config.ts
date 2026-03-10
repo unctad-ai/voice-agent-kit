@@ -61,4 +61,7 @@ export interface SiteConfig {
   avatarUrl?: string;
   extraServerTools?: Record<string, unknown>;
   thresholdOverrides?: Partial<VoiceThresholds>;
+
+  /** Base path for persona API (e.g., '/api/agent'). Enables admin persona settings. */
+  personaEndpoint?: string;
 }
