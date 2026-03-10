@@ -574,6 +574,15 @@ export function useVoiceAgent({
         console.warn(
           `[VoiceAgent] Client round-trip limit reached (${roundTripCountRef.current}/${MAX_CLIENT_ROUND_TRIPS})`
         );
+        // Provide a synthetic tool output so the SDK doesn't hang waiting for it.
+        // The model will see this and can respond to the user instead of stalling.
+        chatAddToolOutput({
+          toolCallId: toolCall.toolCallId,
+          tool: toolCall.toolName,
+          output: JSON.stringify({
+            error: 'Round-trip limit reached. Ask the user to continue with the next step.',
+          }),
+        });
         return;
       }
 
