@@ -1,5 +1,13 @@
 # @unctad-ai/voice-agent-ui
 
+## 0.1.6
+
+### Patch Changes
+
+- ec49451: Add data-testid attributes to GlassCopilotPanel components for browser automation testing
+  - @unctad-ai/voice-agent-core@0.1.6
+  - @unctad-ai/voice-agent-registries@0.1.6
+
 ## 0.1.5
 
 ### Patch Changes
