@@ -1,5 +1,6 @@
 export * from './types/index';
 export { SiteConfigProvider, useSiteConfig } from './contexts/SiteConfigContext';
+export { usePersonaContext } from './contexts/SiteConfigContext';
 export * from './config/defaults';
 export { useVoiceAgent } from './hooks/useVoiceAgent';
 export type { UseVoiceAgentOptions, PipelineTimings } from './hooks/useVoiceAgent';
@@ -8,6 +9,9 @@ export type { UseTenVADOptions } from './hooks/useTenVAD';
 export { useAudioPlayback } from './hooks/useAudioPlayback';
 export type { UseAudioPlaybackOptions } from './hooks/useAudioPlayback';
 export * from './services/voiceApi';
+export { PersonaApi } from './services/personaApi';
+export type { PersonaData, VoiceEntry } from './services/personaApi';
+export type { UsePersonaResult } from './hooks/usePersona';
 export { float32ToWav } from './utils/audioUtils';
 export { parseWavHeader, pcmToFloat32 } from './utils/wavParser';
 export type { WavHeader } from './utils/wavParser';
