@@ -17,9 +17,11 @@ export function usePersona(endpoint: string | undefined): UsePersonaResult {
   const [persona, setPersona] = useState<PersonaData | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const apiRef = useRef<PersonaApi | null>(null);
+  const endpointRef = useRef<string | undefined>(undefined);
 
-  if (endpoint && (!apiRef.current || (apiRef.current as any).endpoint !== endpoint)) {
+  if (endpoint && endpoint !== endpointRef.current) {
     apiRef.current = new PersonaApi(endpoint);
+    endpointRef.current = endpoint;
   }
 
   const refresh = useCallback(async () => {

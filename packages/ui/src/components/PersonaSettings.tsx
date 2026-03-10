@@ -12,6 +12,7 @@ export function PersonaSettings() {
 function PersonaSettingsInner() {
   const config = useSiteConfig();
   const persona = usePersonaContext();
+  if (!persona) return null;
   const { persona: data, isLoaded, updateName, uploadAvatar, uploadVoice, deleteVoice, setActiveVoice, previewVoice } = persona;
 
   if (!isLoaded) {
@@ -202,7 +203,7 @@ function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onP
             {previewing === v.id ? 'Playing...' : 'Preview'}
           </button>
           <button
-            onClick={() => onDelete(v.id)}
+            onClick={() => { if (confirm(`Delete voice "${v.name}"?`)) onDelete(v.id); }}
             className="text-xs text-red-500 hover:text-red-700 cursor-pointer"
           >
             Delete

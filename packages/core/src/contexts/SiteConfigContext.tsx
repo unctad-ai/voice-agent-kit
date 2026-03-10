@@ -40,10 +40,6 @@ export function useSiteConfig(): SiteConfig {
   return config;
 }
 
-export function usePersonaContext(): UsePersonaResult {
-  const ctx = useContext(PersonaContext);
-  if (!ctx) {
-    throw new Error('usePersonaContext must be used within a SiteConfigProvider');
-  }
-  return ctx;
+export function usePersonaContext(): UsePersonaResult | null {
+  return useContext(PersonaContext);
 }
