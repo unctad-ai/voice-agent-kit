@@ -1079,6 +1079,7 @@ export function useVoiceAgent({
     setChatMessages([]);
     roundTripCountRef.current = 0;
     actionSeqRef.current = 0;
+    processedToolCallsRef.current.clear();
     setState('LISTENING');
     vad.start();
 
