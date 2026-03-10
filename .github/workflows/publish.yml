@@ -5,7 +5,7 @@ on:
 
 jobs:
   publish:
-    runs-on: heavy-2
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
