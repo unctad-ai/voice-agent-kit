@@ -19,7 +19,8 @@ pnpm typecheck            # Type-check all packages
 pnpm changeset            # Describe changes (interactive — picks affected packages)
 git add . && git commit   # Commit the changeset
 ./scripts/release.sh      # Bumps versions, validates, tags, pushes → CI publishes
-./scripts/release.sh --yes  # Skip confirmation (AI-friendly, requires existing changeset)
+./scripts/release.sh --yes  # Skip confirmation (AI-friendly, blocks major bumps)
+./scripts/release.sh --yes --major  # Allow major bump with --yes (explicit intent)
 ```
 
 **Rules:**

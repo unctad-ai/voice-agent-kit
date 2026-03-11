@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# release.sh — Create changeset, bump versions, validate, tag, and push.
+# release.sh — Bump versions via changesets, validate, tag, and push.
 # CI (publish.yml) handles npm publish on v* tags.
 #
-# Usage: ./scripts/release.sh [patch|minor] [--yes]
-#   patch  — bugfix (0.1.2 → 0.1.3)   [default]
-#   minor  — feature (0.1.2 → 0.2.0)
-#   --yes  — skip confirmation (AI-friendly)
+# Usage: ./scripts/release.sh [--yes] [--major]
+#   --yes    — skip confirmation (AI-friendly), but still blocks major bumps
+#   --major  — allow major version bumps with --yes (requires explicit intent)
+#
+# The bump type (patch/minor/major) is determined by the changeset files,
+# not by CLI arguments. Run `pnpm changeset` first to create a changeset.
 #
 # Prerequisites: pnpm, gh (optional, for GitHub release)
 
@@ -64,13 +66,13 @@ pre_release_checks() {
 
 main() {
   local auto_confirm=false
-  local bump_type="patch"
+  local allow_major=false
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       -y|--yes) auto_confirm=true; shift ;;
-      patch|minor) bump_type="$1"; shift ;;
-      *) echo "Usage: $0 [patch|minor] [--yes]"; exit 1 ;;
+      --major) allow_major=true; shift ;;
+      *) echo "Usage: $0 [--yes] [--major]"; exit 1 ;;
     esac
   done
 
@@ -103,10 +105,37 @@ main() {
   local new_version
   new_version=$(get_version)
 
+  # Detect bump type by comparing semver components
+  local cur_major cur_minor new_major new_minor
+  cur_major="${current_version%%.*}"
+  cur_minor="${current_version#*.}"; cur_minor="${cur_minor%%.*}"
+  new_major="${new_version%%.*}"
+  new_minor="${new_version#*.}"; new_minor="${new_minor%%.*}"
+
+  local detected_bump="patch"
+  if [[ "$new_major" -gt "$cur_major" ]]; then
+    detected_bump="major"
+  elif [[ "$new_minor" -gt "$cur_minor" ]]; then
+    detected_bump="minor"
+  fi
+
   echo ""
   echo -e "${YELLOW}Current:${NC} $current_version"
-  echo -e "${GREEN}New:${NC}     $new_version"
+  echo -e "${GREEN}New:${NC}     $new_version (${detected_bump} bump)"
   echo ""
+
+  # Guard: major bumps always require explicit confirmation
+  if [[ "$detected_bump" == "major" ]]; then
+    echo -e "${YELLOW}⚠  Major version bump detected ($current_version → $new_version)${NC}"
+    echo -e "${YELLOW}   This usually means a breaking change. If unintentional, abort and fix the changeset.${NC}"
+    echo ""
+    if [[ "$auto_confirm" == true && "$allow_major" != true ]]; then
+      echo -e "${RED}Major bumps cannot be auto-confirmed (--yes). Confirm manually.${NC}"
+      echo -e "${RED}Run without --yes, or use --yes --major to explicitly allow.${NC}"
+      git checkout -- .
+      exit 1
+    fi
+  fi
 
   # Show what changed
   echo -e "${BLUE}Changes since v$current_version:${NC}"
