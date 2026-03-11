@@ -110,12 +110,32 @@ function ToggleSetting({
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer"
-        style={{ backgroundColor: checked ? 'var(--voice-settings-accent, #DB2129)' : '#d1d5db' }}
+        style={{
+          position: 'relative',
+          display: 'inline-flex',
+          alignItems: 'center',
+          width: 44,
+          height: 24,
+          borderRadius: 9999,
+          backgroundColor: checked ? 'var(--voice-settings-accent, #DB2129)' : '#d1d5db',
+          border: 'none',
+          padding: 0,
+          cursor: 'pointer',
+          transition: 'background-color 0.2s',
+          flexShrink: 0,
+        }}
       >
         <span
-          className="inline-block h-5 w-5 rounded-full bg-white shadow transition-transform"
-          style={{ transform: checked ? 'translateX(22px)' : 'translateX(2px)' }}
+          style={{
+            display: 'inline-block',
+            width: 20,
+            height: 20,
+            borderRadius: 9999,
+            backgroundColor: '#fff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            transition: 'transform 0.2s',
+            transform: checked ? 'translateX(22px)' : 'translateX(2px)',
+          }}
         />
       </button>
     </label>
@@ -143,8 +163,31 @@ function SelectSetting({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-8 text-xs font-medium text-neutral-700 rounded-full border border-neutral-200 bg-neutral-50 pl-3 pr-7 outline-none appearance-none cursor-pointer hover:border-neutral-300 hover:bg-neutral-100 focus:border-neutral-400 transition-colors"
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = '#d1d5db';
+          e.currentTarget.style.backgroundColor = '#f3f4f6';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = '#e5e7eb';
+          e.currentTarget.style.backgroundColor = '#f9fafb';
+        }}
+        onFocus={(e) => { e.currentTarget.style.borderColor = '#9ca3af'; }}
+        onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; }}
         style={{
+          height: 32,
+          fontSize: 12,
+          fontWeight: 500,
+          color: '#374151',
+          borderRadius: 9999,
+          border: '1px solid #e5e7eb',
+          backgroundColor: '#f9fafb',
+          paddingLeft: 12,
+          paddingRight: 28,
+          outline: 'none',
+          WebkitAppearance: 'none',
+          appearance: 'none',
+          cursor: 'pointer',
+          transition: 'border-color 0.15s, background-color 0.15s',
           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
           backgroundRepeat: 'no-repeat',
           backgroundPosition: 'right 8px center',

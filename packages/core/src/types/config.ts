@@ -44,6 +44,8 @@ export interface SiteConfig {
 
   // Branding
   colors: SiteColors;
+  /** Font family for the entire voice UI. Defaults to 'DM Sans, sans-serif'. */
+  fontFamily?: string;
 
   // Domain data
   services: ServiceBase[];

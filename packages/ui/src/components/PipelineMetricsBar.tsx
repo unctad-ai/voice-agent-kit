@@ -71,7 +71,7 @@ export default function PipelineMetricsBar({
             height: 28,
             padding: '0 16px',
             fontSize: 11,
-            fontFamily: 'DM Sans, sans-serif',
+            fontFamily: 'inherit',
             fontVariantNumeric: 'tabular-nums',
             borderTop: '1px solid rgba(0,0,0,0.06)',
             background: 'rgba(0,0,0,0.03)',

@@ -81,7 +81,7 @@ export default function VoiceToolCard({
                 style={{ width: 14, height: 14, color: 'rgba(0,0,0,0.5)' }}
               />
               <span
-                className="font-[DM_Sans] truncate"
+                className="truncate"
                 style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(0,0,0,0.7)' }}
               >
                 {result.displayText}

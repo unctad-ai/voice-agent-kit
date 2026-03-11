@@ -28,6 +28,7 @@ import {
   SPRING_PANEL,
   SPRING_MICRO,
   SPRING_PANEL_EXIT,
+  DEFAULT_FONT_FAMILY,
 } from '@unctad-ai/voice-agent-core';
 import type { OrbState, VoiceToolResult, VoiceState, VoiceMessage, PipelineTimings } from '@unctad-ai/voice-agent-core';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
@@ -210,13 +211,13 @@ function CollapsedBar({
       {/* Title */}
       <div className="flex-1 min-w-0">
         <p
-          className="font-[DM_Sans] truncate"
+          className="truncate"
           style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}
         >
           {copilotName}
         </p>
         <p
-          className="font-[DM_Sans] truncate"
+          className="truncate"
           style={{
             fontSize: '12px',
             fontWeight: 400,
@@ -411,7 +412,7 @@ function ComposerBar({
           <Mic style={{ width: 18, height: 18 }} />
         </div>
         <span
-          className="font-[DM_Sans] italic"
+          className="italic"
           style={{ fontSize: '13px', color: 'rgba(0,0,0,0.3)' }}
         >
           Service unavailable
@@ -470,7 +471,7 @@ function ComposerBar({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.15 }}
-                  className="font-[DM_Sans] truncate"
+                  className="truncate"
                   style={{
                     fontSize: '14px',
                     fontWeight: 400,
@@ -553,7 +554,7 @@ function ComposerBar({
                 placeholder="Ask about services..."
                 aria-label="Type your question"
                 data-testid="voice-agent-input"
-                className="w-full font-[DM_Sans]"
+                className="w-full"
                 style={{
                   fontSize: '14px',
                   color: '#1a1a1a',
@@ -672,8 +673,8 @@ function ExpandedContent({
         </motion.div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-[DM_Sans] truncate" style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>{copilotName}</p>
-          <p className="font-[DM_Sans] truncate" data-testid="voice-agent-status" style={{ fontSize: '12px', fontWeight: 400, color: isOffline ? 'rgba(220,38,38,0.7)' : 'rgba(0,0,0,0.42)', letterSpacing: '0.01em' }}>
+          <p className="truncate" style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a1a' }}>{copilotName}</p>
+          <p className="truncate" data-testid="voice-agent-status" style={{ fontSize: '12px', fontWeight: 400, color: isOffline ? 'rgba(220,38,38,0.7)' : 'rgba(0,0,0,0.42)', letterSpacing: '0.01em' }}>
             {isOffline ? (
               <span className="inline-flex items-center gap-1">
                 Offline
@@ -716,7 +717,7 @@ function ExpandedContent({
           <PipelineMetricsBar timings={lastTimings ?? null} show={showPipelineMetrics} autoHideMs={pipelineMetricsAutoHideMs} />
           {isOffline && onRetry && (
             <div style={{ padding: '0 16px 8px', display: 'flex', justifyContent: 'center' }}>
-              <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={onRetry} disabled={isRetrying} className="inline-flex items-center gap-2 rounded-full cursor-pointer transition-colors" style={{ padding: '8px 18px', fontSize: '13px', fontWeight: 500, fontFamily: 'DM Sans, sans-serif', color: isRetrying ? 'rgba(0,0,0,0.35)' : 'rgba(220,38,38,0.8)', backgroundColor: isRetrying ? 'rgba(0,0,0,0.04)' : 'rgba(220,38,38,0.08)', border: '1px solid', borderColor: isRetrying ? 'rgba(0,0,0,0.06)' : 'rgba(220,38,38,0.15)' }} aria-label="Retry connection">
+              <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }} onClick={onRetry} disabled={isRetrying} className="inline-flex items-center gap-2 rounded-full cursor-pointer transition-colors" style={{ padding: '8px 18px', fontSize: '13px', fontWeight: 500, color: isRetrying ? 'rgba(0,0,0,0.35)' : 'rgba(220,38,38,0.8)', backgroundColor: isRetrying ? 'rgba(0,0,0,0.04)' : 'rgba(220,38,38,0.08)', border: '1px solid', borderColor: isRetrying ? 'rgba(0,0,0,0.06)' : 'rgba(220,38,38,0.15)' }} aria-label="Retry connection">
                 <motion.span animate={isRetrying ? { rotate: 360 } : { rotate: 0 }} transition={isRetrying ? { duration: 0.8, repeat: Infinity, ease: 'linear' } : { duration: 0.3 }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <RotateCw style={{ width: 14, height: 14 }} />
                 </motion.span>
@@ -966,7 +967,7 @@ export default function GlassCopilotPanel({ isOpen, onOpen, onClose, onStateChan
             animate={{ width: PANEL_WIDTH, height: Math.min(targetHeight, window.innerHeight - 48), borderRadius: PANEL_BORDER_RADIUS, opacity: 1, scale: 1, transition: SPRING_PANEL }}
             exit={{ width: 48, height: 48, borderRadius: 24, opacity: 0, scale: 0.95, transition: SPRING_PANEL_EXIT }}
             className="fixed"
-            style={{ bottom: PANEL_BOTTOM, right: PANEL_RIGHT, zIndex: PANEL_Z_INDEX, transformOrigin: 'bottom right', maxWidth: 'calc(100vw - 32px)', outline: 'none' }}
+            style={{ bottom: PANEL_BOTTOM, right: PANEL_RIGHT, zIndex: PANEL_Z_INDEX, transformOrigin: 'bottom right', maxWidth: 'calc(100vw - 32px)', outline: 'none', fontFamily: config.fontFamily ?? DEFAULT_FONT_FAMILY }}
           >
             <div className="absolute inset-0 pointer-events-none" style={{ borderRadius: PANEL_BORDER_RADIUS, overflow: 'hidden', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', filter: 'url(#liquid-glass-panel)', isolation: 'isolate' }} />
             <div className="absolute inset-0 pointer-events-none" style={{ borderRadius: PANEL_BORDER_RADIUS, overflow: 'hidden', backdropFilter: 'blur(14px) saturate(1.4)', WebkitBackdropFilter: 'blur(14px) saturate(1.4)', backgroundColor: 'rgba(230,232,245,0.32)', border: '1px solid rgba(255,255,255,0.4)', boxShadow: 'inset 0 0 20px -5px rgba(255,255,255,0.3), inset 0 1px 0 0 rgba(255,255,255,0.8), 0 0 0 1px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.14), 0 24px 48px rgba(0,0,0,0.10)' }} />

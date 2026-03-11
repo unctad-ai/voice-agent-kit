@@ -1,7 +1,7 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { createNoise3D } from 'simplex-noise';
 import { ORB_NUM_POINTS, ORB_LERP_SPEED, useSiteConfig } from '@unctad-ai/voice-agent-core';
-import type { OrbState } from '@unctad-ai/voice-agent-core';
+import type { OrbState, SiteColors } from '@unctad-ai/voice-agent-core';
 
 interface VoiceOrbProps {
   state: OrbState;
@@ -23,16 +23,52 @@ interface StateConfig {
   shimmer: boolean;
 }
 
-/** Glow color that pulses around the orb per state */
-const STATE_GLOW: Record<OrbState, string> = {
-  idle: 'rgba(59, 130, 246, 0.25)',
-  listening: 'rgba(219, 33, 41, 0.45)',
-  processing: 'rgba(245, 158, 11, 0.4)',
-  speaking: 'rgba(20, 184, 166, 0.4)',
-  error: 'rgba(220, 38, 38, 0.4)',
-};
+/** Normalize any hex shorthand (#RGB) to full form (#RRGGBB), strip alpha */
+function normalizeHex(hex: string): string {
+  if (!hex || hex[0] !== '#') return '#808080';
+  const h = hex.slice(1);
+  if (h.length === 3) return '#' + h[0]+h[0] + h[1]+h[1] + h[2]+h[2];
+  if (h.length >= 6) return '#' + h.slice(0, 6);
+  return '#808080';
+}
 
-function buildStateConfig(primaryColor: string): Record<OrbState, StateConfig> {
+/** Darken a hex color by lerping toward black */
+function darkenHex(hex: string, amount: number): string {
+  hex = normalizeHex(hex);
+  const r = Math.max(0, Math.round(parseInt(hex.slice(1, 3), 16) * (1 - amount)));
+  const g = Math.max(0, Math.round(parseInt(hex.slice(3, 5), 16) * (1 - amount)));
+  const b = Math.max(0, Math.round(parseInt(hex.slice(5, 7), 16) * (1 - amount)));
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
+/** Lighten a hex color by lerping toward white */
+function lightenHex(hex: string, amount: number): string {
+  hex = normalizeHex(hex);
+  const r = Math.min(255, Math.round(parseInt(hex.slice(1, 3), 16) + (255 - parseInt(hex.slice(1, 3), 16)) * amount));
+  const g = Math.min(255, Math.round(parseInt(hex.slice(3, 5), 16) + (255 - parseInt(hex.slice(3, 5), 16)) * amount));
+  const b = Math.min(255, Math.round(parseInt(hex.slice(5, 7), 16) + (255 - parseInt(hex.slice(5, 7), 16)) * amount));
+  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+}
+
+/** Convert hex to rgba string */
+function hexToRGBA(hex: string, opacity: number): string {
+  hex = normalizeHex(hex);
+  return `rgba(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)}, ${opacity})`;
+}
+
+/** Glow color that pulses around the orb per state — derived from SiteColors */
+function buildStateGlow(colors: SiteColors): Record<OrbState, string> {
+  return {
+    idle: 'rgba(59, 130, 246, 0.25)',
+    listening: hexToRGBA(colors.primary, 0.45),
+    processing: hexToRGBA(colors.processing, 0.4),
+    speaking: hexToRGBA(colors.speaking, 0.4),
+    error: hexToRGBA(colors.error ?? '#DC2626', 0.4),
+  };
+}
+
+function buildStateConfig(colors: SiteColors): Record<OrbState, StateConfig> {
+  const errorColor = colors.error ?? '#DC2626';
   return {
     idle: {
       colors: ['#1E3A5F', '#3B82F6'],
@@ -45,7 +81,7 @@ function buildStateConfig(primaryColor: string): Record<OrbState, StateConfig> {
       shimmer: false,
     },
     listening: {
-      colors: [primaryColor, '#F59E0B'],
+      colors: [colors.primary, colors.processing],
       noiseSpeed: 0.6,
       noiseMag: 18,
       baseScale: 1.0,
@@ -55,7 +91,7 @@ function buildStateConfig(primaryColor: string): Record<OrbState, StateConfig> {
       shimmer: false,
     },
     processing: {
-      colors: ['#D97706', '#FBBF24'],
+      colors: [darkenHex(colors.processing, 0.3), lightenHex(colors.processing, 0.4)],
       noiseSpeed: 1.0,
       noiseMag: 14,
       baseScale: 1.0,
@@ -65,7 +101,7 @@ function buildStateConfig(primaryColor: string): Record<OrbState, StateConfig> {
       shimmer: true,
     },
     speaking: {
-      colors: ['#1B7A50', '#2DD4BF'],
+      colors: [darkenHex(colors.speaking, 0.35), lightenHex(colors.speaking, 0.4)],
       noiseSpeed: 0.5,
       noiseMag: 16,
       baseScale: 1.0,
@@ -75,7 +111,7 @@ function buildStateConfig(primaryColor: string): Record<OrbState, StateConfig> {
       shimmer: false,
     },
     error: {
-      colors: ['#DC2626', '#991B1B'],
+      colors: [errorColor, darkenHex(errorColor, 0.35)],
       noiseSpeed: 1.4,
       noiseMag: 22,
       baseScale: 0.95,
@@ -123,7 +159,8 @@ function lerpColor(a: string, b: string, t: number): string {
 
 export default function VoiceOrb({ state, getAmplitude, size = 200 }: VoiceOrbProps) {
   const config = useSiteConfig();
-  const STATE_CONFIG = buildStateConfig(config.colors.primary);
+  const STATE_CONFIG = useMemo(() => buildStateConfig(config.colors), [config.colors]);
+  const STATE_GLOW = useMemo(() => buildStateGlow(config.colors), [config.colors]);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const rafRef = useRef<number>(0);
@@ -148,6 +185,9 @@ export default function VoiceOrb({ state, getAmplitude, size = 200 }: VoiceOrbPr
 
   const stateRef = useRef<OrbState>(state);
   stateRef.current = state;
+
+  const stateGlowRef = useRef(STATE_GLOW);
+  stateGlowRef.current = STATE_GLOW;
 
   const getAmplitudeRef = useRef(getAmplitude);
   getAmplitudeRef.current = getAmplitude;
@@ -276,7 +316,7 @@ export default function VoiceOrb({ state, getAmplitude, size = 200 }: VoiceOrbPr
         const amp = getAmplitudeRef.current();
         const glowPulse = 0.35 + Math.sin(elapsed * Math.PI * 2 * a.breathSpeed) * 0.15 + amp * 0.3;
         glowEl.setAttribute('opacity', String(Math.min(glowPulse, 1)));
-        glowEl.setAttribute('fill', STATE_GLOW[stateRef.current]);
+        glowEl.setAttribute('fill', stateGlowRef.current[stateRef.current]);
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -321,7 +361,7 @@ export default function VoiceOrb({ state, getAmplitude, size = 200 }: VoiceOrbPr
         cx={size / 2}
         cy={size / 2}
         r={size * 0.38}
-        fill={STATE_GLOW.idle}
+        fill={STATE_GLOW['idle']}
         opacity="0.5"
         filter={`url(#${glowFilterId})`}
       />

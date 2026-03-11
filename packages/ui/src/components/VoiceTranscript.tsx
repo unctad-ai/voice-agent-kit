@@ -8,10 +8,12 @@ import {
   MIN_DISPLAY_LENGTH,
   PANEL_MAX_VISIBLE_MESSAGES,
   PANEL_MAX_TEXT_LENGTH,
+  DEFAULT_FONT_FAMILY,
+  useSiteConfig,
 } from '@unctad-ai/voice-agent-core';
 import type { VoiceMessage, ActionCategory } from '@unctad-ai/voice-agent-core';
 import type { VoiceErrorType } from './VoiceErrorDisplay';
-import { ArrowRight, PenLine, MousePointerClick, Search, Info } from 'lucide-react';
+import { ArrowRight, PenLine, MousePointerClick, Search, Info, ChevronDown } from 'lucide-react';
 
 /** Strip markdown/HTML artifacts, TTS paralinguistic tags, and emojis — preserves line breaks */
 function cleanForDisplay(text: string): string {
@@ -254,6 +256,8 @@ export default function VoiceTranscript({
   variant = 'overlay',
   voiceError,
 }: VoiceTranscriptProps) {
+  const config = useSiteConfig();
+  const fontFamily = config.fontFamily ?? DEFAULT_FONT_FAMILY;
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanel = variant === 'panel';
   const maxVisible = isPanel ? PANEL_MAX_VISIBLE_MESSAGES : MAX_VISIBLE_MESSAGES;
@@ -264,8 +268,9 @@ export default function VoiceTranscript({
   const userScrolledRef = useRef(false);
   const lastMessageCountRef = useRef(0);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [showNewMessagePill, setShowNewMessagePill] = useState(false);
 
-  // Detect manual scroll: if user scrolls up, stop auto-scrolling
+  // Detect manual scroll: if user scrolls up, stop auto-scrolling; clear pill when at bottom
   useEffect(() => {
     if (!isPanel) return;
     const el = containerRef.current;
@@ -273,18 +278,27 @@ export default function VoiceTranscript({
     const handleScroll = () => {
       const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
       userScrolledRef.current = !atBottom;
+      if (atBottom) setShowNewMessagePill(false);
     };
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
   }, [isPanel]);
 
-  // Reset manual scroll flag when a new message arrives
+  // Scroll to bottom on new messages, or show pill if user has scrolled away
   useEffect(() => {
+    if (!isPanel) return;
     if (visible.length > lastMessageCountRef.current) {
-      userScrolledRef.current = false;
+      if (userScrolledRef.current) {
+        setShowNewMessagePill(true);
+      } else {
+        requestAnimationFrame(() => {
+          const el = containerRef.current;
+          if (el) el.scrollTop = el.scrollHeight;
+        });
+      }
     }
     lastMessageCountRef.current = visible.length;
-  }, [visible.length]);
+  }, [visible.length, isPanel]);
 
   // Auto-scroll whenever content height changes (typewriter words, streaming, new messages)
   useEffect(() => {
@@ -301,20 +315,30 @@ export default function VoiceTranscript({
     return () => observer.disconnect();
   }, [isPanel]);
 
+  const scrollToBottom = () => {
+    const el = containerRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      userScrolledRef.current = false;
+      setShowNewMessagePill(false);
+    }
+  };
+
   if (isPanel) {
     return (
-      <div
-        ref={containerRef}
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
-        style={{
-          padding: '16px 16px 12px',
-          maskImage:
-            'linear-gradient(to bottom, transparent 0%, black 8px, black calc(100% - 8px), transparent 100%)',
-          WebkitMaskImage:
-            'linear-gradient(to bottom, transparent 0%, black 8px, black calc(100% - 8px), transparent 100%)',
-        }}
-      >
-        <div ref={contentRef} className="flex flex-col">
+      <div className="flex-1 min-h-0 relative" style={{ fontFamily }}>
+        <div
+          ref={containerRef}
+          className="absolute inset-0 overflow-y-auto overscroll-contain"
+          style={{
+            padding: '16px 16px 12px',
+            maskImage:
+              'linear-gradient(to bottom, transparent 0%, black 8px, black calc(100% - 8px), transparent 100%)',
+            WebkitMaskImage:
+              'linear-gradient(to bottom, transparent 0%, black 8px, black calc(100% - 8px), transparent 100%)',
+          }}
+        >
+        <div ref={contentRef} className="flex flex-col" style={{ paddingBottom: '24px' }}>
           <AnimatePresence mode="popLayout">
             {groupDisplayItems(visible).map((item, idx, arr) => {
               if (item.type === 'action') {
@@ -337,7 +361,7 @@ export default function VoiceTranscript({
                   >
                     {showLabel && (
                       <p
-                        className="font-[DM_Sans] uppercase tracking-wider"
+                        className="uppercase tracking-wider"
                         style={{
                           fontSize: '10px',
                           fontWeight: 500,
@@ -379,7 +403,7 @@ export default function VoiceTranscript({
                   }}
                 >
                   <p
-                    className="font-[DM_Sans] uppercase tracking-wider"
+                    className="uppercase tracking-wider"
                     style={{
                       fontSize: '10px',
                       fontWeight: 500,
@@ -406,7 +430,7 @@ export default function VoiceTranscript({
                     {isAI && isLast && isTyping ? (
                       <TypewriterFormattedText
                         text={displayText}
-                        className="font-[DM_Sans]"
+                        
                         style={{
                           fontSize: '14px',
                           fontWeight: 400,
@@ -417,7 +441,7 @@ export default function VoiceTranscript({
                     ) : (
                       <FormattedText
                         text={displayText}
-                        className="font-[DM_Sans]"
+                        
                         style={{
                           fontSize: '14px',
                           fontWeight: isAI ? 400 : 450,
@@ -439,7 +463,7 @@ export default function VoiceTranscript({
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.15 }}
-                className="text-center font-[DM_Sans]"
+                className="text-center"
                 style={{ paddingTop: '48px', paddingBottom: '16px' }}
               >
                 <div
@@ -497,7 +521,7 @@ export default function VoiceTranscript({
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
-                className="text-center italic font-[DM_Sans]"
+                className="text-center italic"
                 style={{ fontSize: '14px', color: 'rgba(0,0,0,0.4)', paddingTop: '60px' }}
               >
                 Ask me anything
@@ -515,6 +539,42 @@ export default function VoiceTranscript({
           )}
         </div>
       </div>
+      <AnimatePresence>
+        {showNewMessagePill && (
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.18 }}
+            onClick={scrollToBottom}
+            style={{
+              position: 'absolute',
+              bottom: 8,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              padding: '5px 12px 5px 10px',
+              fontSize: 11,
+              fontWeight: 500,
+              color: 'rgba(0,0,0,0.6)',
+              backgroundColor: 'rgba(255,255,255,0.92)',
+              border: '1px solid rgba(0,0,0,0.08)',
+              borderRadius: 9999,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              cursor: 'pointer',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              zIndex: 1,
+            }}
+          >
+            <ChevronDown size={12} strokeWidth={2.5} />
+            New message
+          </motion.button>
+        )}
+      </AnimatePresence>
+      </div>
     );
   }
 
@@ -523,6 +583,7 @@ export default function VoiceTranscript({
     <div
       ref={containerRef}
       className="relative w-full max-w-md text-center rounded-2xl overflow-hidden"
+      style={{ fontFamily }}
     >
       {/* Glass refraction layer */}
       <div
@@ -581,7 +642,7 @@ export default function VoiceTranscript({
                 animate={{ opacity: isFading ? 0.5 : 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
-                className={cn('text-lg font-[DM_Sans] leading-relaxed', isAI ? '' : 'italic')}
+                className={cn('text-lg leading-relaxed', isAI ? '' : 'italic')}
                 style={{
                   color: isAI ? '#1a1a1a' : 'rgba(0,0,0,0.7)',
                 }}

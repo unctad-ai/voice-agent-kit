@@ -247,7 +247,7 @@ export default function AgentAvatar({
               justifyContent: 'center',
               backgroundColor: colors.primary,
               color: 'white',
-              fontFamily: 'DM Sans, sans-serif',
+              fontFamily: 'inherit',
               fontWeight: 700,
               fontSize: Math.round(portraitSize * 0.45),
             }}
