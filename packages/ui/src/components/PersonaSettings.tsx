@@ -23,8 +23,8 @@ function PersonaSettingsInner() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, fontFamily: 'inherit' }}>
-      <AvatarSection avatarUrl={config.avatarUrl} onUpload={uploadAvatar} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: 'inherit' }}>
+      <AvatarSection avatarUrl={config.avatarUrl} name={config.copilotName} onUpload={uploadAvatar} />
       <NameSection name={config.copilotName} onSave={updateName} primaryColor={config.colors.primary} />
       <VoiceSection
         voices={data?.voices ?? []}
@@ -39,36 +39,52 @@ function PersonaSettingsInner() {
   );
 }
 
-function AvatarSection({ avatarUrl, onUpload }: {
+function AvatarSection({ avatarUrl, name, onUpload }: {
   avatarUrl?: string;
+  name: string;
   onUpload: (file: File) => Promise<void>;
 }) {
   const [uploading, setUploading] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const initial = (name || '?')[0].toUpperCase();
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
-    try { await onUpload(file); }
+    try { await onUpload(file); setImgError(false); }
     catch (err) { console.error('Avatar upload failed:', err); }
     finally { setUploading(false); }
   };
 
+  const showImage = avatarUrl && !imgError;
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div style={{
-        position: 'relative',
-        width: 64,
-        height: 64,
-        borderRadius: 9999,
-        overflow: 'hidden',
-        backgroundColor: '#f3f4f6',
-        flexShrink: 0,
-      }}>
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="Agent avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 4, paddingBottom: 4 }}>
+      <div
+        onClick={() => !uploading && inputRef.current?.click()}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          position: 'relative',
+          width: 44,
+          height: 44,
+          borderRadius: 9999,
+          overflow: 'hidden',
+          backgroundColor: '#e5e7eb',
+          flexShrink: 0,
+          cursor: uploading ? 'wait' : 'pointer',
+        }}
+      >
+        {showImage ? (
+          <img
+            src={avatarUrl}
+            alt=""
+            onError={() => setImgError(true)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
         ) : (
           <div style={{
             width: '100%',
@@ -76,37 +92,34 @@ function AvatarSection({ avatarUrl, onUpload }: {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#9ca3af',
-            fontSize: 20,
-          }}>?</div>
+            color: '#6b7280',
+            fontSize: 16,
+            fontWeight: 600,
+          }}>{initial}</div>
+        )}
+        {/* hover overlay */}
+        {hovered && !uploading && (
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.35)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontSize: 9,
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+          }}>Edit</div>
         )}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span style={{ fontSize: 11, fontWeight: 500, color: '#6b7280' }}>Avatar</span>
-        <button
-          onClick={() => inputRef.current?.click()}
-          disabled={uploading}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
-          style={{
-            fontSize: 11,
-            paddingLeft: 10,
-            paddingRight: 10,
-            paddingTop: 4,
-            paddingBottom: 4,
-            borderRadius: 6,
-            border: '1px solid #e5e7eb',
-            backgroundColor: hovered && !uploading ? '#f9fafb' : 'transparent',
-            cursor: uploading ? 'wait' : 'pointer',
-            opacity: uploading ? 0.5 : 1,
-            transition: 'background-color 0.15s',
-            fontFamily: 'inherit',
-          }}
-        >
-          {uploading ? 'Uploading...' : 'Change'}
-        </button>
-        <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFile} style={{ display: 'none' }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>Avatar</div>
+        <div style={{ fontSize: 11, color: '#6b7280' }}>
+          {uploading ? 'Uploading...' : 'Click to change'}
+        </div>
       </div>
+      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFile} style={{ display: 'none' }} />
     </div>
   );
 }
@@ -132,8 +145,8 @@ function NameSection({ name, onSave, primaryColor }: {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ fontSize: 11, fontWeight: 500, color: '#6b7280' }}>Agent Name</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4, paddingBottom: 4 }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>Name</span>
       <div style={{ display: 'flex', gap: 8 }}>
         <input
           type="text"
@@ -149,8 +162,9 @@ function NameSection({ name, onSave, primaryColor }: {
             paddingRight: 10,
             paddingTop: 6,
             paddingBottom: 6,
-            borderRadius: 6,
+            borderRadius: 8,
             border: `1px solid ${inputFocused ? '#9ca3af' : '#e5e7eb'}`,
+            backgroundColor: '#fff',
             outline: 'none',
             fontFamily: 'inherit',
             transition: 'border-color 0.15s',
@@ -163,12 +177,13 @@ function NameSection({ name, onSave, primaryColor }: {
             onMouseEnter={() => setSaveHovered(true)}
             onMouseLeave={() => setSaveHovered(false)}
             style={{
-              fontSize: 11,
-              paddingLeft: 10,
-              paddingRight: 10,
-              paddingTop: 4,
-              paddingBottom: 4,
-              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 500,
+              paddingLeft: 12,
+              paddingRight: 12,
+              paddingTop: 6,
+              paddingBottom: 6,
+              borderRadius: 8,
               border: 'none',
               backgroundColor: saveHovered ? primaryColor : '#1f2937',
               color: '#fff',
@@ -241,8 +256,8 @@ function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onP
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <span style={{ fontSize: 11, fontWeight: 500, color: '#6b7280' }}>Voice</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 4, paddingBottom: 4 }}>
+      <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>Voice</span>
 
       {voices.length === 0 && (
         <p style={{ fontSize: 11, color: '#9ca3af', margin: 0 }}>
@@ -305,9 +320,9 @@ function VoiceRow({ voice, isActive, isPreviewing, onSelect, onPreview, onDelete
       paddingRight: 10,
       paddingTop: 8,
       paddingBottom: 8,
-      borderRadius: 6,
+      borderRadius: 8,
       border: `1px solid ${isActive ? '#9ca3af' : '#e5e7eb'}`,
-      backgroundColor: isActive ? '#f9fafb' : 'transparent',
+      backgroundColor: isActive ? '#f9fafb' : '#fff',
       fontSize: 13,
     }}>
       <input
@@ -458,9 +473,9 @@ function UploadButton({ disabled, onClick }: { disabled: boolean; onClick: () =>
         paddingRight: 10,
         paddingTop: 6,
         paddingBottom: 6,
-        borderRadius: 6,
+        borderRadius: 8,
         border: '1px dashed #d1d5db',
-        backgroundColor: hovered && !disabled ? '#f9fafb' : 'transparent',
+        backgroundColor: hovered && !disabled ? '#f9fafb' : '#fff',
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.5 : 1,
         transition: 'background-color 0.15s',

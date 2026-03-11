@@ -128,11 +128,9 @@ export function createSttHandler(options: SttHandlerOptions): Router {
       if (sttProvider === 'kyutai') {
         try {
           response = await transcribeWithKyutai(req.file.buffer);
-          if (!response.text) throw new Error('empty transcription');
         } catch (err) {
-          console.warn('[STT] Kyutai failed, falling back to Groq:', (err as Error).message);
-          provider = 'groq (fallback)';
-          response = await transcribeWithGroq(req.file.buffer);
+          console.warn('[STT] Kyutai error:', (err as Error).message);
+          response = { text: '', language: 'en', noSpeechProb: 1, avgLogprob: 0 };
         }
       } else {
         response = await transcribeWithGroq(req.file.buffer);

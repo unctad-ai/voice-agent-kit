@@ -22,4 +22,5 @@ export interface VoiceSettings {
   ttsTimeoutMs: number;
   llmTimeoutMs: number;
   minAudioRms: number;
+  maxHistoryMessages: number;
 }

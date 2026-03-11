@@ -25,19 +25,39 @@ export function createChatHandler(options: ChatHandlerOptions): (req: Request, r
 
   return async function chatHandler(req: Request, res: Response): Promise<void> {
     try {
-      const { messages, clientState } = req.body as { messages?: unknown[]; clientState?: ClientState };
+      const { messages, clientState, maxHistoryMessages } = req.body as {
+        messages?: unknown[];
+        clientState?: ClientState;
+        maxHistoryMessages?: number;
+      };
 
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
         res.status(400).json({ error: 'messages array is required' });
         return;
       }
 
-      // useChat sends UIMessage format; convert to model messages for streamText
+      // Keep only the last N messages to prevent unbounded context growth.
+      const limit = Math.max(4, Math.min(maxHistoryMessages ?? 20, 40));
+      const trimmed = messages.length > limit
+        ? messages.slice(-limit)
+        : messages;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const modelMessages = await convertToModelMessages(messages as any);
+      const modelMessages = await convertToModelMessages(trimmed as any);
 
+      // Log conversation for debugging
+      const lastMsg = trimmed[trimmed.length - 1] as Record<string, unknown> | undefined;
+      let preview = '';
+      if (lastMsg) {
+        const c = lastMsg.content;
+        if (typeof c === 'string') preview = c.slice(0, 120);
+        else if (Array.isArray(c)) preview = c.map((p: any) => p.text ?? p.type ?? '').join(' ').slice(0, 120);
+        else preview = JSON.stringify(lastMsg).slice(0, 200);
+      }
+      console.log(`[chat] ${trimmed.length} msgs (role=${lastMsg?.role}) | last: "${preview}"`);
+
+      const model = groqModel || 'openai/gpt-oss-120b';
       const result = streamText({
-        model: groq(groqModel || 'openai/gpt-oss-120b'),
+        model: groq(model),
         system: buildSystemPrompt(config, clientState),
         messages: modelMessages,
         tools: { ...allServerTools, ...clientTools },
@@ -49,7 +69,10 @@ export function createChatHandler(options: ChatHandlerOptions): (req: Request, r
 
       // Consume the full text promise to catch async stream errors that would
       // otherwise crash the Node process as unhandled rejections.
-      Promise.resolve(result.text).catch((err: unknown) => {
+      Promise.resolve(result.text).then((text: string) => {
+        const reply = text.slice(0, 150);
+        console.log(`[chat] reply: "${reply}"`);
+      }).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         console.error('Stream error:', msg);
       });

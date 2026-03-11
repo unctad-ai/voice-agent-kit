@@ -10,6 +10,8 @@ export interface TtsHandlerOptions {
   resembleModel?: string;
   resembleVoiceUuid?: string;
   getActiveVoiceId?: () => string;
+  /** When true, fall back to pocket-tts then Resemble if primary TTS fails. Default: false */
+  ttsFallback?: boolean;
 }
 
 /**
@@ -205,6 +207,7 @@ export function createTtsHandler(options: TtsHandlerOptions): Router {
   const resembleModel = options.resembleModel || '';
   const resembleVoiceUuid = options.resembleVoiceUuid || '';
   const getActiveVoiceId = options.getActiveVoiceId;
+  const ttsFallback = options.ttsFallback ?? false;
 
   // Helper to call Resemble with options closure
   function callResemble(text: string, signal?: AbortSignal): Promise<Response> {
@@ -273,60 +276,39 @@ export function createTtsHandler(options: TtsHandlerOptions): Router {
       let response: Response;
 
       if (ttsProvider === 'qwen3-tts') {
-        try {
-          response = await synthesizeWithQwen3TTS(sanitized, qwen3TtsUrl, signal, { temperature, voice: voiceId });
-          if (!response.ok) throw new Error(`qwen3-tts ${response.status}`);
-        } catch (err) {
-          if (signal.aborted) throw err; // Don't fallback if globally aborted
-          console.warn('[TTS] qwen3-tts failed, falling back to pocket-tts:', err);
-          try {
-            response = await synthesizeWithPocketTTS(sanitized, pocketTtsUrl, signal);
-            if (!response.ok) throw new Error(`pocket-tts ${response.status}`);
-          } catch (err2) {
-            if (signal.aborted) throw err2;
-            console.warn('[TTS] pocket-tts failed, falling back to Resemble:', err2);
+        response = await synthesizeWithQwen3TTS(sanitized, qwen3TtsUrl, signal, { temperature, voice: voiceId });
+        if (!response.ok && ttsFallback) {
+          console.warn('[TTS] qwen3-tts failed, falling back to pocket-tts');
+          response = await synthesizeWithPocketTTS(sanitized, pocketTtsUrl, signal);
+          if (!response.ok) {
+            console.warn('[TTS] pocket-tts failed, falling back to Resemble');
             response = await callResemble(sanitized, signal);
           }
         }
       } else if (ttsProvider === 'chatterbox-turbo') {
-        try {
-          response = await synthesizeWithChatterboxTurbo(sanitized, chatterboxTurboUrl, signal);
-          if (!response.ok) throw new Error(`chatterbox-turbo ${response.status}`);
-        } catch (err) {
-          if (signal.aborted) throw err;
-          console.warn('[TTS] chatterbox-turbo failed, falling back to pocket-tts:', err);
-          try {
-            response = await synthesizeWithPocketTTS(sanitized, pocketTtsUrl, signal);
-            if (!response.ok) throw new Error(`pocket-tts ${response.status}`);
-          } catch (err2) {
-            if (signal.aborted) throw err2;
-            console.warn('[TTS] pocket-tts failed, falling back to Resemble:', err2);
+        response = await synthesizeWithChatterboxTurbo(sanitized, chatterboxTurboUrl, signal);
+        if (!response.ok && ttsFallback) {
+          console.warn('[TTS] chatterbox-turbo failed, falling back to pocket-tts');
+          response = await synthesizeWithPocketTTS(sanitized, pocketTtsUrl, signal);
+          if (!response.ok) {
+            console.warn('[TTS] pocket-tts failed, falling back to Resemble');
             response = await callResemble(sanitized, signal);
           }
         }
       } else if (ttsProvider === 'cosyvoice') {
-        try {
-          response = await synthesizeWithCosyVoice(sanitized, cosyVoiceTtsUrl, signal);
-          if (!response.ok) throw new Error(`cosyvoice ${response.status}`);
-        } catch (err) {
-          if (signal.aborted) throw err;
-          console.warn('[TTS] cosyvoice failed, falling back to pocket-tts:', err);
-          try {
-            response = await synthesizeWithPocketTTS(sanitized, pocketTtsUrl, signal);
-            if (!response.ok) throw new Error(`pocket-tts ${response.status}`);
-          } catch (err2) {
-            if (signal.aborted) throw err2;
-            console.warn('[TTS] pocket-tts failed, falling back to Resemble:', err2);
+        response = await synthesizeWithCosyVoice(sanitized, cosyVoiceTtsUrl, signal);
+        if (!response.ok && ttsFallback) {
+          console.warn('[TTS] cosyvoice failed, falling back to pocket-tts');
+          response = await synthesizeWithPocketTTS(sanitized, pocketTtsUrl, signal);
+          if (!response.ok) {
+            console.warn('[TTS] pocket-tts failed, falling back to Resemble');
             response = await callResemble(sanitized, signal);
           }
         }
       } else if (ttsProvider === 'pocket-tts') {
-        try {
-          response = await synthesizeWithPocketTTS(sanitized, pocketTtsUrl, signal);
-          if (!response.ok) throw new Error(`pocket-tts ${response.status}`);
-        } catch (err) {
-          if (signal.aborted) throw err;
-          console.warn('[TTS] pocket-tts failed, falling back to Resemble:', err);
+        response = await synthesizeWithPocketTTS(sanitized, pocketTtsUrl, signal);
+        if (!response.ok && ttsFallback) {
+          console.warn('[TTS] pocket-tts failed, falling back to Resemble');
           response = await callResemble(sanitized, signal);
         }
       } else {

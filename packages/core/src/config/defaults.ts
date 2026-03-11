@@ -154,6 +154,7 @@ export const DEFAULT_STT_TIMEOUT_MS = 15_000;
 export const DEFAULT_TTS_TIMEOUT_MS = 55_000;
 export const DEFAULT_LLM_TIMEOUT_MS = 20_000;
 export const DEFAULT_MIN_AUDIO_RMS = 0.02;
+export const DEFAULT_MAX_HISTORY_MESSAGES = 20;
 export const DEFAULT_FONT_FAMILY = 'DM Sans, sans-serif';
 
 // ---------------------------------------------------------------------------

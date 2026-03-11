@@ -1,4 +1,5 @@
-import { motion } from 'motion/react';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft,
   RotateCcw,
@@ -10,6 +11,7 @@ import {
   Timer,
   MessageSquare,
   Activity,
+  Cpu,
   EyeOff,
   Info,
   Ear,
@@ -17,6 +19,13 @@ import {
   Zap,
   Minimize2,
   Signal,
+  History,
+  ChevronDown,
+  User,
+  MessageCircle,
+  Headphones,
+  SlidersHorizontal,
+  Wrench,
 } from 'lucide-react';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
 import { VAD, useSiteConfig } from '@unctad-ai/voice-agent-core';
@@ -45,6 +54,64 @@ function bargeInLabel(v: number): string {
   return 'Easy';
 }
 
+/** Inline style tag for custom range slider — injected once */
+let sliderStylesInjected = false;
+function ensureSliderStyles() {
+  if (sliderStylesInjected || typeof document === 'undefined') return;
+  sliderStylesInjected = true;
+  const style = document.createElement('style');
+  style.textContent = `
+    input[type="range"].voice-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: #e5e7eb;
+      outline: none;
+      cursor: pointer;
+      margin: 6px 0;
+    }
+    input[type="range"].voice-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--voice-settings-accent, #DB2129);
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      cursor: pointer;
+      transition: transform 0.1s ease;
+      margin-top: -6px;
+    }
+    input[type="range"].voice-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+    input[type="range"].voice-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--voice-settings-accent, #DB2129);
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      cursor: pointer;
+    }
+    input[type="range"].voice-slider::-webkit-slider-runnable-track {
+      height: 4px;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+    }
+    input[type="range"].voice-slider::-moz-range-track {
+      height: 4px;
+      border-radius: 2px;
+      background: #e5e7eb;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 /** Slider setting row */
 export function SliderSetting({
   icon,
@@ -65,6 +132,9 @@ export function SliderSetting({
   step: number;
   onChange: (v: number) => void;
 }) {
+  ensureSliderStyles();
+  const pct = ((value - min) / (max - min)) * 100;
+
   return (
     <div style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -74,12 +144,15 @@ export function SliderSetting({
       </div>
       <input
         type="range"
+        className="voice-slider"
         value={value}
         min={min}
         max={max}
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ width: '100%', accentColor: 'var(--voice-settings-accent, #DB2129)' }}
+        style={{
+          background: `linear-gradient(to right, var(--voice-settings-accent, #DB2129) 0%, var(--voice-settings-accent, #DB2129) ${pct}%, #e5e7eb ${pct}%, #e5e7eb 100%)`,
+        }}
       />
     </div>
   );
@@ -207,7 +280,13 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
   const { settings, updateSetting, resetSettings } = useVoiceSettings();
   const config = useSiteConfig();
   const { colors } = config;
+  const [openSection, setOpenSection] = useState<string | null>(null);
   const iconStyle = { width: 16, height: 16, flexShrink: 0, color: colors.primary };
+  const sectionIconStyle = { width: 16, height: 16, flexShrink: 0, color: colors.primary };
+  const sectionProps = (id: string) => ({
+    open: openSection === id,
+    onToggle: () => setOpenSection(openSection === id ? null : id),
+  });
 
   return (
     <motion.div
@@ -267,35 +346,47 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {/* Agent Persona */}
         {config.personaEndpoint && (
-          <>
-            <SettingsSection title="Agent Persona">
-              <PersonaSettings />
-            </SettingsSection>
-            <Divider />
-          </>
+          <SettingsSection title="Persona" icon={<User style={sectionIconStyle} />} {...sectionProps('persona')}>
+            <PersonaSettings />
+          </SettingsSection>
         )}
 
-        {/* Voice Input */}
-        <SettingsSection title="Voice Input">
+        {/* Conversation */}
+        <SettingsSection title="Conversation" icon={<MessageCircle style={sectionIconStyle} />} {...sectionProps('conversation')}>
+          <SelectSetting
+            icon={<MessageSquare style={iconStyle} />}
+            label="Response length"
+            value={String(settings.responseLength)}
+            onChange={(v) => updateSetting('responseLength', Number(v))}
+            options={[
+              { value: '30', label: 'Brief' },
+              { value: '60', label: 'Normal' },
+              { value: '100', label: 'Detailed' },
+            ]}
+          />
+          <Divider />
+          <SelectSetting
+            icon={<History style={iconStyle} />}
+            label="Chat memory"
+            value={String(settings.maxHistoryMessages)}
+            onChange={(v) => updateSetting('maxHistoryMessages', Number(v))}
+            options={[
+              { value: '10', label: '10 msgs' },
+              { value: '20', label: '20 msgs' },
+              { value: '30', label: '30 msgs' },
+              { value: '40', label: '40 msgs' },
+            ]}
+          />
+        </SettingsSection>
+
+        {/* Listening */}
+        <SettingsSection title="Listening" icon={<Headphones style={sectionIconStyle} />} {...sectionProps('listening')}>
           <ToggleSetting
             icon={<Mic style={iconStyle} />}
             label="Auto-listen"
             description="Start mic when panel opens"
             checked={settings.autoListen}
             onChange={(v) => updateSetting('autoListen', v)}
-          />
-          <Divider />
-          <SelectSetting
-            icon={<Timer style={iconStyle} />}
-            label="Idle timeout"
-            value={String(settings.idleTimeoutMs)}
-            onChange={(v) => updateSetting('idleTimeoutMs', Number(v))}
-            options={[
-              { value: '30000', label: '30s' },
-              { value: '60000', label: '1 min' },
-              { value: '120000', label: '2 min' },
-              { value: '300000', label: '5 min' },
-            ]}
           />
           <Divider />
           <SliderSetting
@@ -332,23 +423,10 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
             step={5}
             onChange={(v) => updateSetting('bargeInThreshold', v / 100)}
           />
-          <Divider />
-          <SelectSetting
-            icon={<Minimize2 style={iconStyle} />}
-            label="Auto-collapse"
-            value={String(settings.panelCollapseTimeoutMs)}
-            onChange={(v) => updateSetting('panelCollapseTimeoutMs', Number(v))}
-            options={[
-              { value: '120000', label: '2 min' },
-              { value: '300000', label: '5 min' },
-              { value: '600000', label: '10 min' },
-              { value: '0', label: 'Never' },
-            ]}
-          />
         </SettingsSection>
 
-        {/* Voice Output */}
-        <SettingsSection title="Voice Output">
+        {/* Speaking */}
+        <SettingsSection title="Speaking" icon={<Volume2 style={sectionIconStyle} />} {...sectionProps('speaking')}>
           <ToggleSetting
             icon={<AudioLines style={iconStyle} />}
             label="Text-to-speech"
@@ -392,22 +470,39 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
             step={5}
             onChange={(v) => updateSetting('expressiveness', v / 100)}
           />
+        </SettingsSection>
+
+        {/* Behavior */}
+        <SettingsSection title="Behavior" icon={<SlidersHorizontal style={sectionIconStyle} />} {...sectionProps('behavior')}>
+          <SelectSetting
+            icon={<Timer style={iconStyle} />}
+            label="Idle timeout"
+            value={String(settings.idleTimeoutMs)}
+            onChange={(v) => updateSetting('idleTimeoutMs', Number(v))}
+            options={[
+              { value: '30000', label: '30s' },
+              { value: '60000', label: '1 min' },
+              { value: '120000', label: '2 min' },
+              { value: '300000', label: '5 min' },
+            ]}
+          />
           <Divider />
           <SelectSetting
-            icon={<MessageSquare style={iconStyle} />}
-            label="Response length"
-            value={String(settings.responseLength)}
-            onChange={(v) => updateSetting('responseLength', Number(v))}
+            icon={<Minimize2 style={iconStyle} />}
+            label="Auto-collapse"
+            value={String(settings.panelCollapseTimeoutMs)}
+            onChange={(v) => updateSetting('panelCollapseTimeoutMs', Number(v))}
             options={[
-              { value: '30', label: 'Brief' },
-              { value: '60', label: 'Normal' },
-              { value: '100', label: 'Detailed' },
+              { value: '120000', label: '2 min' },
+              { value: '300000', label: '5 min' },
+              { value: '600000', label: '10 min' },
+              { value: '0', label: 'Never' },
             ]}
           />
         </SettingsSection>
 
         {/* Developer */}
-        <SettingsSection title="Developer">
+        <SettingsSection title="Developer" icon={<Wrench style={sectionIconStyle} />} {...sectionProps('developer')} last>
           <ToggleSetting
             icon={<Activity style={iconStyle} />}
             label="Pipeline metrics"
@@ -454,7 +549,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SelectSetting
-            icon={<Sparkles style={iconStyle} />}
+            icon={<Cpu style={iconStyle} />}
             label="LLM timeout"
             value={String(settings.llmTimeoutMs)}
             onChange={(v) => updateSetting('llmTimeoutMs', Number(v))}
@@ -478,18 +573,9 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
               { value: '0.05', label: 'Strict' },
             ]}
           />
-        </SettingsSection>
-
-        {/* Info */}
-        <SettingsSection title="Info" last>
-          <div style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-            <Info style={{ ...iconStyle, marginTop: 2 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#6b7280' }}>
-              <div>
-                VAD Threshold:{' '}
-                <span style={{ fontWeight: 500, color: '#374151' }}>{VAD.positiveSpeechThreshold}</span>
-              </div>
-            </div>
+          <Divider />
+          <div style={{ paddingTop: 8, paddingBottom: 4, fontSize: 11, color: '#9ca3af' }}>
+            VAD Threshold: <span style={{ fontWeight: 500, color: '#6b7280' }}>{VAD.positiveSpeechThreshold}</span>
           </div>
         </SettingsSection>
       </div>
@@ -499,21 +585,81 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
 
 export function SettingsSection({
   title,
+  icon,
   children,
   last,
+  open = false,
+  onToggle,
 }: {
   title: string;
+  icon?: React.ReactNode;
   children: React.ReactNode;
   last?: boolean;
+  open?: boolean;
+  onToggle?: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
+
   return (
     <div style={{ borderBottom: last ? 'none' : '1px solid #e5e7eb' }}>
-      <div
-        style={{ paddingLeft: 16, paddingRight: 16, paddingTop: 16, paddingBottom: 4, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9ca3af' }}
+      <button
+        onClick={onToggle}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          paddingLeft: 16,
+          paddingRight: 16,
+          paddingTop: 14,
+          paddingBottom: 14,
+          backgroundColor: hovered ? '#edf0f3' : open ? '#f0f2f5' : 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          transition: 'background-color 0.15s',
+        }}
       >
-        {title}
-      </div>
-      <div style={{ paddingLeft: 16, paddingRight: 16 }}>{children}</div>
+        {icon}
+        <span style={{
+          flex: 1,
+          textAlign: 'left',
+          fontSize: 13,
+          fontWeight: 600,
+          color: '#374151',
+        }}>{title}</span>
+        <ChevronDown style={{
+          width: 14,
+          height: 14,
+          color: '#9ca3af',
+          transition: 'transform 0.2s ease',
+          transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+        }} />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div style={{
+              paddingLeft: 16,
+              paddingRight: 16,
+              paddingTop: 4,
+              paddingBottom: 12,
+              backgroundColor: '#fff',
+              borderTop: '1px solid #e5e7eb',
+            }}>
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

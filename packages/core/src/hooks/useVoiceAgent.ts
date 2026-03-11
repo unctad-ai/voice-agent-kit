@@ -366,6 +366,7 @@ export function useVoiceAgent({
         return apiKey ? { 'X-API-Key': apiKey } : {};
       },
       body: () => ({
+        maxHistoryMessages: settingsRef.current.maxHistoryMessages,
         clientState: {
           route: location.pathname,
           currentService: params.serviceId
@@ -439,7 +440,7 @@ export function useVoiceAgent({
       // the USER sends a new message (in sendTextMessage / voice pipeline).
       const cleaned = sanitizeForTranscript(text);
 
-      // Silent rejection
+      // Silent rejection — remove the user message (assistant was never added)
       if (cleaned?.includes(SILENT_MARKER)) {
         console.debug('[VoiceAgent] LLM returned SILENT marker, skipping TTS');
         setMessages((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));

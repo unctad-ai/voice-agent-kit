@@ -13,7 +13,7 @@ import {
 } from '@unctad-ai/voice-agent-core';
 import type { VoiceMessage, ActionCategory } from '@unctad-ai/voice-agent-core';
 import type { VoiceErrorType } from './VoiceErrorDisplay';
-import { ArrowRight, PenLine, MousePointerClick, Search, Info, ChevronDown } from 'lucide-react';
+import { ArrowRight, PenLine, MousePointerClick, Search, Info, ChevronDown, Mic, Keyboard } from 'lucide-react';
 
 /** Strip markdown/HTML artifacts, TTS paralinguistic tags, and emojis — preserves line breaks */
 function cleanForDisplay(text: string): string {
@@ -83,6 +83,12 @@ interface VoiceTranscriptProps {
   variant?: 'overlay' | 'panel';
   /** When set, replaces the empty-state placeholder with a prominent error message */
   voiceError?: VoiceErrorType;
+  /** Current voice state — used for contextual empty state */
+  voiceState?: string;
+  /** Callback to start mic from empty state */
+  onStartMic?: () => void;
+  /** Callback to switch to keyboard mode from empty state */
+  onSwitchToKeyboard?: () => void;
 }
 
 /** Progressively reveals words while preserving FormattedText structure */
@@ -255,9 +261,13 @@ export default function VoiceTranscript({
   isTyping,
   variant = 'overlay',
   voiceError,
+  voiceState,
+  onStartMic,
+  onSwitchToKeyboard,
 }: VoiceTranscriptProps) {
   const config = useSiteConfig();
   const fontFamily = config.fontFamily ?? DEFAULT_FONT_FAMILY;
+  const assistantLabel = config.copilotName || 'Assistant';
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanel = variant === 'panel';
   const maxVisible = isPanel ? PANEL_MAX_VISIBLE_MESSAGES : MAX_VISIBLE_MESSAGES;
@@ -326,11 +336,14 @@ export default function VoiceTranscript({
 
   if (isPanel) {
     return (
-      <div className="flex-1 min-h-0 relative" style={{ fontFamily }}>
+      <div style={{ flex: 1, minHeight: 0, position: 'relative', fontFamily }}>
         <div
           ref={containerRef}
-          className="absolute inset-0 overflow-y-auto overscroll-contain"
           style={{
+            position: 'absolute',
+            inset: 0,
+            overflowY: 'auto',
+            overscrollBehavior: 'contain',
             padding: '16px 16px 12px',
             maskImage:
               'linear-gradient(to bottom, transparent 0%, black 8px, black calc(100% - 8px), transparent 100%)',
@@ -338,11 +351,11 @@ export default function VoiceTranscript({
               'linear-gradient(to bottom, transparent 0%, black 8px, black calc(100% - 8px), transparent 100%)',
           }}
         >
-        <div ref={contentRef} className="flex flex-col" style={{ paddingBottom: '24px' }}>
+        <div ref={contentRef} style={{ display: 'flex', flexDirection: 'column', paddingBottom: 24 }}>
           <AnimatePresence mode="popLayout">
             {groupDisplayItems(visible).map((item, idx, arr) => {
               if (item.type === 'action') {
-                // Show "Copilot" label before first action in a group
+                // Show assistant name label before first action in a group
                 const prevIsAction = idx > 0 && arr[idx - 1].type === 'action';
                 const showLabel = !prevIsAction;
                 return (
@@ -370,7 +383,7 @@ export default function VoiceTranscript({
                           marginBottom: '4px',
                         }}
                       >
-                        Copilot
+                        {assistantLabel}
                       </p>
                     )}
                     <ActionBadge msg={item.msg} count={item.count} />
@@ -412,7 +425,7 @@ export default function VoiceTranscript({
                       marginBottom: '4px',
                     }}
                   >
-                    {isAI ? 'Copilot' : 'You'}
+                    {isAI ? assistantLabel : 'You'}
                   </p>
                   <div
                     style={{
@@ -517,15 +530,9 @@ export default function VoiceTranscript({
                 </p>
               </motion.div>
             ) : (
-              <motion.p
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-                className="text-center italic"
-                style={{ fontSize: '14px', color: 'rgba(0,0,0,0.4)', paddingTop: '60px' }}
-              >
-                Ask me anything
-              </motion.p>
+              <div style={{ paddingTop: 40 }}>
+                <EmptyStateGraphic primaryColor={config.colors.primary} />
+              </div>
             ))}
 
           {isTyping && visible.length === 0 && (
@@ -658,15 +665,12 @@ export default function VoiceTranscript({
         </AnimatePresence>
 
         {visible.length === 0 && !isTyping && (
-          <motion.p
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="text-lg italic"
-            style={{ color: 'rgba(0,0,0,0.5)' }}
-          >
-            Ask me anything
-          </motion.p>
+          <EmptyStateGraphic
+            primaryColor={config.colors.primary}
+            voiceState={voiceState}
+            onStartMic={onStartMic}
+            onSwitchToKeyboard={onSwitchToKeyboard}
+          />
         )}
 
         {isTyping && visible.length === 0 && (
@@ -680,5 +684,116 @@ export default function VoiceTranscript({
         )}
       </div>
     </div>
+  );
+}
+
+function EmptyStateGraphic({ primaryColor, voiceState, onStartMic, onSwitchToKeyboard }: {
+  primaryColor: string;
+  voiceState?: string;
+  onStartMic?: () => void;
+  onSwitchToKeyboard?: () => void;
+}) {
+  const isListening = voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING';
+
+  if (isListening) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          paddingTop: 60,
+        }}
+      >
+        <p style={{ fontSize: 16, fontWeight: 500, color: primaryColor, margin: 0, opacity: 0.7 }}>
+          Listening...
+        </p>
+        <p style={{ fontSize: 12, color: 'rgba(0,0,0,0.3)', margin: 0 }}>
+          Go ahead, I can hear you
+        </p>
+      </motion.div>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.15 }}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 16,
+        paddingTop: 60,
+      }}
+    >
+      <p style={{ fontSize: 18, fontWeight: 500, color: primaryColor, margin: 0, opacity: 0.6 }}>
+        How can I help?
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {onStartMic && (
+          <button
+            onClick={onStartMic}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 16px',
+              borderRadius: 20,
+              border: `1px solid ${primaryColor}22`,
+              backgroundColor: `${primaryColor}08`,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 13,
+              color: 'rgba(0,0,0,0.5)',
+              transition: 'background-color 0.15s, border-color 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `${primaryColor}14`;
+              e.currentTarget.style.borderColor = `${primaryColor}33`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = `${primaryColor}08`;
+              e.currentTarget.style.borderColor = `${primaryColor}22`;
+            }}
+          >
+            <Mic style={{ width: 14, height: 14, color: primaryColor, opacity: 0.7 }} />
+            Start talking
+          </button>
+        )}
+        {onSwitchToKeyboard && (
+          <button
+            onClick={onSwitchToKeyboard}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 16px',
+              borderRadius: 20,
+              border: '1px solid rgba(0,0,0,0.06)',
+              backgroundColor: 'transparent',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 13,
+              color: 'rgba(0,0,0,0.35)',
+              transition: 'background-color 0.15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
+          >
+            <Keyboard style={{ width: 14, height: 14, opacity: 0.5 }} />
+            Type a message
+          </button>
+        )}
+      </div>
+    </motion.div>
   );
 }

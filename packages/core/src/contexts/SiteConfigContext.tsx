@@ -14,14 +14,23 @@ export function SiteConfigProvider({
 }) {
   const personaResult = usePersona(config.personaEndpoint);
 
+  // While persona is loading, suppress static avatarUrl to avoid flash
+  // (static avatar → persona avatar). Name and other fields are fine.
+  const personaLoading = !!config.personaEndpoint && !personaResult.isLoaded;
+
   const mergedConfig = useMemo<SiteConfig>(() => {
-    if (!personaResult.persona) return config;
-    return {
-      ...config,
-      copilotName: personaResult.persona.copilotName ?? config.copilotName,
-      avatarUrl: personaResult.persona.avatarUrl ?? config.avatarUrl,
-    };
-  }, [config, personaResult.persona]);
+    if (personaResult.persona) {
+      return {
+        ...config,
+        copilotName: personaResult.persona.copilotName ?? config.copilotName,
+        avatarUrl: personaResult.persona.avatarUrl ?? config.avatarUrl,
+      };
+    }
+    if (personaLoading) {
+      return { ...config, avatarUrl: undefined };
+    }
+    return config;
+  }, [config, personaResult.persona, personaLoading]);
 
   return (
     <PersonaContext.Provider value={personaResult}>

@@ -15,16 +15,26 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
   const store = new PersonaStore(options.personaDir);
   const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
 
-  // GET /persona
+  // GET /persona — avatar inlined as data URI to avoid auth issues with <img src>
   router.get('/persona', (_req, res) => {
     const data = store.get();
     res.json({
       copilotName: data.copilotName,
-      avatarUrl: data.avatarFilename ? `/api/agent/avatar?v=${Date.now()}` : '',
+      avatarUrl: getAvatarDataUri(),
       activeVoiceId: data.activeVoiceId,
       voices: data.voices.map(v => ({ id: v.id, name: v.name, filename: v.filename })),
     });
   });
+
+  // Helper: read avatar as data URI
+  function getAvatarDataUri(): string {
+    const avatarPath = store.getAvatarPath();
+    if (avatarPath && fs.existsSync(avatarPath)) {
+      const mime = avatarPath.endsWith('.webp') ? 'image/webp' : 'image/png';
+      return `data:${mime};base64,${fs.readFileSync(avatarPath).toString('base64')}`;
+    }
+    return '';
+  }
 
   // PUT /persona
   router.put('/persona', async (req, res) => {
@@ -33,7 +43,7 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
       const updated = await store.update({ copilotName, activeVoiceId });
       res.json({
         copilotName: updated.copilotName,
-        avatarUrl: updated.avatarFilename ? `/api/agent/avatar?v=${Date.now()}` : '',
+        avatarUrl: getAvatarDataUri(),
         activeVoiceId: updated.activeVoiceId,
         voices: updated.voices.map(v => ({ id: v.id, name: v.name, filename: v.filename })),
       });
@@ -55,13 +65,13 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
         res.status(400).json({ error: 'Image must be PNG, JPG, or WebP' });
         return;
       }
-      const outPath = path.join(options.personaDir, 'avatar.png');
+      const outPath = path.join(options.personaDir, 'avatar.webp');
       await sharp(req.file.buffer)
-        .resize(512, 512, { fit: 'cover' })
-        .png()
+        .resize(128, 128, { fit: 'cover' })
+        .webp({ quality: 80 })
         .toFile(outPath);
-      await store.setAvatar('avatar.png');
-      res.json({ avatarUrl: `/api/agent/avatar?v=${Date.now()}` });
+      await store.setAvatar('avatar.webp');
+      res.json({ avatarUrl: getAvatarDataUri() });
     } catch (err) {
       console.error('[Persona] avatar upload error:', err);
       res.status(500).json({ error: 'Failed to process avatar' });

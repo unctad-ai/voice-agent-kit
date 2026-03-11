@@ -14,6 +14,7 @@ export interface VoiceEntry {
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '';
 const API_KEY = import.meta.env.VITE_API_KEY || '';
 
+
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = { ...extra };
   if (API_KEY) headers['X-API-Key'] = API_KEY;

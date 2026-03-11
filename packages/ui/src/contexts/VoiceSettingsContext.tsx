@@ -17,6 +17,7 @@ import {
   DEFAULT_TTS_TIMEOUT_MS,
   DEFAULT_LLM_TIMEOUT_MS,
   DEFAULT_MIN_AUDIO_RMS,
+  DEFAULT_MAX_HISTORY_MESSAGES,
 } from '@unctad-ai/voice-agent-core';
 
 export interface VoiceSettings {
@@ -37,6 +38,7 @@ export interface VoiceSettings {
   ttsTimeoutMs: number;
   llmTimeoutMs: number;
   minAudioRms: number;
+  maxHistoryMessages: number;
 }
 
 const DEFAULTS: VoiceSettings = {
@@ -57,6 +59,7 @@ const DEFAULTS: VoiceSettings = {
   ttsTimeoutMs: DEFAULT_TTS_TIMEOUT_MS,
   llmTimeoutMs: DEFAULT_LLM_TIMEOUT_MS,
   minAudioRms: DEFAULT_MIN_AUDIO_RMS,
+  maxHistoryMessages: DEFAULT_MAX_HISTORY_MESSAGES,
 };
 
 const STORAGE_KEY = 'voice-settings';

@@ -356,6 +356,7 @@ function ComposerBar({
   onTextSubmit,
   onMicToggle,
   disabled = false,
+  switchToTextRef,
 }: {
   voiceState: VoiceState;
   isListening: boolean;
@@ -363,11 +364,17 @@ function ComposerBar({
   onTextSubmit: (text: string) => void;
   onMicToggle: () => void;
   disabled?: boolean;
+  switchToTextRef?: React.RefObject<(() => void) | null>;
 }) {
   const { colors } = useSiteConfig();
   const [mode, setMode] = useState<'voice' | 'text'>('voice');
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Expose switch-to-text for external triggers (empty state CTA)
+  useEffect(() => {
+    if (switchToTextRef) (switchToTextRef as React.MutableRefObject<(() => void) | null>).current = () => setMode('text');
+  }, [switchToTextRef]);
 
   useEffect(() => {
     if (mode === 'text') {
@@ -622,6 +629,7 @@ function ExpandedContent({
   onMicToggle, micPaused = false, onToolDismiss, onInteraction, onRetry,
   isRetrying = false, lastTimings, showPipelineMetrics, pipelineMetricsAutoHideMs,
   showSettings, onSettingsToggle, ttsEnabled = true, copilotName, portraitSrc,
+  onStartMic, onSwitchToKeyboard, switchToTextRef,
 }: {
   orbState: OrbState; getAmplitude: () => number; analyser: AnalyserNode | null;
   voiceState: VoiceState; messages: VoiceMessage[]; isTyping: boolean;
@@ -632,6 +640,8 @@ function ExpandedContent({
   lastTimings?: PipelineTimings | null; showPipelineMetrics?: boolean;
   pipelineMetricsAutoHideMs?: number; showSettings: boolean; onSettingsToggle: () => void;
   ttsEnabled?: boolean; copilotName: string; portraitSrc?: string;
+  onStartMic?: () => void; onSwitchToKeyboard?: () => void;
+  switchToTextRef?: React.RefObject<(() => void) | null>;
 }) {
   const { colors } = useSiteConfig();
   const isListening = voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING';
@@ -639,7 +649,7 @@ function ExpandedContent({
 
   return (
     <div
-      className="flex flex-col h-full overflow-hidden"
+      style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}
       onClick={onInteraction}
       onKeyDown={onInteraction}
     >
@@ -711,9 +721,9 @@ function ExpandedContent({
         </button>
       </motion.div>
 
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div data-testid="voice-agent-transcript"><VoiceTranscript messages={messages} isTyping={isTyping} variant="panel" voiceError={voiceError} /></div>
-        <div className="shrink-0">
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div data-testid="voice-agent-transcript" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}><VoiceTranscript messages={messages} isTyping={isTyping} variant="panel" voiceError={voiceError} voiceState={voiceState} onStartMic={onStartMic} onSwitchToKeyboard={onSwitchToKeyboard} /></div>
+        <div style={{ flexShrink: 0 }}>
           <PipelineMetricsBar timings={lastTimings ?? null} show={showPipelineMetrics} autoHideMs={pipelineMetricsAutoHideMs} />
           {isOffline && onRetry && (
             <div style={{ padding: '0 16px 8px', display: 'flex', justifyContent: 'center' }}>
@@ -733,7 +743,7 @@ function ExpandedContent({
       </div>
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...SPRING_MICRO, delay: 0.2 }} className="shrink-0">
-        <ComposerBar voiceState={voiceState} isListening={isListening} micPaused={micPaused} onTextSubmit={onTextSubmit} onMicToggle={onMicToggle} disabled={voiceError === 'network_error'} />
+        <ComposerBar voiceState={voiceState} isListening={isListening} micPaused={micPaused} onTextSubmit={onTextSubmit} onMicToggle={onMicToggle} disabled={voiceError === 'network_error'} switchToTextRef={switchToTextRef} />
       </motion.div>
     </div>
   );
@@ -810,7 +820,7 @@ function WiredPanelInner({
   const { settings: voiceSettings, volumeRef, speedRef } = useVoiceSettings();
   const { state, start, stop, messages, isLLMLoading, getAmplitude, analyser, sendTextMessage, voiceError, dismissError, sessionEnded, lastTimings, applyVolume, settings } = useVoiceAgent({ settings: voiceSettings, volumeRef, speedRef });
 
-  useEffect(() => { if (sessionEnded) onClose(); }, [sessionEnded, onClose]);
+  useEffect(() => { if (sessionEnded) onCollapse(); }, [sessionEnded, onCollapse]);
 
   const [toolResult, setToolResult] = useState<VoiceToolResult | null>(null);
   const orbState = voiceStateToOrbState(state);
@@ -891,6 +901,18 @@ function WiredPanelInner({
     }).catch(() => setIsRetrying(false));
   }, [isRetrying, runHealthCheck, dismissError, settings.autoListen]);
 
+  // Auto-expand panel when first message arrives (voice-first: skip empty state)
+  const onExpandRef = useRef(onExpand);
+  useEffect(() => { onExpandRef.current = onExpand; });
+  useEffect(() => {
+    if (panelState === 'collapsed' && messages.length > 0) {
+      onExpandRef.current();
+    }
+  }, [panelState, messages.length]);
+
+  const switchToTextRef = useRef<(() => void) | null>(null);
+  const handleSwitchToKeyboard = useCallback(() => { switchToTextRef.current?.(); }, []);
+
   const [showSettings, setShowSettings] = useState(false);
   const toggleSettings = useCallback(() => setShowSettings((p) => !p), []);
 
@@ -900,7 +922,7 @@ function WiredPanelInner({
 
   return (
     <div className="relative h-full">
-      <ExpandedContent orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} messages={messages} isTyping={isTyping} toolResult={toolResult} voiceError={effectiveError} dismissError={dismissError} onCollapse={onCollapse} onClose={onClose} onTextSubmit={handleTextSubmit} onMicToggle={handleMicToggle} micPaused={micPaused} onToolDismiss={() => setToolResult(null)} onInteraction={bumpActivity} onRetry={handleRetryClick} isRetrying={isRetrying} lastTimings={lastTimings} showPipelineMetrics={settings.showPipelineMetrics} pipelineMetricsAutoHideMs={settings.pipelineMetricsAutoHideMs} showSettings={showSettings} onSettingsToggle={toggleSettings} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} />
+      <ExpandedContent orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} messages={messages} isTyping={isTyping} toolResult={toolResult} voiceError={effectiveError} dismissError={dismissError} onCollapse={onCollapse} onClose={onClose} onTextSubmit={handleTextSubmit} onMicToggle={handleMicToggle} micPaused={micPaused} onToolDismiss={() => setToolResult(null)} onInteraction={bumpActivity} onRetry={handleRetryClick} isRetrying={isRetrying} lastTimings={lastTimings} showPipelineMetrics={settings.showPipelineMetrics} pipelineMetricsAutoHideMs={settings.pipelineMetricsAutoHideMs} showSettings={showSettings} onSettingsToggle={toggleSettings} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} onStartMic={handleMicToggle} onSwitchToKeyboard={handleSwitchToKeyboard} switchToTextRef={switchToTextRef} />
       <AnimatePresence>
         {showSettings && (<Suspense fallback={null}><VoiceSettingsView onBack={toggleSettings} onVolumeChange={applyVolume} /></Suspense>)}
       </AnimatePresence>

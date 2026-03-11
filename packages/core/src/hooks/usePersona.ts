@@ -13,9 +13,15 @@ export interface UsePersonaResult {
   previewVoice: (voiceId: string, text: string) => Promise<ArrayBuffer>;
 }
 
+// Module-level cache — survives re-mounts, shared across instances.
+const personaCache = new Map<string, PersonaData>();
+
 export function usePersona(endpoint: string | undefined): UsePersonaResult {
-  const [persona, setPersona] = useState<PersonaData | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const cacheKey = endpoint ?? '';
+  const cached = cacheKey ? personaCache.get(cacheKey) : undefined;
+
+  const [persona, setPersona] = useState<PersonaData | null>(cached ?? null);
+  const [isLoaded, setIsLoaded] = useState(!!cached);
   const apiRef = useRef<PersonaApi | null>(null);
   const endpointRef = useRef<string | undefined>(undefined);
 
@@ -25,16 +31,17 @@ export function usePersona(endpoint: string | undefined): UsePersonaResult {
   }
 
   const refresh = useCallback(async () => {
-    if (!apiRef.current) return;
+    if (!apiRef.current || !cacheKey) return;
     try {
       const data = await apiRef.current.getPersona();
+      personaCache.set(cacheKey, data);
       setPersona(data);
       setIsLoaded(true);
     } catch (err) {
       console.warn('[usePersona] fetch failed, using static config:', err);
       setIsLoaded(true);
     }
-  }, []);
+  }, [cacheKey]);
 
   useEffect(() => {
     if (endpoint) refresh();
@@ -43,8 +50,9 @@ export function usePersona(endpoint: string | undefined): UsePersonaResult {
   const updateName = useCallback(async (name: string) => {
     if (!apiRef.current) return;
     const updated = await apiRef.current.updatePersona({ copilotName: name });
+    personaCache.set(cacheKey, updated);
     setPersona(updated);
-  }, []);
+  }, [cacheKey]);
 
   const uploadAvatar = useCallback(async (file: File) => {
     if (!apiRef.current) return;
@@ -68,8 +76,9 @@ export function usePersona(endpoint: string | undefined): UsePersonaResult {
   const setActiveVoice = useCallback(async (id: string) => {
     if (!apiRef.current) return;
     const updated = await apiRef.current.updatePersona({ activeVoiceId: id });
+    personaCache.set(cacheKey, updated);
     setPersona(updated);
-  }, []);
+  }, [cacheKey]);
 
   const previewVoice = useCallback(async (voiceId: string, text: string) => {
     if (!apiRef.current) throw new Error('Persona not configured');

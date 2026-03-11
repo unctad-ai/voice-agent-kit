@@ -20,6 +20,8 @@ export interface VoiceServerOptions {
   resembleModel?: string;
   resembleVoiceUuid?: string;
   personaDir?: string;
+  /** When true, fall back to alternate TTS providers if primary fails. Default: false */
+  ttsFallback?: boolean;
 }
 
 export function createVoiceRoutes(options: VoiceServerOptions): {
