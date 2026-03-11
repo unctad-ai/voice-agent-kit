@@ -1,0 +1,88 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+export interface StoredPersona {
+  copilotName: string;
+  avatarFilename: string;
+  activeVoiceId: string;
+  voices: { id: string; name: string; filename: string; cachedAt: string }[];
+}
+
+const DEFAULT_PERSONA: StoredPersona = {
+  copilotName: '',
+  avatarFilename: '',
+  activeVoiceId: '',
+  voices: [],
+};
+
+export class PersonaStore {
+  private data: StoredPersona;
+  private filePath: string;
+  private writeQueue: Promise<void> = Promise.resolve();
+
+  constructor(private personaDir: string) {
+    fs.mkdirSync(path.join(personaDir, 'voices'), { recursive: true });
+    this.filePath = path.join(personaDir, 'persona.json');
+    this.data = this.load();
+  }
+
+  private load(): StoredPersona {
+    try {
+      const raw = fs.readFileSync(this.filePath, 'utf-8');
+      return { ...DEFAULT_PERSONA, ...JSON.parse(raw) };
+    } catch {
+      return { ...DEFAULT_PERSONA };
+    }
+  }
+
+  private async save(): Promise<void> {
+    this.writeQueue = this.writeQueue.then(() =>
+      fs.promises.writeFile(this.filePath, JSON.stringify(this.data, null, 2))
+    );
+    await this.writeQueue;
+  }
+
+  get(): StoredPersona {
+    return { ...this.data };
+  }
+
+  async update(partial: Partial<Pick<StoredPersona, 'copilotName' | 'activeVoiceId'>>): Promise<StoredPersona> {
+    if (partial.copilotName !== undefined) this.data.copilotName = partial.copilotName;
+    if (partial.activeVoiceId !== undefined) this.data.activeVoiceId = partial.activeVoiceId;
+    await this.save();
+    return this.get();
+  }
+
+  async setAvatar(filename: string): Promise<void> {
+    this.data.avatarFilename = filename;
+    await this.save();
+  }
+
+  async addVoice(entry: { id: string; name: string; filename: string }): Promise<void> {
+    this.data.voices.push({ ...entry, cachedAt: new Date().toISOString() });
+    if (!this.data.activeVoiceId) this.data.activeVoiceId = entry.id;
+    await this.save();
+  }
+
+  async removeVoice(id: string): Promise<void> {
+    this.data.voices = this.data.voices.filter(v => v.id !== id);
+    if (this.data.activeVoiceId === id) {
+      this.data.activeVoiceId = this.data.voices[0]?.id ?? '';
+    }
+    await this.save();
+  }
+
+  getVoicesDir(): string {
+    return path.join(this.personaDir, 'voices');
+  }
+
+  getAvatarPath(): string | null {
+    if (!this.data.avatarFilename) return null;
+    const p = path.join(this.personaDir, this.data.avatarFilename);
+    return fs.existsSync(p) ? p : null;
+  }
+
+  getActiveVoiceId(): string {
+    return this.data.activeVoiceId;
+  }
+}

@@ -9,6 +9,7 @@ export interface TtsHandlerOptions {
   resembleApiKey?: string;
   resembleModel?: string;
   resembleVoiceUuid?: string;
+  getActiveVoiceId?: () => string;
 }
 
 /**
@@ -95,11 +96,12 @@ async function synthesizeWithQwen3TTS(
   text: string,
   url: string,
   signal?: AbortSignal,
-  opts?: { temperature?: number }
+  opts?: { temperature?: number; voice?: string }
 ): Promise<Response> {
   const formData = new URLSearchParams();
   formData.append('text', text);
   if (opts?.temperature != null) formData.append('temperature', String(opts.temperature));
+  if (opts?.voice) formData.append('voice', opts.voice);
 
   // Uses /tts-pipeline for token-level streaming: audio chunks yielded as codec
   // tokens are generated. TTFA ~200ms with two-phase emission + Hann crossfade.
@@ -202,6 +204,7 @@ export function createTtsHandler(options: TtsHandlerOptions): Router {
   const resembleApiKey = options.resembleApiKey || '';
   const resembleModel = options.resembleModel || '';
   const resembleVoiceUuid = options.resembleVoiceUuid || '';
+  const getActiveVoiceId = options.getActiveVoiceId;
 
   // Helper to call Resemble with options closure
   function callResemble(text: string, signal?: AbortSignal): Promise<Response> {
@@ -260,16 +263,18 @@ export function createTtsHandler(options: TtsHandlerOptions): Router {
       }
 
       const sanitized = sanitizeForTTS(text, maxWords);
+      const voiceId = getActiveVoiceId?.() || '';
       console.debug('[TTS] provider:', ttsProvider);
       console.debug('[TTS] raw:', JSON.stringify(text));
       console.debug('[TTS] sanitized:', JSON.stringify(sanitized));
+      if (voiceId) console.debug('[TTS] voice:', voiceId);
 
       const ttsStartTime = performance.now();
       let response: Response;
 
       if (ttsProvider === 'qwen3-tts') {
         try {
-          response = await synthesizeWithQwen3TTS(sanitized, qwen3TtsUrl, signal, { temperature });
+          response = await synthesizeWithQwen3TTS(sanitized, qwen3TtsUrl, signal, { temperature, voice: voiceId });
           if (!response.ok) throw new Error(`qwen3-tts ${response.status}`);
         } catch (err) {
           if (signal.aborted) throw err; // Don't fallback if globally aborted

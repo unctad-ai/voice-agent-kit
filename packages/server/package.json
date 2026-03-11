@@ -30,7 +30,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@unctad-ai/voice-agent-core": "workspace:*"
+    "@unctad-ai/voice-agent-core": "workspace:*",
+    "multer": "^2.1.1",
+    "sharp": "^0.34.5"
   },
   "peerDependencies": {
     "@ai-sdk/groq": "^3.0.0",
@@ -41,11 +43,10 @@
   "devDependencies": {
     "@ai-sdk/groq": "^3.0.24",
     "@types/express": "^5.0.6",
-    "@types/multer": "^2.0.0",
+    "@types/multer": "^2.1.0",
     "ai": "^6.0.112",
     "express": "^5.2.1",
     "groq-sdk": "^0.37.0",
-    "multer": "^2.1.1",
     "typescript": "^5.9.3",
     "zod": "^4.3.6"
   }
