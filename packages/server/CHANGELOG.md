@@ -1,5 +1,13 @@
 # @unctad-ai/voice-agent-server
 
+## 1.0.1
+
+### Patch Changes
+
+- 720109d: fix: avatar data URI inlining, TTS fallback opt-in, remove Whisper STT fallback, empty state wiring
+- Updated dependencies [720109d]
+  - @unctad-ai/voice-agent-core@1.0.1
+
 ## 1.0.0
 
 ### Minor Changes
