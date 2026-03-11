@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePersonaContext, useSiteConfig } from '@unctad-ai/voice-agent-core';
-import { cn } from '../utils.js';
 
 export function PersonaSettings() {
   const config = useSiteConfig();
@@ -16,13 +15,17 @@ function PersonaSettingsInner() {
   const { persona: data, isLoaded, updateName, uploadAvatar, uploadVoice, deleteVoice, setActiveVoice, previewVoice } = persona;
 
   if (!isLoaded) {
-    return <div className="p-4 text-sm text-neutral-400">Loading persona settings...</div>;
+    return (
+      <div style={{ padding: 16, fontSize: 13, color: '#9ca3af', fontFamily: 'inherit' }}>
+        Loading persona settings...
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, fontFamily: 'inherit' }}>
       <AvatarSection avatarUrl={config.avatarUrl} onUpload={uploadAvatar} />
-      <NameSection name={config.copilotName} onSave={updateName} />
+      <NameSection name={config.copilotName} onSave={updateName} primaryColor={config.colors.primary} />
       <VoiceSection
         voices={data?.voices ?? []}
         activeVoiceId={data?.activeVoiceId ?? ''}
@@ -30,6 +33,7 @@ function PersonaSettingsInner() {
         onDelete={deleteVoice}
         onSelect={setActiveVoice}
         onPreview={previewVoice}
+        primaryColor={config.colors.primary}
       />
     </div>
   );
@@ -40,6 +44,7 @@ function AvatarSection({ avatarUrl, onUpload }: {
   onUpload: (file: File) => Promise<void>;
 }) {
   const [uploading, setUploading] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,39 +57,69 @@ function AvatarSection({ avatarUrl, onUpload }: {
   };
 
   return (
-    <div className="flex items-center gap-3">
-      <div className="relative w-16 h-16 rounded-full overflow-hidden bg-neutral-100 shrink-0">
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{
+        position: 'relative',
+        width: 64,
+        height: 64,
+        borderRadius: 9999,
+        overflow: 'hidden',
+        backgroundColor: '#f3f4f6',
+        flexShrink: 0,
+      }}>
         {avatarUrl ? (
-          <img src={avatarUrl} alt="Agent avatar" className="w-full h-full object-cover" />
+          <img src={avatarUrl} alt="Agent avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-neutral-400 text-xl">?</div>
+          <div style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#9ca3af',
+            fontSize: 20,
+          }}>?</div>
         )}
       </div>
-      <div className="flex flex-col gap-1">
-        <span className="text-xs font-medium text-neutral-500">Avatar</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <span style={{ fontSize: 11, fontWeight: 500, color: '#6b7280' }}>Avatar</span>
         <button
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className={cn(
-            "text-xs px-2.5 py-1 rounded-md border border-neutral-200",
-            "hover:bg-neutral-50 transition-colors cursor-pointer",
-            uploading && "opacity-50 cursor-wait"
-          )}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{
+            fontSize: 11,
+            paddingLeft: 10,
+            paddingRight: 10,
+            paddingTop: 4,
+            paddingBottom: 4,
+            borderRadius: 6,
+            border: '1px solid #e5e7eb',
+            backgroundColor: hovered && !uploading ? '#f9fafb' : 'transparent',
+            cursor: uploading ? 'wait' : 'pointer',
+            opacity: uploading ? 0.5 : 1,
+            transition: 'background-color 0.15s',
+            fontFamily: 'inherit',
+          }}
         >
           {uploading ? 'Uploading...' : 'Change'}
         </button>
-        <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFile} className="hidden" />
+        <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFile} style={{ display: 'none' }} />
       </div>
     </div>
   );
 }
 
-function NameSection({ name, onSave }: {
+function NameSection({ name, onSave, primaryColor }: {
   name: string;
   onSave: (name: string) => Promise<void>;
+  primaryColor: string;
 }) {
   const [value, setValue] = useState(name);
   const [saving, setSaving] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+  const [saveHovered, setSaveHovered] = useState(false);
   const dirty = value !== name;
 
   useEffect(() => { setValue(name); }, [name]);
@@ -97,21 +132,51 @@ function NameSection({ name, onSave }: {
   };
 
   return (
-    <div className="flex flex-col gap-1">
-      <span className="text-xs font-medium text-neutral-500">Agent Name</span>
-      <div className="flex gap-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <span style={{ fontSize: 11, fontWeight: 500, color: '#6b7280' }}>Agent Name</span>
+      <div style={{ display: 'flex', gap: 8 }}>
         <input
           type="text"
           value={value}
           onChange={e => setValue(e.target.value)}
-          className="flex-1 text-sm px-2.5 py-1.5 rounded-md border border-neutral-200 outline-none focus:border-neutral-400"
+          onFocus={() => setInputFocused(true)}
+          onBlur={() => setInputFocused(false)}
           maxLength={30}
+          style={{
+            flex: 1,
+            fontSize: 13,
+            paddingLeft: 10,
+            paddingRight: 10,
+            paddingTop: 6,
+            paddingBottom: 6,
+            borderRadius: 6,
+            border: `1px solid ${inputFocused ? '#9ca3af' : '#e5e7eb'}`,
+            outline: 'none',
+            fontFamily: 'inherit',
+            transition: 'border-color 0.15s',
+          }}
         />
         {dirty && (
           <button
             onClick={handleSave}
             disabled={saving}
-            className="text-xs px-2.5 py-1 rounded-md bg-neutral-800 text-white hover:bg-neutral-700 transition-colors cursor-pointer disabled:opacity-50"
+            onMouseEnter={() => setSaveHovered(true)}
+            onMouseLeave={() => setSaveHovered(false)}
+            style={{
+              fontSize: 11,
+              paddingLeft: 10,
+              paddingRight: 10,
+              paddingTop: 4,
+              paddingBottom: 4,
+              borderRadius: 6,
+              border: 'none',
+              backgroundColor: saveHovered ? primaryColor : '#1f2937',
+              color: '#fff',
+              cursor: saving ? 'default' : 'pointer',
+              opacity: saving ? 0.5 : 1,
+              transition: 'background-color 0.15s',
+              fontFamily: 'inherit',
+            }}
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
@@ -121,13 +186,14 @@ function NameSection({ name, onSave }: {
   );
 }
 
-function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onPreview }: {
+function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onPreview, primaryColor }: {
   voices: { id: string; name: string }[];
   activeVoiceId: string;
   onUpload: (file: File, name: string) => Promise<any>;
   onDelete: (id: string) => Promise<void>;
   onSelect: (id: string) => Promise<void>;
   onPreview: (id: string, text: string) => Promise<ArrayBuffer>;
+  primaryColor: string;
 }) {
   const [uploading, setUploading] = useState(false);
   const [uploadName, setUploadName] = useState('');
@@ -175,82 +241,233 @@ function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onP
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <span className="text-xs font-medium text-neutral-500">Voice</span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: 11, fontWeight: 500, color: '#6b7280' }}>Voice</span>
 
       {voices.length === 0 && (
-        <p className="text-xs text-neutral-400">No voices configured. Upload a WAV sample to enable voice cloning.</p>
+        <p style={{ fontSize: 11, color: '#9ca3af', margin: 0 }}>
+          No voices configured. Upload a WAV sample to enable voice cloning.
+        </p>
       )}
 
       {voices.map(v => (
-        <div key={v.id} className={cn(
-          "flex items-center gap-2 px-2.5 py-2 rounded-md border text-sm",
-          v.id === activeVoiceId ? "border-neutral-400 bg-neutral-50" : "border-neutral-200"
-        )}>
-          <input
-            type="radio"
-            name="active-voice"
-            checked={v.id === activeVoiceId}
-            onChange={() => onSelect(v.id)}
-            className="accent-neutral-800"
-          />
-          <span className="flex-1">{v.name}</span>
-          <button
-            onClick={() => handlePreview(v.id)}
-            disabled={previewing === v.id}
-            className="text-xs text-neutral-500 hover:text-neutral-700 cursor-pointer disabled:opacity-50"
-          >
-            {previewing === v.id ? 'Playing...' : 'Preview'}
-          </button>
-          <button
-            onClick={() => { if (confirm(`Delete voice "${v.name}"?`)) onDelete(v.id); }}
-            className="text-xs text-red-500 hover:text-red-700 cursor-pointer"
-          >
-            Delete
-          </button>
-        </div>
+        <VoiceRow
+          key={v.id}
+          voice={v}
+          isActive={v.id === activeVoiceId}
+          isPreviewing={previewing === v.id}
+          onSelect={() => onSelect(v.id)}
+          onPreview={() => handlePreview(v.id)}
+          onDelete={() => onDelete(v.id)}
+          primaryColor={primaryColor}
+        />
       ))}
 
       {showUpload ? (
-        <div className="flex flex-col gap-2 p-2.5 rounded-md border border-neutral-200 bg-neutral-50">
-          <input
-            type="text"
-            value={uploadName}
-            onChange={e => setUploadName(e.target.value)}
-            placeholder="Voice name"
-            className="text-sm px-2.5 py-1.5 rounded-md border border-neutral-200 outline-none"
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={handleUpload}
-              disabled={uploading || !uploadName}
-              className="text-xs px-2.5 py-1 rounded-md bg-neutral-800 text-white hover:bg-neutral-700 cursor-pointer disabled:opacity-50"
-            >
-              {uploading ? 'Processing (~8s)...' : 'Upload'}
-            </button>
-            <button
-              onClick={() => { setShowUpload(false); fileRef.current = null; }}
-              className="text-xs px-2.5 py-1 rounded-md border border-neutral-200 hover:bg-neutral-50 cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <UploadForm
+          uploadName={uploadName}
+          uploading={uploading}
+          onNameChange={setUploadName}
+          onUpload={handleUpload}
+          onCancel={() => { setShowUpload(false); fileRef.current = null; }}
+          primaryColor={primaryColor}
+        />
       ) : (
-        <button
-          onClick={() => inputRef.current?.click()}
+        <UploadButton
           disabled={voices.length >= 10}
-          className={cn(
-            "text-xs px-2.5 py-1.5 rounded-md border border-dashed border-neutral-300",
-            "hover:bg-neutral-50 transition-colors cursor-pointer",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
-          )}
-        >
-          + Upload voice sample (WAV, max 30s)
-        </button>
+          onClick={() => inputRef.current?.click()}
+        />
       )}
 
-      <input ref={inputRef} type="file" accept="audio/wav" onChange={handleFileSelect} className="hidden" />
+      <input ref={inputRef} type="file" accept="audio/wav" onChange={handleFileSelect} style={{ display: 'none' }} />
     </div>
+  );
+}
+
+function VoiceRow({ voice, isActive, isPreviewing, onSelect, onPreview, onDelete, primaryColor }: {
+  voice: { id: string; name: string };
+  isActive: boolean;
+  isPreviewing: boolean;
+  onSelect: () => void;
+  onPreview: () => void;
+  onDelete: () => void;
+  primaryColor: string;
+}) {
+  const [previewHovered, setPreviewHovered] = useState(false);
+  const [deleteHovered, setDeleteHovered] = useState(false);
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      paddingLeft: 10,
+      paddingRight: 10,
+      paddingTop: 8,
+      paddingBottom: 8,
+      borderRadius: 6,
+      border: `1px solid ${isActive ? '#9ca3af' : '#e5e7eb'}`,
+      backgroundColor: isActive ? '#f9fafb' : 'transparent',
+      fontSize: 13,
+    }}>
+      <input
+        type="radio"
+        name="active-voice"
+        checked={isActive}
+        onChange={onSelect}
+        style={{ accentColor: primaryColor }}
+      />
+      <span style={{ flex: 1 }}>{voice.name}</span>
+      <button
+        onClick={onPreview}
+        disabled={isPreviewing}
+        onMouseEnter={() => setPreviewHovered(true)}
+        onMouseLeave={() => setPreviewHovered(false)}
+        style={{
+          fontSize: 11,
+          color: previewHovered ? '#374151' : '#6b7280',
+          background: 'none',
+          border: 'none',
+          cursor: isPreviewing ? 'default' : 'pointer',
+          opacity: isPreviewing ? 0.5 : 1,
+          fontFamily: 'inherit',
+          transition: 'color 0.15s',
+        }}
+      >
+        {isPreviewing ? 'Playing...' : 'Preview'}
+      </button>
+      <button
+        onClick={onDelete}
+        onMouseEnter={() => setDeleteHovered(true)}
+        onMouseLeave={() => setDeleteHovered(false)}
+        style={{
+          fontSize: 11,
+          color: deleteHovered ? '#b91c1c' : '#ef4444',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          transition: 'color 0.15s',
+        }}
+      >
+        Delete
+      </button>
+    </div>
+  );
+}
+
+function UploadForm({ uploadName, uploading, onNameChange, onUpload, onCancel, primaryColor }: {
+  uploadName: string;
+  uploading: boolean;
+  onNameChange: (v: string) => void;
+  onUpload: () => void;
+  onCancel: () => void;
+  primaryColor: string;
+}) {
+  const [uploadHovered, setUploadHovered] = useState(false);
+  const [cancelHovered, setCancelHovered] = useState(false);
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 8,
+      padding: 10,
+      borderRadius: 6,
+      border: '1px solid #e5e7eb',
+      backgroundColor: '#f9fafb',
+    }}>
+      <input
+        type="text"
+        value={uploadName}
+        onChange={e => onNameChange(e.target.value)}
+        placeholder="Voice name"
+        style={{
+          fontSize: 13,
+          paddingLeft: 10,
+          paddingRight: 10,
+          paddingTop: 6,
+          paddingBottom: 6,
+          borderRadius: 6,
+          border: '1px solid #e5e7eb',
+          outline: 'none',
+          fontFamily: 'inherit',
+        }}
+      />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={onUpload}
+          disabled={uploading || !uploadName}
+          onMouseEnter={() => setUploadHovered(true)}
+          onMouseLeave={() => setUploadHovered(false)}
+          style={{
+            fontSize: 11,
+            paddingLeft: 10,
+            paddingRight: 10,
+            paddingTop: 4,
+            paddingBottom: 4,
+            borderRadius: 6,
+            border: 'none',
+            backgroundColor: uploadHovered ? primaryColor : '#1f2937',
+            color: '#fff',
+            cursor: uploading || !uploadName ? 'default' : 'pointer',
+            opacity: uploading || !uploadName ? 0.5 : 1,
+            fontFamily: 'inherit',
+            transition: 'background-color 0.15s',
+          }}
+        >
+          {uploading ? 'Processing (~8s)...' : 'Upload'}
+        </button>
+        <button
+          onClick={onCancel}
+          onMouseEnter={() => setCancelHovered(true)}
+          onMouseLeave={() => setCancelHovered(false)}
+          style={{
+            fontSize: 11,
+            paddingLeft: 10,
+            paddingRight: 10,
+            paddingTop: 4,
+            paddingBottom: 4,
+            borderRadius: 6,
+            border: '1px solid #e5e7eb',
+            backgroundColor: cancelHovered ? '#f9fafb' : 'transparent',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'background-color 0.15s',
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function UploadButton({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        fontSize: 11,
+        paddingLeft: 10,
+        paddingRight: 10,
+        paddingTop: 6,
+        paddingBottom: 6,
+        borderRadius: 6,
+        border: '1px dashed #d1d5db',
+        backgroundColor: hovered && !disabled ? '#f9fafb' : 'transparent',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        transition: 'background-color 0.15s',
+        fontFamily: 'inherit',
+      }}
+    >
+      + Upload voice sample (WAV, max 30s)
+    </button>
   );
 }

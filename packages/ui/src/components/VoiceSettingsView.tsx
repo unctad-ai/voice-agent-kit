@@ -66,11 +66,11 @@ export function SliderSetting({
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="py-3 space-y-2.5">
-      <div className="flex items-center gap-3">
+    <div style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {icon}
-        <span className="flex-1 text-sm font-medium text-neutral-900">{label}</span>
-        <span className="text-xs font-medium tabular-nums" style={{ color: 'var(--voice-settings-accent, #DB2129)' }}>{displayValue}</span>
+        <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#111827' }}>{label}</span>
+        <span style={{ fontSize: 11, fontWeight: 500, fontVariantNumeric: 'tabular-nums', color: 'var(--voice-settings-accent, #DB2129)' }}>{displayValue}</span>
       </div>
       <input
         type="range"
@@ -79,8 +79,7 @@ export function SliderSetting({
         max={max}
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full"
-        style={{ accentColor: 'var(--voice-settings-accent, #DB2129)' }}
+        style={{ width: '100%', accentColor: 'var(--voice-settings-accent, #DB2129)' }}
       />
     </div>
   );
@@ -101,11 +100,11 @@ export function ToggleSetting({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="py-3 flex items-center gap-3 cursor-pointer">
+    <label style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
       {icon}
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-neutral-900">{label}</div>
-        <div className="text-xs text-neutral-500">{description}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>{label}</div>
+        <div style={{ fontSize: 11, color: '#6b7280' }}>{description}</div>
       </div>
       <button
         role="switch"
@@ -158,9 +157,9 @@ export function SelectSetting({
   options: { value: string; label: string }[];
 }) {
   return (
-    <div className="py-3 flex items-center gap-3">
+    <div style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
       {icon}
-      <span className="flex-1 text-sm font-medium text-neutral-900">{label}</span>
+      <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#111827' }}>{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -208,8 +207,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
   const { settings, updateSetting, resetSettings } = useVoiceSettings();
   const config = useSiteConfig();
   const { colors } = config;
-  const iconClass = 'w-4 h-4 shrink-0';
-  const iconStyle = { color: colors.primary };
+  const iconStyle = { width: 16, height: 16, flexShrink: 0, color: colors.primary };
 
   return (
     <motion.div
@@ -217,18 +215,25 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-      className="voice-settings absolute inset-0 flex flex-col z-10"
-      style={{ borderRadius: 'inherit', backgroundColor: '#f9fafb', '--voice-settings-accent': colors.primary } as React.CSSProperties}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        zIndex: 10,
+        borderRadius: 'inherit',
+        backgroundColor: '#f9fafb',
+        fontFamily: 'inherit',
+        '--voice-settings-accent': colors.primary,
+      } as React.CSSProperties}
     >
       {/* Header */}
       <div
-        className="flex items-center gap-2.5 shrink-0 px-4"
-        style={{ height: 56, borderBottom: '1px solid #e5e7eb' }}
+        style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, paddingLeft: 16, paddingRight: 16, height: 56, borderBottom: '1px solid #e5e7eb' }}
       >
         <button
           onClick={onBack}
-          className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-colors"
-          style={{ color: '#6b7280' }}
+          style={{ width: 32, height: 32, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'color 0.15s', color: '#6b7280', background: 'none', border: 'none' }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLElement).style.color = '#111827';
           }}
@@ -237,15 +242,14 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           }}
           aria-label="Back to conversation"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft style={{ width: 16, height: 16 }} />
         </button>
-        <span className="flex-1 text-sm font-semibold" style={{ color: '#111827' }}>
+        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#111827' }}>
           Settings
         </span>
         <button
           onClick={resetSettings}
-          className="w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-colors"
-          style={{ color: '#9ca3af' }}
+          style={{ width: 32, height: 32, borderRadius: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'color 0.15s', color: '#9ca3af', background: 'none', border: 'none' }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLElement).style.color = colors.primary;
           }}
@@ -255,12 +259,12 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           aria-label="Reset all settings"
           title="Reset to defaults"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
+          <RotateCcw style={{ width: 14, height: 14 }} />
         </button>
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
         {/* Agent Persona */}
         {config.personaEndpoint && (
           <>
@@ -274,7 +278,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
         {/* Voice Input */}
         <SettingsSection title="Voice Input">
           <ToggleSetting
-            icon={<Mic className={iconClass} style={iconStyle} />}
+            icon={<Mic style={iconStyle} />}
             label="Auto-listen"
             description="Start mic when panel opens"
             checked={settings.autoListen}
@@ -282,7 +286,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SelectSetting
-            icon={<Timer className={iconClass} style={iconStyle} />}
+            icon={<Timer style={iconStyle} />}
             label="Idle timeout"
             value={String(settings.idleTimeoutMs)}
             onChange={(v) => updateSetting('idleTimeoutMs', Number(v))}
@@ -295,7 +299,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SliderSetting
-            icon={<Ear className={iconClass} style={iconStyle} />}
+            icon={<Ear style={iconStyle} />}
             label="Speech threshold"
             value={settings.speechThreshold * 100}
             displayValue={speechThresholdLabel(settings.speechThreshold)}
@@ -306,7 +310,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SelectSetting
-            icon={<Clock className={iconClass} style={iconStyle} />}
+            icon={<Clock style={iconStyle} />}
             label="Pause tolerance"
             value={String(settings.pauseToleranceMs)}
             onChange={(v) => updateSetting('pauseToleranceMs', Number(v))}
@@ -319,7 +323,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SliderSetting
-            icon={<Zap className={iconClass} style={iconStyle} />}
+            icon={<Zap style={iconStyle} />}
             label="Barge-in threshold"
             value={settings.bargeInThreshold * 100}
             displayValue={bargeInLabel(settings.bargeInThreshold)}
@@ -330,7 +334,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SelectSetting
-            icon={<Minimize2 className={iconClass} style={iconStyle} />}
+            icon={<Minimize2 style={iconStyle} />}
             label="Auto-collapse"
             value={String(settings.panelCollapseTimeoutMs)}
             onChange={(v) => updateSetting('panelCollapseTimeoutMs', Number(v))}
@@ -346,7 +350,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
         {/* Voice Output */}
         <SettingsSection title="Voice Output">
           <ToggleSetting
-            icon={<AudioLines className={iconClass} style={iconStyle} />}
+            icon={<AudioLines style={iconStyle} />}
             label="Text-to-speech"
             description="Speak responses aloud"
             checked={settings.ttsEnabled}
@@ -354,7 +358,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SliderSetting
-            icon={<Volume2 className={iconClass} style={iconStyle} />}
+            icon={<Volume2 style={iconStyle} />}
             label="Volume"
             value={settings.volume * 100}
             displayValue={`${Math.round(settings.volume * 100)}%`}
@@ -368,7 +372,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SliderSetting
-            icon={<Gauge className={iconClass} style={iconStyle} />}
+            icon={<Gauge style={iconStyle} />}
             label="Speed"
             value={settings.playbackSpeed * 100}
             displayValue={`${settings.playbackSpeed.toFixed(2)}x`}
@@ -379,7 +383,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SliderSetting
-            icon={<Sparkles className={iconClass} style={iconStyle} />}
+            icon={<Sparkles style={iconStyle} />}
             label="Expressiveness"
             value={settings.expressiveness * 100}
             displayValue={expressivenessLabel(settings.expressiveness)}
@@ -390,7 +394,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SelectSetting
-            icon={<MessageSquare className={iconClass} style={iconStyle} />}
+            icon={<MessageSquare style={iconStyle} />}
             label="Response length"
             value={String(settings.responseLength)}
             onChange={(v) => updateSetting('responseLength', Number(v))}
@@ -405,7 +409,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
         {/* Developer */}
         <SettingsSection title="Developer">
           <ToggleSetting
-            icon={<Activity className={iconClass} style={iconStyle} />}
+            icon={<Activity style={iconStyle} />}
             label="Pipeline metrics"
             description="Show STT / LLM / TTS timings"
             checked={settings.showPipelineMetrics}
@@ -413,7 +417,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SelectSetting
-            icon={<EyeOff className={iconClass} style={iconStyle} />}
+            icon={<EyeOff style={iconStyle} />}
             label="Auto-hide metrics"
             value={String(settings.pipelineMetricsAutoHideMs)}
             onChange={(v) => updateSetting('pipelineMetricsAutoHideMs', Number(v))}
@@ -426,7 +430,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SelectSetting
-            icon={<Mic className={iconClass} style={iconStyle} />}
+            icon={<Mic style={iconStyle} />}
             label="STT timeout"
             value={String(settings.sttTimeoutMs)}
             onChange={(v) => updateSetting('sttTimeoutMs', Number(v))}
@@ -438,7 +442,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SelectSetting
-            icon={<AudioLines className={iconClass} style={iconStyle} />}
+            icon={<AudioLines style={iconStyle} />}
             label="TTS timeout"
             value={String(settings.ttsTimeoutMs)}
             onChange={(v) => updateSetting('ttsTimeoutMs', Number(v))}
@@ -450,7 +454,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SelectSetting
-            icon={<Sparkles className={iconClass} style={iconStyle} />}
+            icon={<Sparkles style={iconStyle} />}
             label="LLM timeout"
             value={String(settings.llmTimeoutMs)}
             onChange={(v) => updateSetting('llmTimeoutMs', Number(v))}
@@ -463,7 +467,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           />
           <Divider />
           <SelectSetting
-            icon={<Signal className={iconClass} style={iconStyle} />}
+            icon={<Signal style={iconStyle} />}
             label="Min audio level"
             value={String(settings.minAudioRms)}
             onChange={(v) => updateSetting('minAudioRms', Number(v))}
@@ -478,12 +482,12 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
 
         {/* Info */}
         <SettingsSection title="Info" last>
-          <div className="py-3 flex items-start gap-3">
-            <Info className={iconClass} style={{ ...iconStyle, marginTop: 2 }} />
-            <div className="space-y-1 text-xs text-neutral-500">
+          <div style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+            <Info style={{ ...iconStyle, marginTop: 2 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: '#6b7280' }}>
               <div>
                 VAD Threshold:{' '}
-                <span className="font-medium text-neutral-700">{VAD.positiveSpeechThreshold}</span>
+                <span style={{ fontWeight: 500, color: '#374151' }}>{VAD.positiveSpeechThreshold}</span>
               </div>
             </div>
           </div>
@@ -505,12 +509,11 @@ export function SettingsSection({
   return (
     <div style={{ borderBottom: last ? 'none' : '1px solid #e5e7eb' }}>
       <div
-        className="px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider"
-        style={{ color: '#9ca3af' }}
+        style={{ paddingLeft: 16, paddingRight: 16, paddingTop: 16, paddingBottom: 4, fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9ca3af' }}
       >
         {title}
       </div>
-      <div className="px-4">{children}</div>
+      <div style={{ paddingLeft: 16, paddingRight: 16 }}>{children}</div>
     </div>
   );
 }
