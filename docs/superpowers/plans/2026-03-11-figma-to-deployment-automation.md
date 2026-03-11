@@ -8,11 +8,56 @@
 
 **Tech Stack:** GitHub Actions (composite), `anthropics/claude-code-action@v1`, Bash scripts, Docker, Node.js/TypeScript
 
-**Spec:** `docs/superpowers/specs/2026-03-11-figma-to-deployment-automation-design.md`
+**Spec:** `docs/superpowers/specs/2026-03-11-figma-to-deployment-automation-design.md` (in the voice-agent-kit repo)
+
+---
+
+## Background
+
+### Why this exists
+Designers use **Figma Make** to generate React/Vite projects and push to GitHub `main`. Our team then manually adds voice agent support (~15 steps). This plan automates that process.
+
+### Key constraints
+- **Figma Make owns `main`** — it force-writes entire files, doesn't sync back. We can never write to `main`.
+- **`git merge` fails** — the voice-agent branch modifies shared files (App.tsx, package.json, vite.config.ts). Figma Make regenerates those same files. Merge conflicts every time.
+- **Solution: always rebuild** — on every push to `main`, rebuild `voice-agent` from scratch (main + voice overlay). No merging.
+- **Existing integrations are unreviewed Claude Code output** — may contain bugs. We create a "golden reference" first.
+
+### What the voice-agent-kit provides
+- `@unctad-ai/voice-agent-core` — React hooks (useVoiceAgent, useTenVAD)
+- `@unctad-ai/voice-agent-registries` — Form field registration (useProgressiveFields, useRegisterUIAction)
+- `@unctad-ai/voice-agent-ui` — React components (GlassCopilotPanel, VoiceOrb)
+- `@unctad-ai/voice-agent-server` — Express route handlers (chat, STT, TTS)
+- API docs: `/Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/packages/registries/src/useProgressiveFields.ts`
+
+### Consuming projects
+| Project | Repo | Main branch | Voice branch | Location |
+|---------|------|-------------|-------------|----------|
+| Kenya | unctad-ai/Kenyaservices | `main` (Figma Make) | `voice-agent-refactor` | `/Users/moulaymehdi/PROJECTS/figma/Kenyaservices` |
+| Bhutan | unctad-ai/Bhutanephyto | `main` (Figma Make) | `feat/multi-voice-support` | `/Users/moulaymehdi/PROJECTS/figma/Bhutanephyto` |
+| Licenses | unctad-ai/Licenseportaldemo | `main` (Figma Make) | `voice-agent` | `/Users/moulaymehdi/PROJECTS/figma/Licenseportaldemo` |
+
+### Deployment
+All three deploy to `*.singlewindow.dev` via Coolify (self-hosted PaaS). Coolify watches the voice-agent branch and auto-deploys on push. Docker Compose: nginx frontend + Express backend. Traefik handles SSL.
+
+---
+
+## Prerequisites
+
+1. **Repos cloned locally** at the paths listed above
+2. **GitHub CLI (`gh`)** authenticated with access to `unctad-ai` org
+3. **Voice-agent-kit repo** at `/Users/moulaymehdi/PROJECTS/figma/voice-agent-kit`
+4. **Docker** installed locally (for verify step testing)
+5. **`CLAUDE_CODE_OAUTH_TOKEN`** available (for GitHub Actions secrets)
+6. **`yq`** installed (`brew install yq`) — used by the action to parse YAML config
 
 ---
 
 ## Chunk 1: Golden Reference
+
+Create the human-reviewed, correct form integration example that all automation will pattern-match from. This is the foundation — everything in Chunks 2-4 depends on it.
+
+**Working directory:** `/Users/moulaymehdi/PROJECTS/figma/Kenyaservices`
 
 Create the human-reviewed, correct form integration example that all automation will pattern-match from. This is the foundation — everything in Chunks 2-4 depends on it.
 
@@ -24,19 +69,19 @@ Create the human-reviewed, correct form integration example that all automation 
 - Read: `src/components/PinRegistrationApplication.tsx` (on `voice-agent-refactor`)
 - Read: `src/voice-config.ts` (on `voice-agent-refactor`)
 - Read: `server/voice-config.ts` (on `voice-agent-refactor`)
-- Create: `/tmp/golden-reference-audit.md`
+- Create: `/Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference-audit.md`
 
 - [ ] **Step 1: Read the current integration on voice-agent-refactor**
 
 ```bash
 cd /Users/moulaymehdi/PROJECTS/figma/Kenyaservices
-git show voice-agent-refactor:src/components/PinRegistrationApplication.tsx > /tmp/kenya-pin-current.tsx
+git show voice-agent-refactor:src/components/PinRegistrationApplication.tsx > /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/kenya-pin-current.tsx
 ```
 
 - [ ] **Step 2: Read the original component on main for comparison**
 
 ```bash
-git show main:src/components/PinRegistrationApplication.tsx > /tmp/kenya-pin-original.tsx
+git show main:src/components/PinRegistrationApplication.tsx > /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/kenya-pin-original.tsx
 ```
 
 - [ ] **Step 3: Audit against API contracts**
@@ -61,7 +106,7 @@ Compare the current integration against these correctness criteria from the voic
 - [ ] **Step 4: Audit voice-config.ts for stale service IDs**
 
 ```bash
-git show voice-agent-refactor:server/voice-config.ts > /tmp/kenya-server-config.tsx
+git show voice-agent-refactor:server/voice-config.ts > /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/kenya-server-config.tsx
 ```
 
 Check: do all service IDs referenced in `coreIds`, `routeMap`, and `getServiceFormRoute` match actual IDs in `src/data/services.ts`?
@@ -70,7 +115,7 @@ Known bug: `coreIds` contains `'company-registration'` and `'work-permit'` but a
 
 - [ ] **Step 5: Document all bugs found**
 
-Write findings to `/tmp/golden-reference-audit.md` with:
+Write findings to `/Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference-audit.md` with:
 - Each bug: file, line, what's wrong, what's correct
 - Missing registrations (fields that should be registered but aren't)
 - Excess registrations (fields that shouldn't be registered)
@@ -198,26 +243,26 @@ git commit -m "feat: create golden reference for form integration"
 ### Task 3: Extract golden reference files for the action repo
 
 **Files:**
-- Create: `/tmp/golden-reference/before.tsx`
-- Create: `/tmp/golden-reference/after.tsx`
+- Create: `/Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/before.tsx`
+- Create: `/Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/after.tsx`
 
 - [ ] **Step 1: Copy the main branch version (before)**
 
 ```bash
 cd /Users/moulaymehdi/PROJECTS/figma/Kenyaservices
-git show main:src/components/PinRegistrationApplication.tsx > /tmp/golden-reference/before.tsx
+git show main:src/components/PinRegistrationApplication.tsx > /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/before.tsx
 ```
 
 - [ ] **Step 2: Copy the corrected version (after)**
 
 ```bash
-git show golden-reference:src/components/PinRegistrationApplication.tsx > /tmp/golden-reference/after.tsx
+git show golden-reference:src/components/PinRegistrationApplication.tsx > /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/after.tsx
 ```
 
 - [ ] **Step 3: Verify the diff is clean**
 
 ```bash
-diff /tmp/golden-reference/before.tsx /tmp/golden-reference/after.tsx | head -100
+diff /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/before.tsx /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/after.tsx | head -100
 ```
 
 The diff should show ONLY: new import, useProgressiveFields call, useRegisterUIAction calls, useRegisterTabSwitchAction, useRegisterSubmitAction. No changes to existing JSX, state, or logic.
@@ -227,6 +272,8 @@ The diff should show ONLY: new import, useProgressiveFields call, useRegisterUIA
 ## Chunk 2: Voice Agent Action Repository
 
 Create the `unctad-ai/voice-agent-action` repo with templates, scripts, and golden reference.
+
+**Working directory:** Starts in any directory. Task 4 creates and clones the repo. All subsequent tasks in this chunk work inside the cloned `voice-agent-action` directory.
 
 ### Task 4: Create the action repository
 
@@ -861,6 +908,8 @@ git commit -m "feat: add change detection script"
 
 Write the prompts that drive Claude Code's intelligent integration work.
 
+**Working directory:** Inside the `voice-agent-action` repo (cloned in Chunk 2). Task 12 temporarily switches to the Bhutan repo for validation.
+
 ### Task 10: Write initial integration prompt
 
 **Files:**
@@ -871,8 +920,8 @@ Write the prompts that drive Claude Code's intelligent integration work.
 - [ ] **Step 1: Copy golden reference files into the action repo**
 
 ```bash
-cp /tmp/golden-reference/before.tsx golden-reference/before.tsx
-cp /tmp/golden-reference/after.tsx golden-reference/after.tsx
+cp /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/before.tsx golden-reference/before.tsx
+cp /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/after.tsx golden-reference/after.tsx
 git add golden-reference/
 git commit -m "feat: add golden reference before/after example"
 ```
@@ -988,6 +1037,8 @@ git commit -m "feat: refine prompts based on Bhutan validation"
 
 Test the complete action on a real project before deploying to production repos.
 
+**Working directory:** Creates a test repo at `/Users/moulaymehdi/PROJECTS/figma/voice-agent-test-project`. Most work is via `gh` CLI commands (remote operations).
+
 ### Task 13: Create a test repository
 
 **Files:**
@@ -997,7 +1048,7 @@ Test the complete action on a real project before deploying to production repos.
 
 ```bash
 gh repo create unctad-ai/voice-agent-test-project --private
-cd /tmp
+cd /Users/moulaymehdi/PROJECTS/figma
 git clone git@github.com:unctad-ai/voice-agent-test-project.git
 cd voice-agent-test-project
 # Copy Kenya main branch content
@@ -1096,7 +1147,7 @@ If the action failed or produced incorrect output, fix the scripts/prompts and r
 Add a new service to `src/data/services.ts` on main:
 
 ```bash
-cd /tmp/voice-agent-test-project
+cd /Users/moulaymehdi/PROJECTS/figma/voice-agent-test-project
 # Add a test service to services.ts
 git add src/data/services.ts
 git commit -m "Add new service (simulating designer update)"
@@ -1122,6 +1173,8 @@ Check that:
 ## Chunk 5: Migration of Existing Projects
 
 Deploy the action to Kenya, Bhutan, and Licenses.
+
+**Working directories:** Switches between all three consuming project repos (Kenya, Bhutan, Licenses — paths listed in Prerequisites).
 
 ### Task 16: Standardize branch names
 
