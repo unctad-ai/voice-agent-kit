@@ -18,11 +18,7 @@
 |------|--------|----------------|
 | (singlewindow server) | Install | Coolify instance |
 | `singlewindow-deployments/README.md` | Create | Onboarding guide |
-| `singlewindow-deployments/templates/docker-compose.yml` | Create | Standard compose template for voice agent projects |
-| `singlewindow-deployments/templates/Dockerfile.frontend` | Create | Standardized frontend Dockerfile |
-| `singlewindow-deployments/templates/server/Dockerfile` | Create | Standardized backend Dockerfile |
-| `singlewindow-deployments/templates/nginx.conf` | Create | Standardized nginx config for frontend |
-| `singlewindow-deployments/templates/.env.example` | Create | Documented env var template |
+| `singlewindow-deployments/templates/.env.example` | Create | Documented env var template (deployment templates live in `unctad-ai/voice-agent-action`) |
 | `singlewindow-deployments/projects/kenya.yml` | Create | Kenya project config |
 | `singlewindow-deployments/projects/bhutan.yml` | Create | Bhutan project config |
 | `singlewindow-deployments/projects/licenses.yml` | Create | Licenses project config |
@@ -114,7 +110,7 @@ Save the token — it will be used in automation scripts. Store it in a secure l
 
 In Coolify UI: Sources → Add → GitHub App.
 
-Follow the OAuth flow to install the Coolify GitHub App on the `celiaaivalioti` GitHub organization/account with access to:
+Follow the OAuth flow to install the Coolify GitHub App on the `unctad-ai` GitHub organization/account with access to:
 - `Kenyaservices`
 - `Bhutanephyto`
 - `Licenseportaldemo`
@@ -141,7 +137,7 @@ Expected: JSON response (empty array or default project list). HTTP 200.
 
 Run:
 ```bash
-gh repo create celiaaivalioti/singlewindow-deployments --private --description "Coolify deployment configs for voice agent demo projects" --clone
+gh repo create unctad-ai/singlewindow-deployments --private --description "Coolify deployment configs for voice agent demo projects" --clone
 ```
 
 - [ ] **Step 2: Create the directory structure**
@@ -149,129 +145,16 @@ gh repo create celiaaivalioti/singlewindow-deployments --private --description "
 Run:
 ```bash
 cd singlewindow-deployments
-mkdir -p coolify scripts templates/server projects
+mkdir -p coolify scripts templates projects
 ```
 
 ---
 
 ### Task 4: Create templates
 
-These templates are extracted from the existing projects (Kenya, Bhutan, Licenses are nearly identical).
+Deployment templates (Dockerfile.frontend, server/Dockerfile, docker-compose.yml, nginx.conf) are owned by `unctad-ai/voice-agent-action`. This repo only keeps the `.env.example` template.
 
-- [ ] **Step 1: Create the frontend Dockerfile template**
-
-Create `templates/Dockerfile.frontend`:
-
-```dockerfile
-# Stage 1: Build
-FROM node:22-slim AS build
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
-
-# Stage 2: Serve
-FROM nginx:alpine
-COPY --from=build /app/build /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 3000
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-- [ ] **Step 2: Create the nginx.conf template**
-
-Create `templates/nginx.conf`:
-
-```nginx
-server {
-    listen 3000;
-    server_name _;
-    root /usr/share/nginx/html;
-    index index.html;
-
-    client_max_body_size 10m;
-
-    location /api/ {
-        proxy_pass http://backend:3001/api/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # SSE support for streaming chat responses
-        proxy_set_header Connection '';
-        proxy_cache off;
-        proxy_buffering off;
-        chunked_transfer_encoding on;
-        proxy_read_timeout 300s;
-    }
-
-    # SPA fallback
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
-
-- [ ] **Step 3: Create the backend Dockerfile template**
-
-Create `templates/server/Dockerfile`:
-
-```dockerfile
-FROM node:22-slim
-WORKDIR /app
-COPY server/package*.json ./server/
-COPY package*.json ./
-RUN cd server && npm ci
-COPY server/ ./server/
-COPY src/data/ ./src/data/ 2>/dev/null || true
-COPY src/utils/ ./src/utils/ 2>/dev/null || true
-WORKDIR /app/server
-EXPOSE 3001
-CMD ["npx", "tsx", "index.ts"]
-```
-
-- [ ] **Step 4: Create the docker-compose template**
-
-Create `templates/docker-compose.yml`:
-
-```yaml
-# Voice Agent Project - Docker Compose Template
-# Copy to your project root and update SERVICE_NAME and DOMAIN
-services:
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
-    expose:
-      - "3000"
-
-  backend:
-    build:
-      context: .
-      dockerfile: server/Dockerfile
-    restart: unless-stopped
-    env_file:
-      - server/.env
-    expose:
-      - "3001"
-    environment:
-      - CORS_ORIGIN=https://${DOMAIN}
-    volumes:
-      - persona-data:/app/data/persona
-
-volumes:
-  persona-data:
-```
-
-> **Note:** The `persona-data` volume persists agent persona config (avatar, name, voice selection) across redeployments. Without it, persona settings would be lost on every Coolify redeploy.
-
-- [ ] **Step 5: Create the .env.example**
+- [ ] **Step 1: Create the .env.example**
 
 Create `templates/.env.example`:
 
@@ -287,11 +170,11 @@ CLIENT_API_KEY=          # API key for frontend-backend auth
 CORS_ORIGIN=             # https://<project>.singlewindow.dev
 ```
 
-- [ ] **Step 6: Commit templates**
+- [ ] **Step 2: Commit**
 
 ```bash
 git add templates/
-git commit -m "chore: add project templates (Dockerfiles, compose, nginx, env)"
+git commit -m "chore: add env template (deployment templates in voice-agent-action)"
 ```
 
 ---
@@ -304,7 +187,7 @@ Create `projects/kenya.yml`:
 
 ```yaml
 name: kenya
-repo: celiaaivalioti/Kenyaservices
+repo: unctad-ai/Kenyaservices
 branch: voice-agent-refactor
 domain: kenya.singlewindow.dev
 copilot_name: Pesa
@@ -317,7 +200,7 @@ Create `projects/bhutan.yml`:
 
 ```yaml
 name: bhutan
-repo: celiaaivalioti/Bhutanephyto
+repo: unctad-ai/Bhutanephyto
 branch: feat/multi-voice-support
 domain: bhutan.singlewindow.dev
 copilot_name: ePhyto
@@ -330,7 +213,7 @@ Create `projects/licenses.yml`:
 
 ```yaml
 name: licenses
-repo: celiaaivalioti/Licenseportaldemo
+repo: unctad-ai/Licenseportaldemo
 branch: voice-agent
 domain: licenses.singlewindow.dev
 copilot_name: License Portal
@@ -628,15 +511,15 @@ Deployment configs and automation for voice agent demo projects on `singlewindow
 
 | Project | Domain | Repo | Branch |
 |---------|--------|------|--------|
-| Kenya | kenya.singlewindow.dev | celiaaivalioti/Kenyaservices | voice-agent-refactor |
-| Bhutan | bhutan.singlewindow.dev | celiaaivalioti/Bhutanephyto | feat/multi-voice-support |
-| Licenses | licenses.singlewindow.dev | celiaaivalioti/Licenseportaldemo | voice-agent |
+| Kenya | kenya.singlewindow.dev | unctad-ai/Kenyaservices | voice-agent-refactor |
+| Bhutan | bhutan.singlewindow.dev | unctad-ai/Bhutanephyto | feat/multi-voice-support |
+| Licenses | licenses.singlewindow.dev | unctad-ai/Licenseportaldemo | voice-agent |
 
 ## Onboard a New Project
 
 1. Design team pushes React project to GitHub
 2. Create voice-agent branch, add `server/` directory with voice integration
-3. Copy Dockerfiles from `templates/`
+3. Deployment files (Dockerfiles, compose, nginx) are auto-generated by `unctad-ai/voice-agent-action`
 4. Create `projects/<name>.yml` (see existing configs)
 5. Run: `./scripts/onboard-project.sh projects/<name>.yml`
 
@@ -746,7 +629,7 @@ In Coolify UI: Projects → Add New → Name: `kenya`, Description: `Kenya eCiti
 
 - [ ] **Step 2: Add application**
 
-In the Kenya project → Add New Resource → Application → GitHub → select `celiaaivalioti/Kenyaservices`
+In the Kenya project → Add New Resource → Application → GitHub → select `unctad-ai/Kenyaservices`
 
 Configure:
 - Branch: `voice-agent-refactor`
@@ -807,7 +690,7 @@ Using the script (if `.env` is configured):
 ```
 
 Or repeat Task 11 steps in Coolify UI with:
-- Repo: `celiaaivalioti/Bhutanephyto`
+- Repo: `unctad-ai/Bhutanephyto`
 - Branch: `feat/multi-voice-support`
 - Domain: `bhutan.singlewindow.dev`
 
@@ -826,7 +709,7 @@ Expected: `200`
 ```
 
 Or repeat Task 11 steps with:
-- Repo: `celiaaivalioti/Licenseportaldemo`
+- Repo: `unctad-ai/Licenseportaldemo`
 - Branch: `voice-agent`
 - Domain: `licenses.singlewindow.dev`
 

@@ -8,8 +8,8 @@ Before running, set these values:
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
-| `PROJECT_PATH` | Absolute path to the consuming project | `/Users/moulaymehdi/PROJECTS/figma/Bhutanephyto` |
-| `VOICE_BRANCH` | Branch with voice-agent integration | `feat/multi-voice-support` |
+| `PROJECT_PATH` | Absolute path to the consuming project | `/Users/moulaymehdi/PROJECTS/figma/Swbhutan` |
+| `VOICE_BRANCH` | Branch with voice-agent integration | `voice-agent` |
 | `KIT_PATH` | Path to voice-agent-kit repo | `/Users/moulaymehdi/PROJECTS/figma/voice-agent-kit` |
 | `MODE` | `audit` (read-only report) or `fix` (audit + apply fixes) | `audit` |
 

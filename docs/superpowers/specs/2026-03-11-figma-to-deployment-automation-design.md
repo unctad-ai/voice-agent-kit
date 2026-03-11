@@ -180,9 +180,11 @@ When `voice-agent` branch already exists:
    - `App.tsx` routes changed → regenerate voice-config.ts navigation targets
    - Form component changed → flag for review (re-run Claude Code on that component)
    - Only styles/assets → cosmetic, skip Claude Code entirely
-2. Rebuild from main HEAD (same as initial, but with preservation)
-3. If verify passes → auto-push to voice-agent
-4. If verify fails → create PR for human review
+2. **Content hash check**: Before invoking Claude Code, hash the files it would read (services.ts, App.tsx, form components). If the content hash matches the previous run (stored in `.voice-agent/content-hash`), skip Claude Code even if `detect-changes.sh` classified the files as changed.
+3. Rebuild from main HEAD (same as initial, but with preservation)
+4. **Tree hash comparison**: Before force-pushing, compare the generated tree hash against the existing `voice-agent` branch. If identical (e.g., cosmetic-only changes that don't affect the voice overlay), skip the push entirely — avoids unnecessary Coolify redeployments.
+5. If verify passes → auto-push to voice-agent
+6. If verify fails → create PR for human review
 
 ### Authentication
 
@@ -195,8 +197,8 @@ Coolify auto-deploys from `voice-agent` branch. No deployment action needed — 
 
 ## Migration
 
-Existing projects (Kenya, Bhutan, Licenses) need:
-1. Standardize branch name to `voice-agent` (currently inconsistent)
+Existing projects (Kenya/Swkenya, Bhutan/Swbhutan, South Africa/Swsouthafrica, Lesotho/Swlesotho) need:
+1. ~~Standardize branch name to `voice-agent`~~ (DONE — all repos renamed and branches standardized)
 2. Add `.voice-agent.yml` to `main` branch
 3. Add `.github/workflows/voice-agent-sync.yml` to `main` branch
 4. Review and fix existing form integrations using golden reference patterns
@@ -213,3 +215,5 @@ Existing projects (Kenya, Bhutan, Licenses) need:
 | Auto-deploy of broken code | Verify (build + tests) before push. On failure → PR instead of auto-push |
 | Subtle regression passes verify | Backup tag before force-push enables quick rollback |
 | extraServerTools lost on rebuild | server/voice-config.ts with custom tools tracked as Tier 2 (preserved, not regenerated) |
+| Claude Code cost at scale (5-15 repos) | Content hash check skips Claude Code when input files unchanged. Tree hash check skips push when output unchanged. |
+| Persona data lost on redeploy | `persona-data` Docker volume persists agent persona config across redeployments |

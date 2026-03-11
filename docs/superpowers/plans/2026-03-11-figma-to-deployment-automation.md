@@ -33,9 +33,10 @@ Designers use **Figma Make** to generate React/Vite projects and push to GitHub 
 ### Consuming projects
 | Project | Repo | Main branch | Voice branch | Location |
 |---------|------|-------------|-------------|----------|
-| Kenya | unctad-ai/Kenyaservices | `main` (Figma Make) | `voice-agent-refactor` | `/Users/moulaymehdi/PROJECTS/figma/Kenyaservices` |
-| Bhutan | unctad-ai/Bhutanephyto | `main` (Figma Make) | `feat/multi-voice-support` | `/Users/moulaymehdi/PROJECTS/figma/Bhutanephyto` |
-| Licenses | unctad-ai/Licenseportaldemo | `main` (Figma Make) | `voice-agent` | `/Users/moulaymehdi/PROJECTS/figma/Licenseportaldemo` |
+| Kenya | unctad-ai/Swkenya | `main` (Figma Make) | `voice-agent` | `/Users/moulaymehdi/PROJECTS/figma/Swkenya` |
+| Bhutan | unctad-ai/Swbhutan | `main` (Figma Make) | `voice-agent` | `/Users/moulaymehdi/PROJECTS/figma/Swbhutan` |
+| South Africa | unctad-ai/Swsouthafrica | `main` (Figma Make) | `voice-agent` | `/Users/moulaymehdi/PROJECTS/figma/Swsouthafrica` |
+| Lesotho | unctad-ai/Swlesotho | `main` (Figma Make) | — | `/Users/moulaymehdi/PROJECTS/figma/Swlesotho` |
 
 ### Deployment
 All three deploy to `*.singlewindow.dev` via Coolify (self-hosted PaaS). Coolify watches the voice-agent branch and auto-deploys on push. Docker Compose: nginx frontend + Express backend. Traefik handles SSL.
@@ -57,25 +58,25 @@ All three deploy to `*.singlewindow.dev` via Coolify (self-hosted PaaS). Coolify
 
 Create the human-reviewed, correct form integration example that all automation will pattern-match from. This is the foundation — everything in Chunks 2-4 depends on it.
 
-**Working directory:** `/Users/moulaymehdi/PROJECTS/figma/Kenyaservices`
+**Working directory:** `/Users/moulaymehdi/PROJECTS/figma/Swkenya`
 
 Create the human-reviewed, correct form integration example that all automation will pattern-match from. This is the foundation — everything in Chunks 2-4 depends on it.
 
-**Working repo:** `/Users/moulaymehdi/PROJECTS/figma/Kenyaservices` (branch: `voice-agent-refactor`)
+**Working repo:** `/Users/moulaymehdi/PROJECTS/figma/Swkenya` (branch: `voice-agent`)
 
 ### Task 1: Audit existing Kenya PinRegistration integration
 
 **Files:**
-- Read: `src/components/PinRegistrationApplication.tsx` (on `voice-agent-refactor`)
-- Read: `src/voice-config.ts` (on `voice-agent-refactor`)
-- Read: `server/voice-config.ts` (on `voice-agent-refactor`)
+- Read: `src/components/PinRegistrationApplication.tsx` (on `voice-agent`)
+- Read: `src/voice-config.ts` (on `voice-agent`)
+- Read: `server/voice-config.ts` (on `voice-agent`)
 - Create: `/Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference-audit.md`
 
-- [ ] **Step 1: Read the current integration on voice-agent-refactor**
+- [ ] **Step 1: Read the current integration on voice-agent**
 
 ```bash
-cd /Users/moulaymehdi/PROJECTS/figma/Kenyaservices
-git show voice-agent-refactor:src/components/PinRegistrationApplication.tsx > /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/kenya-pin-current.tsx
+cd /Users/moulaymehdi/PROJECTS/figma/Swkenya
+git show voice-agent:src/components/PinRegistrationApplication.tsx > /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/kenya-pin-current.tsx
 ```
 
 - [ ] **Step 2: Read the original component on main for comparison**
@@ -106,7 +107,7 @@ Compare the current integration against these correctness criteria from the voic
 - [ ] **Step 4: Audit voice-config.ts for stale service IDs**
 
 ```bash
-git show voice-agent-refactor:server/voice-config.ts > /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/kenya-server-config.tsx
+git show voice-agent:server/voice-config.ts > /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/kenya-server-config.tsx
 ```
 
 Check: do all service IDs referenced in `coreIds`, `routeMap`, and `getServiceFormRoute` match actual IDs in `src/data/services.ts`?
@@ -132,8 +133,8 @@ Write findings to `/Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superp
 - [ ] **Step 1: Create working branch**
 
 ```bash
-cd /Users/moulaymehdi/PROJECTS/figma/Kenyaservices
-git checkout voice-agent-refactor
+cd /Users/moulaymehdi/PROJECTS/figma/Swkenya
+git checkout voice-agent
 git checkout -b golden-reference
 ```
 
@@ -249,7 +250,7 @@ git commit -m "feat: create golden reference for form integration"
 - [ ] **Step 1: Copy the main branch version (before)**
 
 ```bash
-cd /Users/moulaymehdi/PROJECTS/figma/Kenyaservices
+cd /Users/moulaymehdi/PROJECTS/figma/Swkenya
 git show main:src/components/PinRegistrationApplication.tsx > /Users/moulaymehdi/PROJECTS/figma/voice-agent-kit/docs/superpowers/specs/golden-reference/before.tsx
 ```
 
@@ -352,7 +353,26 @@ runs:
         COPILOT_NAME: ${{ steps.config.outputs.copilot_name }}
         VOICE_AGENT_VERSION: ${{ steps.config.outputs.voice_agent_version }}
 
+    - name: Content hash check (skip Claude Code if unchanged)
+      id: content_hash
+      shell: bash
+      run: |
+        # Hash the files Claude Code would read — if unchanged, skip the expensive step
+        CLAUDE_INPUTS="src/data/services.ts src/App.tsx"
+        CLAUDE_INPUTS="$CLAUDE_INPUTS $(find src/components -name '*Application*' -o -name '*Form*' 2>/dev/null || true)"
+        HASH=$(cat $CLAUDE_INPUTS 2>/dev/null | sha256sum | cut -d' ' -f1)
+        OLD_HASH=$(cat .voice-agent/content-hash 2>/dev/null || echo "none")
+        mkdir -p .voice-agent
+        echo "$HASH" > .voice-agent/content-hash
+        if [[ "$HASH" == "$OLD_HASH" && "${{ steps.mode.outputs.mode }}" == "incremental" ]]; then
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+          echo "Content unchanged — skipping Claude Code"
+        else
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Claude Code integration
+      if: steps.content_hash.outputs.skip != 'true'
       uses: anthropics/claude-code-action@v1
       with:
         claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
@@ -378,14 +398,27 @@ runs:
       run: ${{ github.action_path }}/scripts/verify.sh
 
     - name: Update voice-agent branch
+      id: push
       shell: bash
       run: |
         git checkout -B ${{ inputs.voice_agent_branch }}
         git add -A
+
+        # Compare tree hash to skip no-op pushes (e.g. cosmetic-only changes on main)
+        NEW_TREE=$(git write-tree)
+        OLD_TREE=$(git rev-parse "origin/${{ inputs.voice_agent_branch }}^{tree}" 2>/dev/null || echo "none")
+        if [[ "$NEW_TREE" == "$OLD_TREE" ]]; then
+          echo "Tree unchanged — skipping push (no voice overlay changes)"
+          echo "skipped=true" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
         git commit -m "chore: rebuild voice-agent from main $(git rev-parse --short main)"
         git push --force origin ${{ inputs.voice_agent_branch }}
+        echo "skipped=false" >> "$GITHUB_OUTPUT"
 
     - name: Create PR (initial) or auto-push (incremental)
+      if: steps.push.outputs.skipped != 'true'
       shell: bash
       run: |
         MODE="${{ steps.mode.outputs.mode }}"
@@ -537,7 +570,14 @@ services:
       - QWEN3_TTS_URL=${QWEN3_TTS_URL:-}
       - KYUTAI_STT_URL=${KYUTAI_STT_URL:-}
       - POCKET_TTS_URL=${POCKET_TTS_URL:-}
+    volumes:
+      - persona-data:/app/data/persona
+
+volumes:
+  persona-data:
 ```
+
+> **Note:** The `persona-data` volume persists agent persona config (avatar, name, voice selection) across redeployments. Without it, persona settings are lost on every Coolify redeploy.
 
 - [ ] **Step 6: Create nginx.conf**
 
@@ -1006,7 +1046,7 @@ This is a validation test — run the prompt (manually or via Claude Code) again
 Run Claude Code with the initial-integration prompt against Bhutan's main branch:
 
 ```bash
-cd /Users/moulaymehdi/PROJECTS/figma/Bhutanephyto
+cd /Users/moulaymehdi/PROJECTS/figma/Swbhutan
 git checkout main
 ```
 
@@ -1014,7 +1054,7 @@ Have Claude Code read the golden reference, then:
 - Read `src/data/services.ts` → generate voice-config.ts
 - Read `App.tsx` → extract routes
 - Read form components → generate useProgressiveFields calls
-- Compare output to the existing `feat/multi-voice-support` branch
+- Compare output to the existing `voice-agent` branch on Swbhutan
 
 - [ ] **Step 2: Document accuracy**
 
@@ -1052,7 +1092,7 @@ cd /Users/moulaymehdi/PROJECTS/figma
 git clone git@github.com:unctad-ai/voice-agent-test-project.git
 cd voice-agent-test-project
 # Copy Kenya main branch content
-git -C /Users/moulaymehdi/PROJECTS/figma/Kenyaservices archive main | tar -x
+git -C /Users/moulaymehdi/PROJECTS/figma/Swkenya archive main | tar -x
 git add -A
 git commit -m "Initial Figma Make output (copy of Kenya main)"
 git push
@@ -1172,48 +1212,20 @@ Check that:
 
 ## Chunk 5: Migration of Existing Projects
 
-Deploy the action to Kenya, Bhutan, and Licenses.
+Deploy the action to Kenya, Bhutan, South Africa, and Lesotho.
 
-**Working directories:** Switches between all three consuming project repos (Kenya, Bhutan, Licenses — paths listed in Prerequisites).
+**Working directories:** Switches between all consuming project repos (paths listed in Prerequisites).
 
 ### Task 16: Standardize branch names
 
-- [ ] **Step 1: Rename Kenya branch**
-
-```bash
-cd /Users/moulaymehdi/PROJECTS/figma/Kenyaservices
-git checkout voice-agent-refactor
-git checkout -b voice-agent
-git push origin voice-agent
-```
-
-Update Coolify to track `voice-agent` instead of `voice-agent-refactor`.
-
-- [ ] **Step 2: Rename Bhutan branch**
-
-```bash
-cd /Users/moulaymehdi/PROJECTS/figma/Bhutanephyto
-git checkout feat/multi-voice-support
-git checkout -b voice-agent
-git push origin voice-agent
-```
-
-Update Coolify.
-
-- [ ] **Step 3: Rename Licenses branch**
-
-```bash
-cd /Users/moulaymehdi/PROJECTS/figma/Licenseportaldemo
-git checkout voice-agent
-# Already named correctly — just verify Coolify tracks it
-```
+> **ALREADY COMPLETE** — All repos have been renamed (`Sw*` convention) and all voice-agent branches are already standardized to `voice-agent`. No action needed.
 
 ### Task 17: Add automation config to Kenya
 
 - [ ] **Step 1: Add .voice-agent.yml to main**
 
 ```bash
-cd /Users/moulaymehdi/PROJECTS/figma/Kenyaservices
+cd /Users/moulaymehdi/PROJECTS/figma/Swkenya
 git checkout main
 ```
 
@@ -1245,7 +1257,7 @@ git push origin main
 - [ ] **Step 1: Add .voice-agent.yml to main**
 
 ```bash
-cd /Users/moulaymehdi/PROJECTS/figma/Bhutanephyto
+cd /Users/moulaymehdi/PROJECTS/figma/Swbhutan
 git checkout main
 ```
 
@@ -1263,19 +1275,19 @@ exclude_routes: ["/design-system"]
 
 Same pattern as Kenya.
 
-### Task 19: Add automation config to Licenses
+### Task 19: Add automation config to South Africa
 
 - [ ] **Step 1: Add .voice-agent.yml to main**
 
 ```bash
-cd /Users/moulaymehdi/PROJECTS/figma/Licenseportaldemo
+cd /Users/moulaymehdi/PROJECTS/figma/Swsouthafrica
 git checkout main
 ```
 
 ```yaml
 copilot_name: "Amy"
 copilot_color: "#1B4332"
-domain: "licenses.singlewindow.dev"
+domain: "southafrica.singlewindow.dev"
 description: "South Africa License Portal — business licenses, permits, and regulatory compliance"
 voice_agent_version: "^1.0.0"
 auto_merge_incremental: true
@@ -1291,7 +1303,7 @@ Same pattern as Kenya.
 - [ ] **Step 1: Trigger workflows**
 
 ```bash
-for repo in Kenyaservices Bhutanephyto Licenseportaldemo; do
+for repo in Swkenya Swbhutan Swsouthafrica; do
   gh workflow run voice-agent-sync.yml --repo "unctad-ai/$repo" || echo "$repo: workflow not found (may need manual trigger)"
 done
 ```
@@ -1299,7 +1311,7 @@ done
 - [ ] **Step 2: Monitor runs**
 
 ```bash
-for repo in Kenyaservices Bhutanephyto Licenseportaldemo; do
+for repo in Swkenya Swbhutan Swsouthafrica; do
   echo "=== $repo ==="
   gh run list --repo "unctad-ai/$repo" --limit 1
 done
@@ -1316,7 +1328,7 @@ For each project, review the PR created by the action. Check:
 - [ ] **Step 4: Merge PRs after review**
 
 ```bash
-for repo in Kenyaservices Bhutanephyto Licenseportaldemo; do
+for repo in Swkenya Swbhutan Swsouthafrica; do
   gh pr merge 1 --repo "unctad-ai/$repo" --squash
 done
 ```
@@ -1324,7 +1336,7 @@ done
 - [ ] **Step 5: Verify Coolify deployments**
 
 ```bash
-for domain in kenya bhutan licenses; do
+for domain in kenya bhutan southafrica; do
   echo -n "${domain}.singlewindow.dev: "
   curl -so /dev/null -w "%{http_code}" "https://${domain}.singlewindow.dev"
   echo -n " API: "

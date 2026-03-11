@@ -76,6 +76,10 @@ QWEN3_TTS_URL=http://...
 CLIENT_API_KEY=...
 ```
 
+## Form Field Integration
+
+Use `/integrate-form-fields` to add or fix voice-agent form hooks in consuming projects. It applies `useProgressiveFields`, `useRegisterUIAction`, tab/submit patterns using the golden reference at `docs/superpowers/specs/golden-reference/after.tsx`. Full procedure at `docs/superpowers/prompts/audit-form-integration.md`.
+
 ## Development Rules
 
 - `useChat` (from `@ai-sdk/react`) drives the client-server protocol — not CopilotKit
