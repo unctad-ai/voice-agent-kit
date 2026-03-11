@@ -1,5 +1,13 @@
 # @unctad-ai/voice-agent-server
 
+## 1.0.3
+
+### Patch Changes
+
+- 9506d2f: Bump groq-sdk to v1.1.1 and zod to v4.3.6
+- Updated dependencies [9506d2f]
+  - @unctad-ai/voice-agent-core@1.0.3
+
 ## 1.0.2
 
 ### Patch Changes
