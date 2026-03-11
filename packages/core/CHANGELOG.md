@@ -1,5 +1,22 @@
 # @unctad-ai/voice-agent-core
 
+## 1.0.0
+
+### Minor Changes
+
+- 2221a03: Theming, UX, and tone improvements
+
+  - Wire up SiteColors orb states (processing, speaking, glow, error) with derived gradients
+  - Add `fontFamily` to SiteConfig for CSS cascade font inheritance
+  - Replace Tailwind classes with inline styles in settings components for consuming app compatibility
+  - Auto-scroll with new-message pill when user scrolls up
+  - Conversational system prompt tone — no tool narration
+  - Defensive hex parsing and memoized orb state configs
+
+### Patch Changes
+
+- @unctad-ai/voice-agent-registries@1.0.0
+
 ## 0.1.8
 
 ### Patch Changes
