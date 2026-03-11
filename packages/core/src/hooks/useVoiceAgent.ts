@@ -259,6 +259,12 @@ function classifyError(err: unknown): VoiceErrorType {
   return 'network_error';
 }
 
+// Module-level set — survives React component remounts (route changes) which
+// destroy refs, but correctly resets on full page navigation (new module load).
+// This prevents the onToolCall replay bug where the SDK re-fires callbacks for
+// tool invocations already present in the messages after a component remount.
+const processedToolCalls = new Set<string>();
+
 export function useVoiceAgent({
   bargeInEnabled = true,
   settings,
@@ -344,7 +350,6 @@ export function useVoiceAgent({
     'fillFormFields',
   ]);
   const actionSeqRef = useRef(0);
-  const processedToolCallsRef = useRef(new Set<string>());
 
   const {
     messages: chatMessages,
@@ -547,15 +552,10 @@ export function useVoiceAgent({
       // for every tool invocation in the messages array on each re-render, not
       // just new ones. Without this guard, historical tool calls replay and
       // flood sendAutomaticallyWhen with spurious evaluations.
-      if (processedToolCallsRef.current.has(toolCall.toolCallId)) return;
-      processedToolCallsRef.current.add(toolCall.toolCallId);
+      const tcId = toolCall.toolCallId;
+      if (processedToolCalls.has(tcId)) return;
+      processedToolCalls.add(tcId);
 
-      console.debug(
-        '[onToolCall]',
-        toolCall.toolName,
-        'client:',
-        CLIENT_TOOLS.has(toolCall.toolName)
-      );
       const isClientTool = CLIENT_TOOLS.has(toolCall.toolName);
 
       // Emit action badge for all tools (server and client)
@@ -644,12 +644,6 @@ export function useVoiceAgent({
       // here would deadlock. The queued job runs after the current transform
       // finishes, updates the tool part to "output-available", and triggers
       // sendAutomaticallyWhen to send a follow-up request.
-      console.debug(
-        '[onToolCall] addToolOutput for',
-        toolCall.toolName,
-        'callId:',
-        toolCall.toolCallId
-      );
       chatAddToolOutput({
         toolCallId: toolCall.toolCallId,
         tool: toolCall.toolName,
@@ -1079,7 +1073,7 @@ export function useVoiceAgent({
     setChatMessages([]);
     roundTripCountRef.current = 0;
     actionSeqRef.current = 0;
-    processedToolCallsRef.current.clear();
+    processedToolCalls.clear();
     setState('LISTENING');
     vad.start();
 
