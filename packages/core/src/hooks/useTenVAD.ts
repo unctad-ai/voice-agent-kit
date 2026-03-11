@@ -345,9 +345,37 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
       const ctx = new AudioContext({ sampleRate: 16000 });
       audioCtxRef.current = ctx;
 
-      // Load the AudioWorklet processor via blob URL to bypass stale HTTP cache
-      const workletRes = await fetch('/ten-vad-processor.js', { cache: 'no-store' });
-      const workletBlob = new Blob([await workletRes.text()], { type: 'application/javascript' });
+      // Inline AudioWorklet processor — no external file needed
+      const workletSource = `
+class TenVADProcessor extends AudioWorkletProcessor {
+  constructor(options) {
+    super();
+    this.hopSize = options?.processorOptions?.hopSize ?? 256;
+    this.buffer = new Float32Array(this.hopSize);
+    this.offset = 0;
+    this.active = true;
+    this.port.onmessage = (e) => { if (e.data?.type === 'stop') this.active = false; };
+  }
+  process(inputs) {
+    if (!this.active) return false;
+    const input = inputs[0]?.[0];
+    if (!input) return true;
+    let srcOffset = 0;
+    while (srcOffset < input.length) {
+      const toCopy = Math.min(this.hopSize - this.offset, input.length - srcOffset);
+      this.buffer.set(input.subarray(srcOffset, srcOffset + toCopy), this.offset);
+      this.offset += toCopy;
+      srcOffset += toCopy;
+      if (this.offset >= this.hopSize) {
+        this.port.postMessage({ type: 'audio', samples: this.buffer.slice() });
+        this.offset = 0;
+      }
+    }
+    return true;
+  }
+}
+registerProcessor('ten-vad-processor', TenVADProcessor);`;
+      const workletBlob = new Blob([workletSource], { type: 'application/javascript' });
       const workletUrl = URL.createObjectURL(workletBlob);
       await ctx.audioWorklet.addModule(workletUrl);
       URL.revokeObjectURL(workletUrl);
