@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 1.0.2
+
+### Patch Changes
+
+- 6fe4674: Declare @gooney-001/ten-vad-lib and zod as peer dependencies of voice-agent-core, enabling the scaffold to auto-resolve all required deps from the npm registry.
+  - @unctad-ai/voice-agent-registries@1.0.2
+
 ## 1.0.1
 
 ### Patch Changes
