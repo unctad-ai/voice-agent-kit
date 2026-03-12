@@ -28,6 +28,7 @@ git add . && git commit   # Commit the changeset
 - Never `npm publish` locally — CI handles it via `publish.yml` on `v*` tags
 - Always release from `main` branch
 - All 4 packages are in a fixed version group (`.changeset/config.json`)
+- **After changing any `package.json`**, always run `pnpm install` to update `pnpm-lock.yaml` and commit the lockfile. CI uses `--frozen-lockfile` and will fail if the lockfile is stale.
 
 ## Package Architecture
 
