@@ -1,1 +1,7 @@
 pnpm typecheck
+
+# Ensure lockfile is up to date with all package.json files
+pnpm install --frozen-lockfile --no-link-workspace-packages 2>/dev/null || {
+  echo "ERROR: pnpm-lock.yaml is out of date. Run 'pnpm install' and stage the lockfile."
+  exit 1
+}
