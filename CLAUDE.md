@@ -64,7 +64,7 @@ When the LLM chains client tools (e.g. `fillFormFields` → `getFormSchema`), ea
 
 ## Consuming Projects
 
-Projects using the kit (Kenyaservices, Bhutanephyto, Licenseportaldemo) need:
+Projects using the kit (Swkenya, Swbhutan, Swsouthafrica, Swlesotho) need:
 
 **Frontend:** `@unctad-ai/voice-agent-core`, `@unctad-ai/voice-agent-registries`, `@unctad-ai/voice-agent-ui`
 **Server:** `@unctad-ai/voice-agent-core`, `@unctad-ai/voice-agent-server`
@@ -76,6 +76,17 @@ KYUTAI_STT_URL=http://...     # Full URL, no GPU_HOST abstraction
 QWEN3_TTS_URL=http://...
 CLIENT_API_KEY=...
 ```
+
+## Deployment Pipeline
+
+Each consuming project deploys via a dedicated `voice-agent` branch that is never merged — Figma Make owns `main`.
+
+- **`unctad-ai/voice-agent-action`** — GitHub Action triggered on every push to `main` in a consuming project repo. It rebuilds the `voice-agent` branch with the kit integrated.
+- **`.voice-agent.yml`** — config file in each project repo root. Declares `copilot_name`, `domain`, and other per-project settings consumed by the action.
+- **Coolify** auto-deploys from the `voice-agent` branch. No manual deploy step.
+- **`singlewindow-deployments`** repo manages Coolify provisioning (use `/provision-coolify` skill to set up new projects).
+- All projects use `latest` kit version, resolved dynamically at build time — no pinned versions in consuming repos.
+- No PRs to `voice-agent` branch — it is force-pushed by the action on each run.
 
 ## Form Field Integration
 
