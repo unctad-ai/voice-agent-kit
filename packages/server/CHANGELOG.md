@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 1.0.4
+
+### Patch Changes
+
+- cf712a1: fix: move groq-sdk to dependencies (was only in devDependencies)
+  - @unctad-ai/voice-agent-core@1.0.4
+
 ## 1.0.3
 
 ### Patch Changes
