@@ -80,6 +80,15 @@ CLIENT_API_KEY=...
 
 Use `/integrate-form-fields` to add or fix voice-agent form hooks in consuming projects. It applies `useProgressiveFields`, `useRegisterUIAction`, tab/submit patterns using the golden reference at `docs/superpowers/specs/golden-reference/after.tsx`. Full procedure at `docs/superpowers/prompts/audit-form-integration.md`.
 
+## Dependency Hygiene
+
+When a kit package imports a module at runtime, that module **must** be in `dependencies` or `peerDependencies` — never only in `devDependencies`. Consuming projects install the kit via npm; they only get transitive `dependencies`, not `devDependencies`.
+
+- **Before adding an import:** check if the package is already declared correctly
+- **Before releasing:** audit any new imports against package.json — `devDependencies`-only runtime imports are silent bugs that break consuming projects
+- **Prefer `dependencies`** for packages the kit fully controls (e.g. `groq-sdk`, `sharp`, `multer`). Use `peerDependencies` only when the consumer needs to control the version (e.g. `react`, `express`, `ai`)
+- **The scaffold (`voice-agent-action`) should not compensate** for missing kit deps — if the scaffold needs to hardcode a dep, that's a signal the kit's package.json is wrong
+
 ## Development Rules
 
 - `useChat` (from `@ai-sdk/react`) drives the client-server protocol — not CopilotKit
