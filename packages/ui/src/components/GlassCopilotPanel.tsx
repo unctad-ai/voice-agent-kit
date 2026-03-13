@@ -70,9 +70,10 @@ const ARIA_LIVE_LABELS: Record<OrbState, string> = {
 type PanelState = 'hidden' | 'collapsed' | 'expanded';
 
 interface GlassCopilotPanelProps {
-  isOpen: boolean;
+  /** Controlled open state. When omitted, the panel manages its own open/close state. */
+  isOpen?: boolean;
   onOpen?: () => void;
-  onClose: () => void;
+  onClose?: () => void;
   onStateChange?: (orbState: OrbState) => void;
   /** URL for the avatar portrait image */
   portraitSrc?: string;
@@ -933,13 +934,27 @@ function WiredPanelInner({
 // ---------------------------------------------------------------------------
 // Main exported component
 // ---------------------------------------------------------------------------
-export default function GlassCopilotPanel({ isOpen, onOpen, onClose, onStateChange, portraitSrc }: GlassCopilotPanelProps) {
+export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenProp, onClose: onCloseProp, onStateChange, portraitSrc }: GlassCopilotPanelProps) {
   injectAgentFabCSS();
   const config = useSiteConfig();
   const resolvedPortrait = portraitSrc ?? config.avatarUrl;
+
+  // Uncontrolled mode: manage open state internally when isOpen prop is not provided
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isControlled = isOpenProp !== undefined;
+  const isOpen = isControlled ? isOpenProp : internalOpen;
+
+  const handleOpen = useCallback(() => {
+    onOpenProp?.();
+    if (!isControlled) setInternalOpen(true);
+  }, [onOpenProp, isControlled]);
+
   const [internalState, setInternalState] = useState<'collapsed' | 'expanded'>('collapsed');
   const panelState: PanelState = isOpen ? internalState : 'hidden';
-  const handleClose = useCallback(() => { onClose(); }, [onClose]);
+  const handleClose = useCallback(() => {
+    onCloseProp?.();
+    if (!isControlled) setInternalOpen(false);
+  }, [onCloseProp, isControlled]);
   const handleCollapse = useCallback(() => { setInternalState('collapsed'); }, []);
   const handleExpand = useCallback(() => { setInternalState('expanded'); }, []);
 
@@ -979,7 +994,7 @@ export default function GlassCopilotPanel({ isOpen, onOpen, onClose, onStateChan
       <AnimatePresence>
         {!isVisible && (
           <motion.div ref={fabRef} key="copilot-fab" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.25, ease: 'easeOut' }} className="fixed" style={{ bottom: PANEL_BOTTOM, right: PANEL_RIGHT, zIndex: PANEL_Z_INDEX }}>
-            <CopilotFAB onClick={() => onOpen?.()} portraitSrc={resolvedPortrait} />
+            <CopilotFAB onClick={handleOpen} portraitSrc={resolvedPortrait} />
           </motion.div>
         )}
 
