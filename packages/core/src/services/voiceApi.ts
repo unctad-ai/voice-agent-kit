@@ -12,10 +12,12 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
 export async function transcribeAudio(
   wavBlob: Blob,
   signal?: AbortSignal,
-  timeoutMs?: number
+  timeoutMs?: number,
+  language?: string,
 ): Promise<{ text: string; language: string; noSpeechProb: number; avgLogprob: number }> {
   const formData = new FormData();
   formData.append('audio', wavBlob, 'audio.wav');
+  if (language) formData.append('language', language);
 
   const timeout = AbortSignal.timeout(timeoutMs ?? STT_TIMEOUT_MS);
   const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;

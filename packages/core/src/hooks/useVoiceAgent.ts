@@ -802,7 +802,8 @@ export function useVoiceAgent({
             const result = await transcribeAudio(
               wavBlob,
               undefined,
-              settingsRef.current.sttTimeoutMs
+              settingsRef.current.sttTimeoutMs,
+              settingsRef.current.language,
             );
             text = result.text;
             noSpeechProb = result.noSpeechProb ?? 0;
