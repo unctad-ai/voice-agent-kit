@@ -34,8 +34,10 @@ export function usePersona(endpoint: string | undefined): UsePersonaResult {
     if (!apiRef.current || !cacheKey) return;
     try {
       const data = await apiRef.current.getPersona();
-      personaCache.set(cacheKey, data);
-      setPersona(data);
+      if (data) {
+        personaCache.set(cacheKey, data);
+        setPersona(data);
+      }
       setIsLoaded(true);
     } catch (err) {
       console.warn('[usePersona] fetch failed, using static config:', err);

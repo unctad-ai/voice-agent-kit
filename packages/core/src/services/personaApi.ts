@@ -28,8 +28,9 @@ export class PersonaApi {
     return `${BACKEND_URL}${this.endpoint}${path}`;
   }
 
-  async getPersona(): Promise<PersonaData> {
+  async getPersona(): Promise<PersonaData | null> {
     const res = await fetch(this.url('/persona'), { headers: authHeaders() });
+    if (res.status === 404) return null;
     if (!res.ok) throw new Error(`Persona fetch failed: ${res.status}`);
     return res.json();
   }
