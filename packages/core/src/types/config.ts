@@ -64,4 +64,10 @@ export interface SiteConfig {
 
   /** Base path for persona API (e.g., '/api/agent'). Enables admin persona settings. */
   personaEndpoint?: string;
+
+  /** BCP-47 language code for STT (e.g. 'en', 'fr', 'sw'). Defaults to 'en'. */
+  language?: string;
+
+  /** Initial greeting shown/spoken when the panel opens. */
+  greetingMessage?: string;
 }
