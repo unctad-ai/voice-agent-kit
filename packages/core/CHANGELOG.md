@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 1.0.6
+
+### Patch Changes
+
+- 5e28fc3: Default personaEndpoint to /api/agent so persona settings (avatar, voice cloning) are always visible
+  - @unctad-ai/voice-agent-registries@1.0.6
+
 ## 1.0.5
 
 ### Patch Changes
