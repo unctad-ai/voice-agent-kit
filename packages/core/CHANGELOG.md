@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 1.0.9
+
+### Patch Changes
+
+- fac530f: Suppress persona 404 gracefully: when persona routes are not mounted, fall back to static config silently instead of logging a warning
+  - @unctad-ai/voice-agent-registries@1.0.9
+
 ## 1.0.8
 
 ### Patch Changes
