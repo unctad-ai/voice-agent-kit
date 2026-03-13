@@ -97,12 +97,31 @@ interface VoiceSettingsContextType {
 
 const VoiceSettingsContext = createContext<VoiceSettingsContextType | undefined>(undefined);
 
-export function VoiceSettingsProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<VoiceSettings>(loadSettings);
+interface VoiceSettingsProviderProps {
+  children: ReactNode;
+  siteLanguage?: string;
+}
+
+export function VoiceSettingsProvider({ children, siteLanguage }: VoiceSettingsProviderProps) {
+  const [settings, setSettings] = useState<VoiceSettings>(() => {
+    const loaded = loadSettings();
+    if (siteLanguage) {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const hasPersisted = raw ? Object.prototype.hasOwnProperty.call(JSON.parse(raw), 'language') : false;
+        if (!hasPersisted) loaded.language = siteLanguage;
+      } catch {
+        loaded.language = siteLanguage;
+      }
+    }
+    return loaded;
+  });
 
   // Refs for hot-path audio — avoids re-renders on volume/speed drag
   const volumeRef = useRef(settings.volume);
   const speedRef = useRef(settings.playbackSpeed);
+  const siteLanguageRef = useRef(siteLanguage);
+  siteLanguageRef.current = siteLanguage;
 
   const updateSetting = useCallback(
     <K extends keyof VoiceSettings>(key: K, value: VoiceSettings[K]) => {
@@ -119,7 +138,7 @@ export function VoiceSettingsProvider({ children }: { children: ReactNode }) {
   );
 
   const resetSettings = useCallback(() => {
-    const defaults = { ...DEFAULTS };
+    const defaults = { ...DEFAULTS, language: siteLanguageRef.current ?? DEFAULT_LANGUAGE };
     setSettings(defaults);
     persistSettings(defaults);
     volumeRef.current = defaults.volume;

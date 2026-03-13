@@ -13,7 +13,7 @@ export function VoiceAgentProvider({
   return (
     <SiteConfigProvider config={config}>
       <CopilotProvider>
-        <VoiceSettingsProvider>
+        <VoiceSettingsProvider siteLanguage={config.language}>
           {children}
         </VoiceSettingsProvider>
       </CopilotProvider>

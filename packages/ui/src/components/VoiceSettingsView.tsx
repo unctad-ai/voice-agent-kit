@@ -26,6 +26,7 @@ import {
   Headphones,
   SlidersHorizontal,
   Wrench,
+  Globe,
 } from 'lucide-react';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
 import { VAD, useSiteConfig } from '@unctad-ai/voice-agent-core';
@@ -53,6 +54,18 @@ function bargeInLabel(v: number): string {
   if (v >= 0.6) return 'Normal';
   return 'Easy';
 }
+
+const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'fr', label: 'French' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'sw', label: 'Swahili' },
+  { value: 'pt', label: 'Portuguese' },
+  { value: 'ar', label: 'Arabic' },
+  { value: 'zh', label: 'Chinese' },
+  { value: 'hi', label: 'Hindi' },
+  { value: 'dz', label: 'Dzongkha' },
+];
 
 /** Inline style tag for custom range slider — injected once */
 let sliderStylesInjected = false;
@@ -381,6 +394,14 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
 
         {/* Listening */}
         <SettingsSection title="Listening" icon={<Headphones style={sectionIconStyle} />} {...sectionProps('listening')}>
+          <SelectSetting
+            icon={<Globe style={iconStyle} />}
+            label="Language"
+            value={settings.language}
+            onChange={(v) => updateSetting('language', v)}
+            options={LANGUAGE_OPTIONS}
+          />
+          <Divider />
           <ToggleSetting
             icon={<Mic style={iconStyle} />}
             label="Auto-listen"
