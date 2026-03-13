@@ -12,25 +12,27 @@ export function SiteConfigProvider({
   config: SiteConfig;
   children: React.ReactNode;
 }) {
-  const personaResult = usePersona(config.personaEndpoint);
+  const personaEndpoint = config.personaEndpoint ?? '/api/agent';
+  const personaResult = usePersona(personaEndpoint);
 
   // While persona is loading, suppress static avatarUrl to avoid flash
   // (static avatar → persona avatar). Name and other fields are fine.
-  const personaLoading = !!config.personaEndpoint && !personaResult.isLoaded;
+  const personaLoading = !personaResult.isLoaded;
 
   const mergedConfig = useMemo<SiteConfig>(() => {
+    const base = { ...config, personaEndpoint };
     if (personaResult.persona) {
       return {
-        ...config,
+        ...base,
         copilotName: personaResult.persona.copilotName ?? config.copilotName,
         avatarUrl: personaResult.persona.avatarUrl ?? config.avatarUrl,
       };
     }
     if (personaLoading) {
-      return { ...config, avatarUrl: undefined };
+      return { ...base, avatarUrl: undefined };
     }
-    return config;
-  }, [config, personaResult.persona, personaLoading]);
+    return base;
+  }, [config, personaEndpoint, personaResult.persona, personaLoading]);
 
   return (
     <PersonaContext.Provider value={personaResult}>
