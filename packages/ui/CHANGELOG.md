@@ -1,5 +1,14 @@
 # @unctad-ai/voice-agent-ui
 
+## 1.0.8
+
+### Patch Changes
+
+- 6daf0ae: Add language hint to STT pipeline — configurable per project via SiteConfig.language and per user via Settings UI. Fixes wrong-language transcription hallucinations. Also adds greetingMessage to SiteConfig.
+- Updated dependencies [6daf0ae]
+  - @unctad-ai/voice-agent-core@1.0.8
+  - @unctad-ai/voice-agent-registries@1.0.8
+
 ## 1.0.7
 
 ### Patch Changes
