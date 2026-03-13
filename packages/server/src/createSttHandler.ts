@@ -39,10 +39,11 @@ export function createSttHandler(options: SttHandlerOptions): Router {
   }
 
   // --- Kyutai STT ---
-  async function transcribeWithKyutai(wavBuffer: Buffer): Promise<STTResponse> {
+  async function transcribeWithKyutai(wavBuffer: Buffer, language: string): Promise<STTResponse> {
     const formData = new FormData();
     const blob = new Blob([new Uint8Array(wavBuffer)], { type: 'audio/wav' });
     formData.append('file', blob, 'audio.wav');
+    formData.append('language', language);
 
     const res = await fetch(`${kyutaiSttUrl}/v1/audio/transcriptions`, {
       method: 'POST',
@@ -71,14 +72,14 @@ export function createSttHandler(options: SttHandlerOptions): Router {
 
     return {
       text: data.text,
-      language: 'en',
+      language,
       noSpeechProb,
       avgLogprob,
     };
   }
 
   // --- Groq Whisper STT ---
-  async function transcribeWithGroq(wavBuffer: Buffer): Promise<STTResponse> {
+  async function transcribeWithGroq(wavBuffer: Buffer, language: string): Promise<STTResponse> {
     const uint8 = new Uint8Array(wavBuffer);
     const file = new File([uint8], 'audio.wav', { type: 'audio/wav' });
 
@@ -86,6 +87,7 @@ export function createSttHandler(options: SttHandlerOptions): Router {
       file,
       model: 'whisper-large-v3-turbo',
       temperature: 0,
+      language,
       response_format: 'verbose_json',
     });
 
@@ -107,7 +109,7 @@ export function createSttHandler(options: SttHandlerOptions): Router {
 
     return {
       text: transcription.text,
-      language: verbose.language ?? 'en',
+      language,
       noSpeechProb,
       avgLogprob,
     };
@@ -124,16 +126,17 @@ export function createSttHandler(options: SttHandlerOptions): Router {
       let response: STTResponse;
       let provider = sttProvider;
       const t0 = performance.now();
+      const language = (req.body?.language as string) || 'en';
 
       if (sttProvider === 'kyutai') {
         try {
-          response = await transcribeWithKyutai(req.file.buffer);
+          response = await transcribeWithKyutai(req.file.buffer, language);
         } catch (err) {
           console.warn('[STT] Kyutai error:', (err as Error).message);
-          response = { text: '', language: 'en', noSpeechProb: 1, avgLogprob: 0 };
+          response = { text: '', language, noSpeechProb: 1, avgLogprob: 0 };
         }
       } else {
-        response = await transcribeWithGroq(req.file.buffer);
+        response = await transcribeWithGroq(req.file.buffer, language);
       }
 
       const durationMs = Math.round(performance.now() - t0);
