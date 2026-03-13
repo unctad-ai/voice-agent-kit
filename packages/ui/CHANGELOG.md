@@ -1,5 +1,13 @@
 # @unctad-ai/voice-agent-ui
 
+## 1.0.7
+
+### Patch Changes
+
+- 3ddf6fe: Show kit version in the Developer settings panel
+  - @unctad-ai/voice-agent-core@1.0.7
+  - @unctad-ai/voice-agent-registries@1.0.7
+
 ## 1.0.6
 
 ### Patch Changes
