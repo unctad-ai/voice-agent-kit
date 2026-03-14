@@ -199,7 +199,7 @@ export class VoiceWebSocketManager {
 }
 
 /**
- * Perform a simple HTTP health check against the voice pipeline endpoint.
+ * Perform a simple health check against the voice pipeline endpoint.
  * Attempts a WebSocket handshake to verify the server accepts connections.
  */
 export async function checkPipelineHealth(
@@ -226,4 +226,33 @@ export async function checkPipelineHealth(
       resolve({ connected: false });
     }
   });
+}
+
+/**
+ * Build the default WebSocket URL for the voice pipeline.
+ * Uses VITE_BACKEND_URL if available, otherwise derives from window.location.
+ */
+function buildDefaultWsUrl(): string {
+  const backendUrl =
+    (typeof import.meta !== 'undefined' && import.meta.env?.VITE_BACKEND_URL) || '';
+  if (backendUrl) {
+    const wsUrl = backendUrl.replace(/^http/, 'ws');
+    return `${wsUrl}/api/voice`;
+  }
+  if (typeof window !== 'undefined') {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${proto}//${window.location.host}/api/voice`;
+  }
+  return 'ws://localhost:3001/api/voice';
+}
+
+/**
+ * Convenience health check that auto-builds the WebSocket URL.
+ * Returns the same shape as the old checkLLMHealth for backward compatibility.
+ */
+export async function checkBackendHealth(): Promise<{ available: boolean; message?: string }> {
+  const url = buildDefaultWsUrl();
+  const { connected } = await checkPipelineHealth(url);
+  if (connected) return { available: true };
+  return { available: false, message: 'Voice pipeline unreachable' };
 }

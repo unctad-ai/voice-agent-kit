@@ -15,7 +15,7 @@ import { ChevronDown, X, Mic, ArrowUp, Keyboard, RotateCw, Settings, VolumeX } f
 import {
   useVoiceAgent,
   voiceStateToOrbState,
-  checkLLMHealth,
+  checkBackendHealth,
   useSiteConfig,
   RECOVERY_POLL_MS,
   PANEL_WIDTH,
@@ -780,7 +780,7 @@ class WiredPanelErrorBoundary extends Component<
   static getDerivedStateFromError() { return { hasError: true }; }
   componentDidCatch(error: Error, _info: ErrorInfo) { console.warn('[GlassCopilotPanel] Voice agent unavailable:', error.message); }
   handleRetry = (): Promise<boolean> => {
-    return checkLLMHealth().then(({ available }) => {
+    return checkBackendHealth().then(({ available }) => {
       if (available) this.setState({ hasError: false });
       return available;
     });
@@ -829,7 +829,7 @@ function WiredPanelInner({
   const cancelledRef = useRef(false);
 
   const runHealthCheck = useCallback(() => {
-    checkLLMHealth().then(({ available }) => {
+    checkBackendHealth().then(({ available }) => {
       if (cancelledRef.current) return;
       setBackendDown(!available);
       if (available) {
@@ -893,7 +893,7 @@ function WiredPanelInner({
   const [isRetrying, setIsRetrying] = useState(false);
   const handleRetryClick = useCallback(() => {
     if (isRetrying) return; setIsRetrying(true);
-    checkLLMHealth().then(({ available }) => {
+    checkBackendHealth().then(({ available }) => {
       if (cancelledRef.current) return; setIsRetrying(false); setBackendDown(!available);
       if (available) { dismissError(); if (!autoStartedRef.current && settings.autoListen) { autoStartedRef.current = true; startRef.current(); } }
       if (!available) { if (pollTimerRef.current) clearTimeout(pollTimerRef.current); pollTimerRef.current = setTimeout(runHealthCheck, RECOVERY_POLL_MS); }

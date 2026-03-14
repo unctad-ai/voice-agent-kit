@@ -33,18 +33,14 @@
     "@unctad-ai/voice-agent-registries": "workspace:*"
   },
   "peerDependencies": {
-    "@ai-sdk/react": "^3.0.0",
     "@gooney-001/ten-vad-lib": "^1.0.2",
-    "ai": "^6.0.0",
     "react": ">=18",
     "react-router": ">=6",
     "zod": "^3.25.0 || ^4.0.0"
   },
   "devDependencies": {
-    "@ai-sdk/react": "^3.0.118",
     "@gooney-001/ten-vad-lib": "^1.0.2",
     "@types/react": "^19.0.0",
-    "ai": "^6.0.116",
     "react": "^19.2.4",
     "react-router": "^7.0.0",
     "typescript": "^5.9.3",
