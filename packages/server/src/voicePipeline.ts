@@ -262,7 +262,7 @@ export class VoicePipeline {
   }
 
   /**
-   * Extract VAD metrics matching the pattern in createSttHandler.ts:
+   * Extract VAD metrics from STT result:
    * - noSpeechProb = vadProbs[2] (P(no voice in 2s window))
    * - avgLogprob = -(1 - mean(vadProbs))
    */
@@ -303,7 +303,7 @@ export class VoicePipeline {
     const serverToolNames = new Set(Object.keys(allServerTools));
 
     // Working copy of messages for this turn's tool loop.
-    // Trim and convert to ModelMessage format (same pattern as createChatHandler).
+    // Trim and convert to ModelMessage format.
     const limit = Math.max(4, Math.min(20, 40));
     const trimmed = this.session.conversation.length > limit
       ? this.session.conversation.slice(-limit)

@@ -1,6 +1,6 @@
 /**
  * Text sanitization for TTS engines.
- * Extracted from createTtsHandler.ts for reuse in voicePipeline.ts.
+ * Used by the voice pipeline TTS stage.
  */
 
 export function stripChainOfThought(raw: string): string {
