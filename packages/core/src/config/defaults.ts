@@ -29,7 +29,6 @@ export const BARGE_IN = {
 // ---------------------------------------------------------------------------
 
 export const SILENT_MARKER = '[SILENT]';
-export const END_SESSION_MARKER = '[END_SESSION]';
 
 export const MIC_TOGGLE_DEBOUNCE_MS = 300;
 export const GUARD_DELAY_MS = 200;

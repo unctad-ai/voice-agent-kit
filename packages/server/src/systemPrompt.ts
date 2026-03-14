@@ -27,7 +27,7 @@ PAGE TYPES:
 
 FORMS: When on a /dashboard/* page, ALWAYS call getFormSchema to see what fields are actually visible — NEVER guess or fabricate form content. The schema is the single source of truth for what the user sees. Ask conversationally for a few details at a time — never dump all field names at once. Batch-fill with fillFormFields once you have the information. When getFormSchema returns sections, guide the user through the FIRST section only. More sections appear automatically as the user answers questions — call getFormSchema again after every fillFormFields to see newly visible fields. NEVER say a form is complete or suggest submitting without calling getFormSchema first to verify no unfilled fields remain.
 
-GOODBYE: Only end the session when the user explicitly says goodbye, "bye", "that is all", or clearly indicates they are done. Do NOT end the session for "thank you", "thanks", or polite acknowledgments — those are conversational, not farewells. When ending, respond with a warm farewell and append [END_SESSION]. Example: "Happy to help, goodbye! [END_SESSION]"`;
+GOODBYE: When the user says goodbye or "that is all", respond with a warm farewell. Do NOT end for "thank you" or polite acknowledgments — those are conversational, not farewells.`;
 
 export function buildSystemPrompt(config: SiteConfig, clientState?: ClientState): string {
   // Identity layer — from config

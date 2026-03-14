@@ -39,7 +39,8 @@ export interface SiteConfig {
   // Identity
   copilotName: string;
   siteTitle: string;
-  farewellMessage: string;
+  /** @deprecated No longer used — session end is manual. Kept for backward compat. */
+  farewellMessage?: string;
   systemPromptIntro: string;
 
   // Branding

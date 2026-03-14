@@ -819,9 +819,7 @@ function WiredPanelInner({
   const config = useSiteConfig();
   const resolvedPortrait = portraitSrc ?? config.avatarUrl;
   const { settings: voiceSettings, volumeRef, speedRef } = useVoiceSettings();
-  const { state, start, stop, messages, isLLMLoading, getAmplitude, analyser, sendTextMessage, voiceError, dismissError, sessionEnded, lastTimings, applyVolume, settings } = useVoiceAgent({ settings: voiceSettings, volumeRef, speedRef });
-
-  useEffect(() => { if (sessionEnded) onCollapse(); }, [sessionEnded, onCollapse]);
+  const { state, start, stop, messages, isLLMLoading, getAmplitude, analyser, sendTextMessage, voiceError, dismissError, lastTimings, applyVolume, settings } = useVoiceAgent({ settings: voiceSettings, volumeRef, speedRef });
 
   const [toolResult, setToolResult] = useState<VoiceToolResult | null>(null);
   const orbState = voiceStateToOrbState(state);

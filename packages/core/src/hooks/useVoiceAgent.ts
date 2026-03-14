@@ -29,7 +29,6 @@ import {
   PIPELINE_TIMEOUT_MS,
   VAD,
   SILENT_MARKER,
-  END_SESSION_MARKER,
   ACTION_BADGE_CONFIG,
 } from '../config/defaults';
 
@@ -311,10 +310,6 @@ export function useVoiceAgent({
   const bargeInPendingRef = useRef(false);
   /** If TTS playback ends while barge-in is pending, we can't resume audio */
   const playbackEndedDuringBargeInRef = useRef(false);
-  /** When true, close after current TTS finishes (LLM sent [END_SESSION]) */
-  const sessionEndingRef = useRef(false);
-  /** Signals the panel to close after farewell TTS played */
-  const [sessionEnded, setSessionEnded] = useState(false);
 
   // --- Vercel AI SDK: useChat replaces CopilotKit ---
   const navigate = useNavigate();
@@ -457,12 +452,7 @@ export function useVoiceAgent({
         return;
       }
 
-      // Session end
-      let ttsText = cleaned || '';
-      if (text.includes(END_SESSION_MARKER)) {
-        ttsText = config.farewellMessage;
-        sessionEndingRef.current = true;
-      }
+      const ttsText = cleaned || '';
 
       // Update transcript
       if (ttsText) {
@@ -674,15 +664,6 @@ export function useVoiceAgent({
         return;
       }
       if (stateRef.current === 'AI_SPEAKING') {
-        // LLM included [END_SESSION] — farewell just played, close the session
-        if (sessionEndingRef.current) {
-          sessionEndingRef.current = false;
-          textPipelineRef.current = false;
-          stateRef.current = 'IDLE';
-          setState('IDLE');
-          setSessionEnded(true);
-          return;
-        }
         const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
         textPipelineRef.current = false;
         setTimeout(() => {
@@ -725,10 +706,6 @@ export function useVoiceAgent({
   const handleSpeechEnd = useCallback(
     async (audio: Float32Array) => {
       if (stateRef.current !== 'USER_SPEAKING' && stateRef.current !== 'LISTENING') return;
-
-      // Reset session-ending flag so a barge-in during farewell TTS doesn't
-      // cause premature session close on the next turn.
-      sessionEndingRef.current = false;
 
       const wasBargeIn = bargeInPendingRef.current;
 
@@ -1070,8 +1047,6 @@ export function useVoiceAgent({
     setVoiceError(null);
     setMessages([]);
     setCurrentTranscript('');
-    sessionEndingRef.current = false;
-    setSessionEnded(false);
     setChatMessages([]);
     roundTripCountRef.current = 0;
     actionSeqRef.current = 0;
@@ -1100,7 +1075,6 @@ export function useVoiceAgent({
       processingRef.current = false;
       bargeInPendingRef.current = false;
       playbackEndedDuringBargeInRef.current = false;
-      sessionEndingRef.current = false;
       vad.pause();
       setState('IDLE');
     },
@@ -1120,7 +1094,6 @@ export function useVoiceAgent({
   const sendTextMessage = useCallback(
     async (text: string) => {
       if (!text.trim()) return;
-      sessionEndingRef.current = false;
       if (processingRef.current) {
         setVoiceError('processing');
         setTimeout(() => {
@@ -1201,7 +1174,6 @@ export function useVoiceAgent({
     analyser,
     sendTextMessage,
     lastTimings,
-    sessionEnded,
     settings,
   };
 }
