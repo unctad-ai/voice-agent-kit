@@ -30,6 +30,12 @@ export function useAudioPlayback({
   /** Next scheduled time for streaming chunk scheduling */
   const streamNextTimeRef = useRef(0);
 
+  /** Sample-exact scheduling for playPcmChunk — tracks total samples queued */
+  const pcmScheduleStartRef = useRef(0);
+  const pcmTotalSamplesRef = useRef(0);
+  const pcmNextTimeRef = useRef(0);
+  const pcmFirstChunkRef = useRef(true);
+
   const getContext = useCallback((): AudioContext | null => {
     if (!audioCtxRef.current) {
       try {
@@ -492,6 +498,70 @@ export function useAudioPlayback({
     return sum / (data.length * 255);
   }, []);
 
+  /**
+   * Reset PCM chunk scheduling counters.
+   * Call this when starting a new response to ensure the first chunk
+   * gets a fresh timing baseline.
+   */
+  const resetPcmSchedule = useCallback(() => {
+    pcmScheduleStartRef.current = 0;
+    pcmTotalSamplesRef.current = 0;
+    pcmNextTimeRef.current = 0;
+    pcmFirstChunkRef.current = true;
+  }, []);
+
+  /**
+   * Play a raw PCM chunk received over WebSocket.
+   * Converts the ArrayBuffer to Float32, creates an AudioBuffer, and schedules
+   * it with sample-exact timing for gapless playback.
+   *
+   * @param pcm Raw PCM bytes (Float32 little-endian, i.e. 4 bytes per sample)
+   * @param sampleRate Sample rate of the PCM data (e.g. 24000)
+   */
+  const playPcmChunk = useCallback(
+    (pcm: ArrayBuffer, sampleRate: number): void => {
+      const ctx = getContext();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume(); // fire-and-forget
+      }
+
+      // Convert raw bytes to Float32Array
+      const float32 = new Float32Array(pcm);
+
+      // Create AudioBuffer
+      const audioBuffer = ctx.createBuffer(1, float32.length, sampleRate);
+      audioBuffer.copyToChannel(float32, 0);
+
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      if (speedRef) source.playbackRate.value = speedRef.current;
+      source.connect(gainRef.current!);
+      streamingSourcesRef.current.push(source);
+
+      // Cleanup when source ends
+      source.onended = () => {
+        const idx = streamingSourcesRef.current.indexOf(source);
+        if (idx !== -1) streamingSourcesRef.current.splice(idx, 1);
+      };
+
+      if (pcmFirstChunkRef.current) {
+        pcmScheduleStartRef.current = ctx.currentTime + 0.025;
+        pcmNextTimeRef.current = pcmScheduleStartRef.current;
+        pcmTotalSamplesRef.current = 0;
+        pcmFirstChunkRef.current = false;
+      }
+
+      source.start(pcmNextTimeRef.current);
+      pcmTotalSamplesRef.current += float32.length;
+      const effectiveSpeed = speedRef?.current ?? 1;
+      pcmNextTimeRef.current =
+        pcmScheduleStartRef.current +
+        pcmTotalSamplesRef.current / (sampleRate * effectiveSpeed);
+    },
+    [getContext, speedRef],
+  );
+
   useEffect(() => {
     return () => {
       try {
@@ -517,6 +587,8 @@ export function useAudioPlayback({
     playAudio,
     playAudioSequence,
     playStreamingAudio,
+    playPcmChunk,
+    resetPcmSchedule,
     stopAudio,
     suspendPlayback,
     resumePlayback,
