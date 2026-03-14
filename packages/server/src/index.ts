@@ -1,64 +1,34 @@
-import type { SiteConfig } from '@unctad-ai/voice-agent-core';
-import type { Router } from 'express';
-import { createChatHandler } from './createChatHandler.js';
-import { createSttHandler } from './createSttHandler.js';
-import { createTtsHandler } from './createTtsHandler.js';
+import type { Server as HttpServer } from 'http';
+import type { Express } from 'express';
+import { createVoiceWebSocketHandler } from './createVoiceWebSocketHandler.js';
 import { createPersonaRoutes } from './createPersonaRoutes.js';
 
-export interface VoiceServerOptions {
-  config: SiteConfig;
-  groqApiKey: string;
-  groqModel?: string;
-  sttProvider?: string;
-  kyutaiSttUrl?: string;
-  ttsProvider?: string;
-  qwen3TtsUrl?: string;
-  chatterboxTurboUrl?: string;
-  cosyVoiceTtsUrl?: string;
-  pocketTtsUrl?: string;
-  resembleApiKey?: string;
-  resembleModel?: string;
-  resembleVoiceUuid?: string;
-  personaDir?: string;
-  /** When true, fall back to alternate TTS providers if primary fails. Default: false */
-  ttsFallback?: boolean;
-}
+export type { VoiceServerOptions } from './types.js';
+import type { VoiceServerOptions } from './types.js';
 
-export function createVoiceRoutes(options: VoiceServerOptions): {
-  chat: (req: import('express').Request, res: import('express').Response) => Promise<void>;
-  stt: Router;
-  tts: Router;
-  persona?: Router;
-} {
-  let personaRouter: Router | undefined;
-  let getActiveVoiceId: (() => string) | undefined;
+/**
+ * Attaches the voice pipeline WebSocket handler to the HTTP server.
+ * Optionally mounts persona routes on the Express app.
+ */
+export function attachVoicePipeline(
+  server: HttpServer,
+  options: VoiceServerOptions,
+  app?: Express,
+): void {
+  createVoiceWebSocketHandler(server, options);
 
-  if (options.personaDir) {
-    const { router, store } = createPersonaRoutes({
+  if (options.personaDir && app) {
+    const { router } = createPersonaRoutes({
       personaDir: options.personaDir,
       ttsUpstreamUrl: options.qwen3TtsUrl,
     });
-    personaRouter = router;
-    getActiveVoiceId = () => store.getActiveVoiceId();
+    app.use('/api/agent', router);
   }
-
-  return {
-    chat: createChatHandler(options),
-    stt: createSttHandler(options),
-    tts: createTtsHandler({ ...options, getActiveVoiceId }),
-    persona: personaRouter,
-  };
 }
 
-export { createChatHandler } from './createChatHandler.js';
-export { createSttHandler } from './createSttHandler.js';
-export { createTtsHandler } from './createTtsHandler.js';
 export { createPersonaRoutes } from './createPersonaRoutes.js';
 export { buildSystemPrompt } from './systemPrompt.js';
 export { createBuiltinTools } from './builtinTools.js';
 export { buildSynonymMap, fuzzySearch } from './builtinTools.js';
 export type { ClientState } from './systemPrompt.js';
-export type { ChatHandlerOptions } from './createChatHandler.js';
-export type { SttHandlerOptions } from './createSttHandler.js';
-export type { TtsHandlerOptions } from './createTtsHandler.js';
 export type { PersonaRoutesOptions } from './createPersonaRoutes.js';
