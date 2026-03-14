@@ -27,7 +27,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@unctad-ai/voice-agent-core": "workspace:*",
@@ -48,6 +50,7 @@
     "ai": "^6.0.116",
     "express": "^5.2.1",
     "typescript": "^5.9.3",
+    "vitest": "^4.1.0",
     "zod": "^4.3.6"
   }
 }
