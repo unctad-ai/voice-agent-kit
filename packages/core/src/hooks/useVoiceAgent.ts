@@ -1,36 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTenVAD } from './useTenVAD';
-import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport, lastAssistantMessageIsCompleteWithToolCalls } from 'ai';
 import { useNavigate, useLocation, useParams } from 'react-router';
 import { useUIActionRegistry, useFormFieldRegistry, createClientToolHandler } from '@unctad-ai/voice-agent-registries';
-import { float32ToWav } from '../utils/audioUtils';
-import {
-  transcribeAudio,
-  synthesizeSpeech,
-  streamSpeech,
-  checkLLMHealth,
-} from '../services/voiceApi';
+import { useVoiceWebSocket } from './useVoiceWebSocket';
 import { useAudioPlayback } from './useAudioPlayback';
 import { useSiteConfig } from '../contexts/SiteConfigContext';
 import type { VoiceState, VoiceMessage } from '../types/voice';
 import type { VoiceErrorType } from '../types/errors';
 import type { VoiceSettings } from '../types/settings';
+import type { TimingsEvent } from '../protocol/events';
 import {
   BARGE_IN,
   GUARD_DELAY_MS,
-  MAX_STT_RETRIES,
-  RETRY_BASE_DELAY_MS,
   MISFIRE_DISMISS_MS,
   LLM_ERROR_DISMISS_MS,
-  MAX_NO_SPEECH_PROB,
-  MIN_AVG_LOGPROB,
   MIC_TOGGLE_DEBOUNCE_MS,
-  PIPELINE_TIMEOUT_MS,
   VAD,
   SILENT_MARKER,
   ACTION_BADGE_CONFIG,
 } from '../config/defaults';
+
+// ---------------------------------------------------------------------------
+// Text sanitization helpers
+// ---------------------------------------------------------------------------
 
 /**
  * Strip reasoning-model chain-of-thought from LLM output.
@@ -47,6 +39,7 @@ function stripChainOfThought(raw: string): string {
     .split(/\n\n+/)
     .map((p) => p.trim())
     .filter(Boolean);
+
   if (paragraphs.length > 1) {
     const reasoningPatterns =
       /\b(we need to|we should|we must|according to rules|the user says|ensure no|two sentences|under \d+ words|no markdown|no contractions|let me think|so we|that'?s \d+ sentences)\b/i;
@@ -65,7 +58,7 @@ function sanitizeForTranscript(raw: string): string {
     stripChainOfThought(raw)
       .replace(/\|[^\n]+\|/g, '')
       .replace(/^\s*[-|: ]+$/gm, '')
-      .replace(/^\s*[-–•*]\s+/gm, '')
+      .replace(/^\s*[-\u2013\u2022*]\s+/gm, '')
       .replace(/^\s*\d+\.\s+/gm, '')
       .replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1')
       .replace(/`([^`]+)`/g, '$1')
@@ -80,116 +73,6 @@ function sanitizeForTranscript(raw: string): string {
       .trim()
   );
 }
-
-/** Known Whisper hallucinations on near-silent audio */
-const WHISPER_HALLUCINATIONS = new Set([
-  'thank you.',
-  'thank you',
-  'thank you for watching.',
-  'thank you for watching',
-  'thanks.',
-  'thanks',
-  'thanks for watching.',
-  'thanks for watching',
-  'bye.',
-  'bye',
-  'goodbye.',
-  'goodbye',
-  "you're welcome.",
-  "you're welcome",
-  'hmm.',
-  'hmm',
-  'huh.',
-  'huh',
-  'oh.',
-  'oh',
-  'ah.',
-  'ah',
-  'uh.',
-  'uh',
-  'so.',
-  'so',
-  'well.',
-  'you',
-  'the end.',
-  'the end',
-  'subtitle',
-  'subtitles',
-  'subscribe',
-  'like and subscribe',
-  'sort of',
-  'sort of.',
-  'five.',
-  'five',
-  'one.',
-  'one',
-  'two.',
-  'two',
-  'three.',
-  'three',
-  // Non-speech sounds Whisper transcribes literally
-  'cough',
-  'cough.',
-  'coughing',
-  'coughing.',
-  'sigh',
-  'sigh.',
-  'clap',
-  'clap.',
-  'click',
-  'click.',
-  'knock',
-  'knock.',
-  // Common non-English hallucinations
-  'продолжение следует',
-  'продолжение следует...',
-  'sous-titres',
-  'sous-titrage',
-  'merci.',
-  'merci',
-  'silencio',
-  'ready for your approval.',
-]);
-
-/** Compute RMS energy of Float32 audio buffer */
-function computeRMS(audio: Float32Array): number {
-  let sum = 0;
-  for (let i = 0; i < audio.length; i++) {
-    sum += audio[i] * audio[i];
-  }
-  return Math.sqrt(sum / audio.length);
-}
-
-/**
- * Split text into sentences for pipelined TTS.
- * Fires one TTS request per sentence in parallel so the first sentence
- * plays within ~1s while subsequent sentences are still generating.
- * Merges short fragments (< 8 words) with the previous sentence to
- * avoid tiny TTS requests that produce choppy audio.
- */
-function splitSentences(text: string): string[] {
-  const trimmed = text.trim();
-  if (!trimmed) return [];
-
-  const parts = trimmed.split(/(?<=[.!?])\s+/);
-  const sentences = parts.map((s) => s.trim()).filter((s) => s.length > 0);
-
-  if (sentences.length <= 1) return sentences.length > 0 ? sentences : [trimmed];
-
-  const merged: string[] = [];
-  for (const s of sentences) {
-    if (merged.length > 0 && merged[merged.length - 1].split(/\s+/).length < 8) {
-      merged[merged.length - 1] += ' ' + s;
-    } else {
-      merged.push(s);
-    }
-  }
-
-  return merged;
-}
-
-/** VAD tuning config — imported from centralized voice config */
-const VAD_CONFIG = VAD;
 
 // ---------------------------------------------------------------------------
 // Pipeline timing instrumentation
@@ -229,7 +112,7 @@ function logTimings(t: PipelineTimings) {
   rows['TOTAL'] = `${t.totalMs.toFixed(0)} ms`;
 
   console.group(
-    `%c⏱ Voice Pipeline [${t.pipeline}] — ${t.totalMs.toFixed(0)} ms`,
+    `%c\u23f1 Voice Pipeline [${t.pipeline}] \u2014 ${t.totalMs.toFixed(0)} ms`,
     'color: #4fc3f7; font-weight: bold'
   );
   console.table(rows);
@@ -238,7 +121,7 @@ function logTimings(t: PipelineTimings) {
 
 export interface UseVoiceAgentOptions {
   bargeInEnabled?: boolean;
-  /** Voice settings — injected from host app's VoiceSettingsContext */
+  /** Voice settings -- injected from host app's VoiceSettingsContext */
   settings: VoiceSettings;
   /** Ref tracking current volume (updated by settings provider) */
   volumeRef: React.RefObject<number>;
@@ -258,11 +141,62 @@ function classifyError(err: unknown): VoiceErrorType {
   return 'network_error';
 }
 
-// Module-level set — survives React component remounts (route changes) which
-// destroy refs, but correctly resets on full page navigation (new module load).
-// This prevents the onToolCall replay bug where the SDK re-fires callbacks for
-// tool invocations already present in the messages after a component remount.
+// ---------------------------------------------------------------------------
+// Audio frame buffer + resample helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Buffer for accumulating 5 VAD frames before resampling and sending.
+ * 5 x 256 samples at 16kHz = 1280 samples (~80ms of audio).
+ */
+const FRAMES_PER_SEND = 5;
+const SAMPLES_PER_FRAME = 256;
+const SOURCE_RATE = 16000;
+const TARGET_RATE = 24000;
+
+/**
+ * Resample Float32 PCM from sourceRate to targetRate using OfflineAudioContext.
+ * Returns a Promise<Float32Array> with the resampled data.
+ */
+async function resample16kTo24k(input: Float32Array): Promise<Float32Array> {
+  const inputDuration = input.length / SOURCE_RATE;
+  const outputLength = Math.ceil(inputDuration * TARGET_RATE);
+  const offlineCtx = new OfflineAudioContext(1, outputLength, TARGET_RATE);
+  const buffer = offlineCtx.createBuffer(1, input.length, SOURCE_RATE);
+  buffer.copyToChannel(input as Float32Array<ArrayBuffer>, 0);
+  const source = offlineCtx.createBufferSource();
+  source.buffer = buffer;
+  source.connect(offlineCtx.destination);
+  source.start(0);
+  const rendered = await offlineCtx.startRendering();
+  return rendered.getChannelData(0);
+}
+
+/** VAD tuning config */
+const VAD_CONFIG = VAD;
+
+// Module-level set -- survives React component remounts (route changes)
 const processedToolCalls = new Set<string>();
+
+// ---------------------------------------------------------------------------
+// Build WebSocket URL from current page
+// ---------------------------------------------------------------------------
+
+function buildWebSocketUrl(): string {
+  const backendUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_BACKEND_URL) || '';
+  if (backendUrl) {
+    // Convert http(s) URL to ws(s)
+    const wsUrl = backendUrl.replace(/^http/, 'ws');
+    return `${wsUrl}/api/voice`;
+  }
+  // Default: same origin, WebSocket
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/api/voice`;
+}
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
 
 export function useVoiceAgent({
   bargeInEnabled = true,
@@ -278,8 +212,7 @@ export function useVoiceAgent({
   const [voiceError, setVoiceError] = useState<VoiceErrorType>(null);
   const [lastTimings, setLastTimings] = useState<PipelineTimings | null>(null);
 
-  // Transient LLM error — shows briefly then auto-clears so the user can retry.
-  // Unlike network_error (persistent offline), tool_use_failed is intermittent.
+  // Transient LLM error -- shows briefly then auto-clears
   const setTransientLLMError = useCallback(() => {
     setVoiceError('llm_failed');
     setTimeout(() => {
@@ -292,26 +225,25 @@ export function useVoiceAgent({
     stateRef.current = state;
   }, [state]);
 
-  // Ref for settings — avoids stale closures in useCallback bodies
   const settingsRef = useRef(settings);
   useEffect(() => {
     settingsRef.current = settings;
   }, [settings]);
 
-  const abortRef = useRef<AbortController | null>(null);
-  const bargeInFrames = useRef(0);
-  const sttRetryCount = useRef(0);
   const lastToggleRef = useRef(0);
-  const processingRef = useRef(false);
+  const bargeInFrames = useRef(0);
+  /** Two-phase barge-in: mute first, confirm speech before destroying response */
+  const bargeInPendingRef = useRef(false);
+  const playbackEndedDuringBargeInRef = useRef(false);
   /** Tracks whether the current pipeline was initiated via text input */
   const textPipelineRef = useRef(false);
+  /** Whether we are in the middle of a turn (processing server response) */
+  const processingRef = useRef(false);
 
-  /** Two-phase barge-in: mute first, confirm speech before destroying TTS */
-  const bargeInPendingRef = useRef(false);
-  /** If TTS playback ends while barge-in is pending, we can't resume audio */
-  const playbackEndedDuringBargeInRef = useRef(false);
+  // Audio frame buffer for accumulating VAD frames
+  const audioFrameBufferRef = useRef<Float32Array[]>([]);
 
-  // --- Vercel AI SDK: useChat replaces CopilotKit ---
+  // --- Client tool handling ---
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
@@ -329,13 +261,6 @@ export function useVoiceAgent({
     config,
   });
 
-  const roundTripCountRef = useRef(0);
-  const lastAutoSendMsgIdRef = useRef<string | null>(null);
-  const MAX_CLIENT_ROUND_TRIPS = 25;
-  const NAVIGATION_TOOLS = ['navigateTo', 'viewService', 'startApplication'];
-  // Client tools have no server-side `execute` — the client must provide results.
-  // Server tools (searchServices, getServiceDetails, etc.) are already executed
-  // server-side; their results arrive in the stream and must NOT be overwritten.
   const CLIENT_TOOLS = new Set([
     'navigateTo',
     'viewService',
@@ -344,308 +269,13 @@ export function useVoiceAgent({
     'getFormSchema',
     'fillFormFields',
   ]);
+  const NAVIGATION_TOOLS = ['navigateTo', 'viewService', 'startApplication'];
   const actionSeqRef = useRef(0);
 
+  // --- Audio playback ---
   const {
-    messages: chatMessages,
-    setMessages: setChatMessages,
-    status: chatStatus,
-    stop: chatStop,
-    sendMessage: chatSendMessage,
-    addToolOutput: chatAddToolOutput,
-  } = useChat({
-    transport: new DefaultChatTransport({
-      api: '/api/chat',
-      headers: (): Record<string, string> => {
-        const apiKey = import.meta.env.VITE_API_KEY;
-        return apiKey ? { 'X-API-Key': apiKey } : {};
-      },
-      body: () => ({
-        maxHistoryMessages: settingsRef.current.maxHistoryMessages,
-        clientState: {
-          route: location.pathname,
-          currentService: params.serviceId
-            ? (() => {
-                const s = config.services.find(sv => sv.id === params.serviceId);
-                return s ? { id: s.id, title: s.title, category: s.category } : null;
-              })()
-            : null,
-          categories: config.categories.map((c) => ({
-            category: c.title,
-            count: c.services.length,
-          })),
-          uiActions:
-            uiActions.length > 0
-              ? uiActions.map((a: any) => ({
-                  id: a.id,
-                  description: a.description,
-                  category: a.category,
-                  params: a.params,
-                }))
-              : [],
-          formStatus:
-            formRegistry.fields.length > 0
-              ? {
-                  fieldCount: formRegistry.fields.length,
-                  groups: [
-                    ...new Set(formRegistry.fields.map((f: any) => f.group).filter(Boolean)),
-                  ] as string[],
-                }
-              : null,
-        },
-      }),
-    }),
-    // Auto-send a follow-up request after all client tool outputs are provided.
-    // This runs after addToolOutput updates a tool part — when every tool
-    // invocation in the last assistant message has resolved, the SDK sends the
-    // results back to the model for the next step.
-    sendAutomaticallyWhen({ messages: msgs }) {
-      if (roundTripCountRef.current >= MAX_CLIENT_ROUND_TRIPS) return false;
-      const last = msgs[msgs.length - 1];
-      if (!last || last.role !== 'assistant') return false;
-      // Dedup key includes resolved tool count so successive client-tool
-      // round-trips on the same assistant message are not blocked.
-      const resolvedToolParts = (last as any).parts?.filter(
-        (p: any) => p.type?.startsWith?.('tool-') && p.state === 'output-available',
-      ).length ?? 0;
-      const sendKey = `${(last as any).id}:${resolvedToolParts}`;
-      if (sendKey === lastAutoSendMsgIdRef.current) return false;
-      // Use the SDK's own check: filters providerExecuted (server) tools,
-      // respects step boundaries, and verifies all client tool parts are resolved.
-      const complete = lastAssistantMessageIsCompleteWithToolCalls({ messages: msgs });
-      if (complete) {
-        lastAutoSendMsgIdRef.current = sendKey;
-        roundTripCountRef.current++;
-        console.debug('[sendAutomaticallyWhen] follow-up #' + roundTripCountRef.current);
-        return true;
-      }
-      return false;
-    },
-    onFinish({ message, isAbort }) {
-      if (isAbort) return; // Don't trigger TTS on aborted requests
-      // onFinish fires per HTTP response, not per user turn.
-      // Guard: only trigger TTS when there is actual text content.
-      const textParts = (message.parts || []).filter((p: any) => p.type === 'text');
-      const text = textParts.map((p: any) => p.text || '').join('');
-      if (!text) return; // Intermediate response with only tool calls
-
-      // NOTE: Do NOT reset roundTripCountRef here — onFinish fires per HTTP
-      // response (including auto-send follow-ups). Resetting here would defeat
-      // the round-trip guard and allow infinite loops. The counter resets when
-      // the USER sends a new message (in sendTextMessage / voice pipeline).
-      const cleaned = sanitizeForTranscript(text);
-
-      // Silent rejection — remove the user message (assistant was never added)
-      if (cleaned?.includes(SILENT_MARKER)) {
-        console.debug('[VoiceAgent] LLM returned SILENT marker, skipping TTS');
-        setMessages((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
-        setVoiceError('not_addressed');
-        setTimeout(() => {
-          setVoiceError((prev) => (prev === 'not_addressed' ? null : prev));
-        }, MISFIRE_DISMISS_MS);
-        if (stateRef.current === 'PROCESSING') {
-          const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
-          textPipelineRef.current = false;
-          stateRef.current = nextState;
-          setState(nextState);
-        }
-        return;
-      }
-
-      const ttsText = cleaned || '';
-
-      // Update transcript
-      if (ttsText) {
-        setCurrentTranscript(ttsText);
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', text: ttsText, timestamp: Date.now() },
-        ]);
-      }
-
-      // TTS
-      if (ttsText && ttsText !== SILENT_MARKER && stateRef.current === 'PROCESSING') {
-        stateRef.current = 'AI_SPEAKING';
-        setState('AI_SPEAKING');
-
-        const curSettings = settingsRef.current;
-
-        // TTS disabled — skip synthesis
-        if (!curSettings.ttsEnabled) {
-          const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
-          textPipelineRef.current = false;
-          stateRef.current = nextState;
-          setState(nextState);
-          return;
-        }
-
-        const doTTS = async () => {
-          const ttsParams = {
-            temperature: curSettings.expressiveness,
-            maxWords: curSettings.responseLength,
-          };
-          abortRef.current = new AbortController();
-          try {
-            const stream = streamSpeech(
-              ttsText,
-              abortRef.current.signal,
-              ttsParams,
-              curSettings.ttsTimeoutMs
-            );
-            if (stateRef.current === 'AI_SPEAKING') {
-              await playStreamingAudio(stream, abortRef.current.signal);
-            }
-          } catch (streamErr) {
-            if ((streamErr as Error).name !== 'AbortError') {
-              console.warn('Streaming TTS failed, falling back to buffered:', streamErr);
-              try {
-                if (!abortRef.current) throw new DOMException('Aborted', 'AbortError');
-                const sentences = splitSentences(ttsText);
-                for (const sentence of sentences) {
-                  if (abortRef.current.signal.aborted) break;
-                  if (stateRef.current !== 'AI_SPEAKING') break;
-                  const audio = await synthesizeSpeech(
-                    sentence,
-                    abortRef.current.signal,
-                    ttsParams,
-                    curSettings.ttsTimeoutMs
-                  );
-                  if (stateRef.current !== 'AI_SPEAKING') break;
-                  await playAudio(audio);
-                }
-              } catch (fbErr) {
-                if ((fbErr as Error).name !== 'AbortError') {
-                  console.error('TTS failed:', fbErr);
-                  setVoiceError('tts_failed');
-                  setTimeout(() => {
-                    if (stateRef.current === 'AI_SPEAKING') {
-                      const ns = textPipelineRef.current ? 'IDLE' : 'LISTENING';
-                      textPipelineRef.current = false;
-                      setState(ns);
-                    }
-                  }, 2000);
-                }
-              }
-            }
-          }
-        };
-        doTTS();
-      } else if (stateRef.current === 'PROCESSING') {
-        // No TTS needed (empty or silent) — go back to listening
-        const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
-        textPipelineRef.current = false;
-        stateRef.current = nextState;
-        setState(nextState);
-      }
-    },
-    async onToolCall({ toolCall }) {
-      // Guard: skip tool calls we've already processed. The SDK fires onToolCall
-      // for every tool invocation in the messages array on each re-render, not
-      // just new ones. Without this guard, historical tool calls replay and
-      // flood sendAutomaticallyWhen with spurious evaluations.
-      const tcId = toolCall.toolCallId;
-      if (processedToolCalls.has(tcId)) return;
-      processedToolCalls.add(tcId);
-
-      const isClientTool = CLIENT_TOOLS.has(toolCall.toolName);
-
-      // Emit action badge for all tools (server and client)
-      const badgeConfig = ACTION_BADGE_CONFIG[toolCall.toolName];
-      if (badgeConfig) {
-        // For server tools, just show the label — result is handled server-side.
-        // For client tools, we'll update the badge after execution.
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: 'action',
-            text: badgeConfig.label,
-            timestamp: Date.now() + ++actionSeqRef.current * 0.001,
-            action: { name: toolCall.toolName, category: badgeConfig.category },
-          },
-        ]);
-      }
-
-      // Only handle client-side tools — server tools already have results
-      // from the stream and must not be overwritten via addToolOutput.
-      if (!isClientTool) return;
-
-      if (roundTripCountRef.current >= MAX_CLIENT_ROUND_TRIPS) {
-        console.warn(
-          `[VoiceAgent] Client round-trip limit reached (${roundTripCountRef.current}/${MAX_CLIENT_ROUND_TRIPS})`
-        );
-        // Provide a synthetic tool output so the SDK doesn't hang waiting for it.
-        // The model will see this and can respond to the user instead of stalling.
-        chatAddToolOutput({
-          toolCallId: toolCall.toolCallId,
-          tool: toolCall.toolName,
-          output: JSON.stringify({
-            error: 'Round-trip limit reached. Ask the user to continue with the next step.',
-          }),
-        });
-        return;
-      }
-
-      // Wait for React to flush state for form schema reads
-      if (toolCall.toolName === 'getFormSchema') {
-        await new Promise((r) => requestAnimationFrame(r));
-      }
-
-      const result = await handleClientTool(
-        toolCall.toolName,
-        toolCall.input as Record<string, unknown>
-      );
-
-      // Wait for navigation to settle
-      if (NAVIGATION_TOOLS.includes(toolCall.toolName)) {
-        await new Promise((r) => requestAnimationFrame(r));
-      }
-
-      // Update the action badge with the result snippet
-      if (badgeConfig && result) {
-        let resultSnippet: string = result;
-        if (resultSnippet.length > 40) {
-          const truncated = resultSnippet.slice(0, 40);
-          const lastSpace = truncated.lastIndexOf(' ');
-          resultSnippet =
-            (lastSpace > 15 ? truncated.slice(0, lastSpace) : truncated).trimEnd() + '\u2026';
-        }
-        const label = `${badgeConfig.label} \u00b7 ${resultSnippet}`;
-        setMessages((prev) => {
-          // Replace the last action badge for this tool with the updated one
-          let idx = -1;
-          for (let i = prev.length - 1; i >= 0; i--) {
-            if (prev[i].role === 'action' && (prev[i] as any).action?.name === toolCall.toolName) {
-              idx = i;
-              break;
-            }
-          }
-          if (idx === -1) return prev;
-          const updated = [...prev];
-          updated[idx] = {
-            ...updated[idx],
-            text: label,
-            action: { name: toolCall.toolName, category: badgeConfig.category, result: resultSnippet },
-          };
-          return updated;
-        });
-      }
-
-      // Provide the tool output to the SDK. Fire-and-forget (no await) because
-      // onToolCall runs inside the Chat jobExecutor — awaiting addToolOutput
-      // here would deadlock. The queued job runs after the current transform
-      // finishes, updates the tool part to "output-available", and triggers
-      // sendAutomaticallyWhen to send a follow-up request.
-      chatAddToolOutput({
-        toolCallId: toolCall.toolCallId,
-        tool: toolCall.toolName,
-        output: result,
-      });
-    },
-  });
-
-  const {
-    playAudio,
-    playStreamingAudio,
+    playPcmChunk,
+    resetPcmSchedule,
     stopAudio,
     suspendPlayback,
     resumePlayback,
@@ -657,8 +287,6 @@ export function useVoiceAgent({
     volumeRef,
     speedRef,
     onPlaybackEnd: () => {
-      // If barge-in is pending (audio muted while we verify noise vs speech),
-      // record that playback ended so resumeFromBargeIn knows not to unmute.
       if (bargeInPendingRef.current) {
         playbackEndedDuringBargeInRef.current = true;
         return;
@@ -677,18 +305,11 @@ export function useVoiceAgent({
 
   /**
    * Resume TTS playback after a false barge-in (noise was not real speech).
-   * Unfreezes the AudioContext so all paused sources continue from where they
-   * stopped. If audio ended during the brief async suspension race window,
-   * transitions normally instead.
    */
   const resumeFromBargeIn = useCallback(() => {
-    // Guard: if the agent was stopped (IDLE) or barge-in was already resolved,
-    // don't resurrect state — stop() clears bargeInPendingRef.
     if (stateRef.current === 'IDLE' || !bargeInPendingRef.current) return;
-
     bargeInPendingRef.current = false;
     if (playbackEndedDuringBargeInRef.current) {
-      // Audio ended during the async suspension window — transition normally
       playbackEndedDuringBargeInRef.current = false;
       resumePlayback();
       const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
@@ -696,30 +317,248 @@ export function useVoiceAgent({
       stateRef.current = nextState;
       setState(nextState);
     } else {
-      // Audio still frozen — unfreeze and continue playback
       resumePlayback();
       stateRef.current = 'AI_SPEAKING';
       setState('AI_SPEAKING');
     }
   }, [resumePlayback]);
 
+  // --- WebSocket voice pipeline ---
+  const wsUrl = useRef(buildWebSocketUrl()).current;
+
+  const voiceWs = useVoiceWebSocket({
+    url: wsUrl,
+    siteConfig: config,
+    voiceSettings: {
+      ttsEnabled: settings.ttsEnabled,
+      expressiveness: settings.expressiveness,
+      responseLength: settings.responseLength,
+    },
+    language: settings.language,
+    onToolCall: async (name: string, args: unknown) => {
+      const tcId = `ws-${name}-${Date.now()}`;
+
+      // Emit action badge
+      const badgeConfig = ACTION_BADGE_CONFIG[name];
+      if (badgeConfig) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'action',
+            text: badgeConfig.label,
+            timestamp: Date.now() + ++actionSeqRef.current * 0.001,
+            action: { name, category: badgeConfig.category },
+          },
+        ]);
+      }
+
+      // Only handle client-side tools
+      if (!CLIENT_TOOLS.has(name)) {
+        return undefined;
+      }
+
+      // Wait for React to flush state for form schema reads
+      if (name === 'getFormSchema') {
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+
+      const result = await handleClientTool(
+        name,
+        args as Record<string, unknown>,
+      );
+
+      // Wait for navigation to settle
+      if (NAVIGATION_TOOLS.includes(name)) {
+        await new Promise((r) => requestAnimationFrame(r));
+      }
+
+      // Update the action badge with the result snippet
+      if (badgeConfig && result) {
+        let resultSnippet: string = result;
+        if (resultSnippet.length > 40) {
+          const truncated = resultSnippet.slice(0, 40);
+          const lastSpace = truncated.lastIndexOf(' ');
+          resultSnippet =
+            (lastSpace > 15 ? truncated.slice(0, lastSpace) : truncated).trimEnd() + '\u2026';
+        }
+        const label = `${badgeConfig.label} \u00b7 ${resultSnippet}`;
+        setMessages((prev) => {
+          let idx = -1;
+          for (let i = prev.length - 1; i >= 0; i--) {
+            if (prev[i].role === 'action' && (prev[i] as any).action?.name === name) {
+              idx = i;
+              break;
+            }
+          }
+          if (idx === -1) return prev;
+          const updated = [...prev];
+          updated[idx] = {
+            ...updated[idx],
+            text: label,
+            action: { name, category: badgeConfig.category, result: resultSnippet },
+          };
+          return updated;
+        });
+      }
+
+      return result;
+    },
+    onAudio: (data: ArrayBuffer) => {
+      // Play PCM chunks as they arrive from the server
+      // Server sends 24kHz Float32 PCM
+      if (stateRef.current === 'AI_SPEAKING' || stateRef.current === 'PROCESSING') {
+        playPcmChunk(data, TARGET_RATE);
+      }
+    },
+    onPlaybackDone: () => {
+      // response.audio.done: server finished sending all audio
+      // The actual audio may still be playing; the onPlaybackEnd handler
+      // in useAudioPlayback manages the state transition.
+    },
+    onTimings: (event: TimingsEvent) => {
+      const timings: PipelineTimings = {
+        pipeline: 'voice',
+        sttMs: event.stt_ms,
+        llmTotalMs: event.llm_ms,
+        ttsMs: event.tts_ms,
+        totalMs: event.total_ms ?? 0,
+        timestamp: Date.now(),
+      };
+      logTimings(timings);
+      setLastTimings(timings);
+    },
+  });
+
+  // Track WebSocket status -> voice state mapping
+  useEffect(() => {
+    switch (voiceWs.status) {
+      case 'processing':
+        if (stateRef.current !== 'PROCESSING' && stateRef.current !== 'AI_SPEAKING') {
+          setState('PROCESSING');
+        }
+        break;
+      case 'speaking':
+        if (stateRef.current !== 'AI_SPEAKING') {
+          resetPcmSchedule();
+          stateRef.current = 'AI_SPEAKING';
+          setState('AI_SPEAKING');
+        }
+        break;
+      case 'error':
+        setTransientLLMError();
+        break;
+    }
+  }, [voiceWs.status, resetPcmSchedule, setTransientLLMError]);
+
+  // Update transcript and messages from WebSocket conversation items
+  useEffect(() => {
+    const wsMessages = voiceWs.messages;
+    if (wsMessages.length === 0) return;
+
+    const last = wsMessages[wsMessages.length - 1];
+    if (last.role === 'user') {
+      setCurrentTranscript(last.content);
+      setMessages((prev) => [
+        ...prev,
+        { role: 'user', text: last.content, timestamp: Date.now() },
+      ]);
+    } else if (last.role === 'assistant') {
+      const cleaned = sanitizeForTranscript(last.content);
+
+      // Silent rejection
+      if (cleaned?.includes(SILENT_MARKER)) {
+        console.debug('[VoiceAgent] LLM returned SILENT marker, skipping');
+        setMessages((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
+        setVoiceError('not_addressed');
+        setTimeout(() => {
+          setVoiceError((prev) => (prev === 'not_addressed' ? null : prev));
+        }, MISFIRE_DISMISS_MS);
+        if (stateRef.current === 'PROCESSING') {
+          const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
+          textPipelineRef.current = false;
+          stateRef.current = nextState;
+          setState(nextState);
+        }
+        return;
+      }
+
+      if (cleaned) {
+        setCurrentTranscript(cleaned);
+        setMessages((prev) => [
+          ...prev,
+          { role: 'assistant', text: cleaned, timestamp: Date.now() },
+        ]);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceWs.messages.length]);
+
+  // --- Audio frame buffering + resampling ---
+  const handleRawAudio = useCallback(
+    (pcm: Float32Array) => {
+      if (stateRef.current === 'IDLE') return;
+
+      audioFrameBufferRef.current.push(pcm);
+
+      if (audioFrameBufferRef.current.length >= FRAMES_PER_SEND) {
+        const frames = audioFrameBufferRef.current;
+        audioFrameBufferRef.current = [];
+
+        // Merge frames into a single buffer
+        const totalSamples = frames.reduce((s, f) => s + f.length, 0);
+        const merged = new Float32Array(totalSamples);
+        let offset = 0;
+        for (const frame of frames) {
+          merged.set(frame, offset);
+          offset += frame.length;
+        }
+
+        // Resample 16kHz -> 24kHz and send
+        resample16kTo24k(merged).then((resampled) => {
+          voiceWs.sendAudio(resampled);
+        }).catch((err) => {
+          console.warn('[VoiceAgent] Resample failed:', err);
+          // Fallback: send at 16kHz
+          voiceWs.sendAudio(merged);
+        });
+      }
+    },
+    [voiceWs],
+  );
+
+  // --- Barge-in ---
+  const handleBargeIn = useCallback(() => {
+    if (!bargeInPendingRef.current) {
+      playbackEndedDuringBargeInRef.current = false;
+    }
+    bargeInPendingRef.current = true;
+    suspendPlayback();
+    voiceWs.cancelResponse();
+    stateRef.current = 'USER_SPEAKING';
+    setState('USER_SPEAKING');
+    bargeInFrames.current = 0;
+  }, [suspendPlayback, voiceWs]);
+
+  const handleBargeInRef = useRef(handleBargeIn);
+  useEffect(() => {
+    handleBargeInRef.current = handleBargeIn;
+  });
+
+  // --- Speech end (VAD segment complete) ---
   const handleSpeechEnd = useCallback(
-    async (audio: Float32Array) => {
+    (audio: Float32Array) => {
       if (stateRef.current !== 'USER_SPEAKING' && stateRef.current !== 'LISTENING') return;
 
       const wasBargeIn = bargeInPendingRef.current;
 
-      // Block concurrent pipelines — but allow barge-in noise processing
-      // even when the first pipeline still holds processingRef.
-      if (processingRef.current && !wasBargeIn) return;
+      // Check audio energy
+      let sumSq = 0;
+      for (let i = 0; i < audio.length; i++) sumSq += audio[i] * audio[i];
+      const rms = Math.sqrt(sumSq / audio.length);
 
-      // Energy gate BEFORE entering PROCESSING — quiet audio should not
-      // reset the idle timer or trigger any visible state change.
-      const rms = computeRMS(audio);
       if (rms < settingsRef.current.minAudioRms) {
         console.debug(`[VoiceAgent] Audio too quiet (RMS=${rms.toFixed(4)}), discarding`);
         if (wasBargeIn) {
-          console.debug('[VoiceAgent] False barge-in (RMS gate), resuming TTS');
           resumeFromBargeIn();
         } else {
           setState('LISTENING');
@@ -727,250 +566,38 @@ export function useVoiceAgent({
         return;
       }
 
-      // Track whether we "own" processingRef — during barge-in the first
-      // pipeline already holds it and its finally block will clean up.
-      let ownProcessing = !processingRef.current;
+      // Confirmed speech
+      if (wasBargeIn) {
+        bargeInPendingRef.current = false;
+        playbackEndedDuringBargeInRef.current = false;
+        stopAudio();
+      }
+
+      // Commit the audio buffer to the server — triggers STT + LLM + TTS pipeline
+      voiceWs.commitAudio();
+      setState('PROCESSING');
+      setCurrentTranscript('');
       processingRef.current = true;
-      // Only abort previous TTS if this is NOT a pending barge-in.
-      // For barge-in, we defer the abort until we confirm it's real speech.
-      if (!wasBargeIn) {
-        abortRef.current?.abort();
-        abortRef.current = null;
-      }
-
-      // Clear any lingering error from previous attempt (e.g. "Didn't catch that")
-      setVoiceError(null);
-      // During barge-in, defer PROCESSING state and transcript clear until we've
-      // confirmed real speech — avoids flicker if it turns out to be noise.
-      if (!wasBargeIn) {
-        setState('PROCESSING');
-        setCurrentTranscript('');
-      }
-
-      roundTripCountRef.current = 0; // Reset for new user turn
-      lastAutoSendMsgIdRef.current = null;
-
-      const t0 = performance.now();
-      const timings: Partial<PipelineTimings> = {
-        pipeline: 'voice',
-        speechDurationMs: (audio.length / 16000) * 1000,
-        timestamp: Date.now(),
-      };
-
-      // End-to-end pipeline timeout — prevents hanging due to network or GPU issues
-      const pipelineAc = new AbortController();
-      const pipelineTimer = setTimeout(() => pipelineAc.abort(), PIPELINE_TIMEOUT_MS);
-
-      try {
-        // 1. Convert to WAV and transcribe (with retry)
-        const tWav0 = performance.now();
-        const wavBlob = float32ToWav(audio, 16000);
-        timings.wavEncodeMs = performance.now() - tWav0;
-        timings.wavSizeBytes = wavBlob.size;
-
-        let text: string | undefined;
-        let noSpeechProb = 0;
-        let avgLogprob = 0;
-        let sttRetries = 0;
-        const tStt0 = performance.now();
-
-        for (let attempt = 0; attempt <= MAX_STT_RETRIES; attempt++) {
-          try {
-            const result = await transcribeAudio(
-              wavBlob,
-              undefined,
-              settingsRef.current.sttTimeoutMs,
-              settingsRef.current.language,
-            );
-            text = result.text;
-            noSpeechProb = result.noSpeechProb ?? 0;
-            avgLogprob = result.avgLogprob ?? 0;
-            sttRetryCount.current = 0;
-            break;
-          } catch {
-            sttRetries = attempt + 1;
-            if (attempt < MAX_STT_RETRIES) {
-              await new Promise((r) => setTimeout(r, RETRY_BASE_DELAY_MS * (attempt + 1)));
-            } else {
-              timings.sttMs = performance.now() - tStt0;
-              timings.sttRetries = sttRetries;
-              timings.totalMs = performance.now() - t0;
-              logTimings(timings as PipelineTimings);
-              setLastTimings(timings as PipelineTimings);
-              if (wasBargeIn) {
-                console.debug('[VoiceAgent] False barge-in (STT failed), resuming TTS');
-                resumeFromBargeIn();
-              } else {
-                setVoiceError('stt_failed');
-                setTimeout(() => {
-                  setVoiceError((prev) => (prev === 'stt_failed' ? null : prev));
-                }, MISFIRE_DISMISS_MS);
-                setState('LISTENING');
-              }
-              return;
-            }
-          }
-        }
-        timings.sttMs = performance.now() - tStt0;
-        timings.sttRetries = sttRetries;
-
-        // Pipeline timeout check — bail after STT if we've exceeded the budget
-        if (pipelineAc.signal.aborted) {
-          console.warn('[VoiceAgent] Pipeline timeout after STT');
-          timings.totalMs = performance.now() - t0;
-          logTimings(timings as PipelineTimings);
-          setLastTimings(timings as PipelineTimings);
-          setState('LISTENING');
-          return;
-        }
-
-        // Filter out non-speech using Whisper's quality signals:
-        // - no_speech_prob: model's estimate that segment contains no speech
-        // - avg_logprob: mean token confidence (more negative = less sure)
-        // Coughs/noise produce no_speech_prob ≈ 0 but avg_logprob ≈ -0.9
-        if (noSpeechProb > MAX_NO_SPEECH_PROB || avgLogprob < MIN_AVG_LOGPROB) {
-          console.debug(
-            `[VoiceAgent] Low-confidence STT (no_speech_prob=${noSpeechProb.toFixed(3)}, avg_logprob=${avgLogprob.toFixed(3)}), discarding`
-          );
-          timings.totalMs = performance.now() - t0;
-          logTimings(timings as PipelineTimings);
-          setLastTimings(timings as PipelineTimings);
-          if (wasBargeIn) {
-            console.debug('[VoiceAgent] False barge-in (low STT confidence), resuming TTS');
-            resumeFromBargeIn();
-          } else {
-            setState('LISTENING');
-          }
-          return;
-        }
-
-        // Filter out Whisper ghost transcriptions:
-        // 1. Punctuation/symbol-only output (e.g. ".", "...", "!")
-        // 2. Known hallucinated phrases on near-silent audio (e.g. "Thank you.")
-        const trimmed = (text ?? '').trim();
-        const cleaned = trimmed.replace(/[\s\p{P}\p{S}]+/gu, '');
-        const isGhost = cleaned.length === 0 || WHISPER_HALLUCINATIONS.has(trimmed.toLowerCase());
-        if (!text || isGhost) {
-          console.debug('[VoiceAgent] Discarded ghost transcription:', JSON.stringify(text));
-          timings.totalMs = performance.now() - t0;
-          logTimings(timings as PipelineTimings);
-          setLastTimings(timings as PipelineTimings);
-          if (wasBargeIn) {
-            console.debug('[VoiceAgent] False barge-in (ghost transcription), resuming TTS');
-            resumeFromBargeIn();
-          } else {
-            setState('LISTENING');
-          }
-          return;
-        }
-
-        // Confirmed real speech — if this was a barge-in, now fully stop the old TTS
-        if (wasBargeIn) {
-          console.debug('[VoiceAgent] Barge-in confirmed (real speech), stopping old TTS');
-          bargeInPendingRef.current = false;
-          playbackEndedDuringBargeInRef.current = false;
-          stopAudio();
-          abortRef.current?.abort();
-          abortRef.current = null;
-
-          // Now safe to show PROCESSING state — speech is real, not noise
-          setState('PROCESSING');
-          setCurrentTranscript('');
-
-          // The old pipeline was aborted above — take ownership of processingRef
-          // so this pipeline processes the barge-in speech instead of dropping it.
-          // Previously this returned to LISTENING, forcing the user to repeat.
-          if (!ownProcessing) {
-            ownProcessing = true;
-          }
-        }
-
-        // Store user message
-        setCurrentTranscript(text);
-        setMessages((prev) => [
-          ...prev,
-          { role: 'user', text: text as string, timestamp: Date.now() },
-        ]);
-
-        // 2. Send to LLM via useChat — response handled in onFinish callback
-        const tLlm0 = performance.now();
-        try {
-          await chatSendMessage({ text: text as string });
-        } catch (llmErr) {
-          console.error('LLM error:', llmErr);
-          timings.llmSendMs = performance.now() - tLlm0;
-          timings.totalMs = performance.now() - t0;
-          logTimings(timings as PipelineTimings);
-          setLastTimings(timings as PipelineTimings);
-          setTransientLLMError();
-          setState('LISTENING');
-          return;
-        }
-        timings.llmSendMs = performance.now() - tLlm0;
-        // TTS is handled by onFinish callback — no need to await response here
-
-        timings.totalMs = performance.now() - t0;
-        logTimings(timings as PipelineTimings);
-        setLastTimings(timings as PipelineTimings);
-      } catch (err) {
-        timings.totalMs = performance.now() - t0;
-        logTimings(timings as PipelineTimings);
-        setLastTimings(timings as PipelineTimings);
-        if ((err as Error).name !== 'AbortError') {
-          console.error('Voice agent error:', err);
-          setVoiceError(classifyError(err));
-        }
-        const s = stateRef.current as VoiceState;
-        if (s === 'PROCESSING' || s === 'AI_SPEAKING') {
-          setState('LISTENING');
-        }
-      } finally {
-        clearTimeout(pipelineTimer);
-        if (ownProcessing) processingRef.current = false;
-      }
     },
-    [chatSendMessage, playAudio, playStreamingAudio, stopAudio, resumePlayback, resumeFromBargeIn]
+    [voiceWs, stopAudio, resumeFromBargeIn],
   );
 
-  const handleBargeIn = useCallback(() => {
-    // Phase 1: freeze the AudioContext instead of destroying playback.
-    // All scheduled sources pause in place. New TTS chunks continue to be
-    // scheduled on the frozen context and play seamlessly when resumed.
-    // If the noise turns out to be real speech, we fully stop in handleSpeechEnd.
-    // If it's noise, we unfreeze via resumeFromBargeIn() — zero content loss.
-
-    // Set flags BEFORE suspending — during the async suspension window,
-    // onPlaybackEnd may fire; it needs bargeInPendingRef to be true.
-    // Only reset playbackEndedDuringBargeInRef if this is a fresh barge-in,
-    // not a duplicate — avoids wiping a "playback ended" signal from the first.
-    if (!bargeInPendingRef.current) {
-      playbackEndedDuringBargeInRef.current = false;
-    }
-    bargeInPendingRef.current = true;
-    suspendPlayback();
-    stateRef.current = 'USER_SPEAKING';
-    setState('USER_SPEAKING');
-    bargeInFrames.current = 0;
-  }, [suspendPlayback]);
-
-  // Stable callback refs for useTenVAD (avoids re-creating the hook)
   const handleSpeechEndRef = useRef(handleSpeechEnd);
   useEffect(() => {
     handleSpeechEndRef.current = handleSpeechEnd;
   });
 
-  const handleBargeInRef = useRef(handleBargeIn);
-  useEffect(() => {
-    handleBargeInRef.current = handleBargeIn;
-  });
-
+  // --- VAD ---
   const vad = useTenVAD({
     startOnLoad: false,
     ...VAD_CONFIG,
-    // Override with user settings
     positiveSpeechThreshold: settings.speechThreshold,
     negativeSpeechThreshold: Math.max(0.1, settings.speechThreshold - 0.25),
     redemptionMs: settings.pauseToleranceMs,
+
+    onRawAudio: (pcm: Float32Array) => {
+      handleRawAudio(pcm);
+    },
 
     onSpeechStart: () => {
       if (stateRef.current === 'LISTENING') {
@@ -999,9 +626,6 @@ export function useVoiceAgent({
 
     onFrameProcessed: (probabilities) => {
       if (bargeInEnabled && stateRef.current === 'AI_SPEAKING') {
-        // Require both speech probability AND sufficient energy to barge in.
-        // Without the RMS gate, quiet sounds (speaker bleed, ambient noise)
-        // trigger barge-in via VAD probability alone, interrupting playback.
         if (
           probabilities.isSpeech > settings.bargeInThreshold &&
           probabilities.rms >= settings.minAudioRms
@@ -1017,7 +641,7 @@ export function useVoiceAgent({
     },
   });
 
-  // Detect VAD errors (mic denied, model load failure)
+  // Detect VAD errors
   useEffect(() => {
     if (vad.errored) {
       const errMsg =
@@ -1036,32 +660,26 @@ export function useVoiceAgent({
 
   const dismissError = useCallback(() => setVoiceError(null), []);
 
+  // --- Start / Stop ---
   const start = useCallback(() => {
     const now = Date.now();
     if (now - lastToggleRef.current < MIC_TOGGLE_DEBOUNCE_MS) return;
     lastToggleRef.current = now;
-    // Abort any running pipeline to prevent ghost state transitions
-    abortRef.current?.abort();
-    abortRef.current = null;
+
     processingRef.current = false;
     setVoiceError(null);
     setMessages([]);
     setCurrentTranscript('');
-    setChatMessages([]);
-    roundTripCountRef.current = 0;
     actionSeqRef.current = 0;
     processedToolCalls.clear();
+    audioFrameBufferRef.current = [];
+
+    // Connect WebSocket
+    voiceWs.connect([]);
+
     setState('LISTENING');
     vad.start();
-
-    // Non-blocking LLM health check — warn user early if AI service is down
-    checkLLMHealth().then(({ available, message }) => {
-      if (!available) {
-        console.warn('[VoiceAgent] LLM unavailable:', message);
-        setVoiceError('llm_failed');
-      }
-    });
-  }, [vad, setChatMessages]);
+  }, [vad, voiceWs]);
 
   const stop = useCallback(
     (force?: boolean) => {
@@ -1070,27 +688,27 @@ export function useVoiceAgent({
         if (now - lastToggleRef.current < MIC_TOGGLE_DEBOUNCE_MS) return;
         lastToggleRef.current = now;
       }
-      stopAudio(); // also clears suspension state
-      abortRef.current?.abort();
+      stopAudio();
       processingRef.current = false;
       bargeInPendingRef.current = false;
       playbackEndedDuringBargeInRef.current = false;
+      audioFrameBufferRef.current = [];
       vad.pause();
+      voiceWs.disconnect();
       setState('IDLE');
     },
-    [vad, stopAudio]
+    [vad, stopAudio, voiceWs],
   );
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopAudio();
-      abortRef.current?.abort();
       processingRef.current = false;
     };
   }, [stopAudio]);
 
-  // Text input pipeline (same flow as voice, minus STT)
+  // --- Text input pipeline (sends text over WebSocket) ---
   const sendTextMessage = useCallback(
     async (text: string) => {
       if (!text.trim()) return;
@@ -1103,59 +721,48 @@ export function useVoiceAgent({
       }
       processingRef.current = true;
       textPipelineRef.current = true;
-      roundTripCountRef.current = 0; // Reset for new user turn
-      lastAutoSendMsgIdRef.current = null;
-
-      const t0 = performance.now();
-      const timings: Partial<PipelineTimings> = { pipeline: 'text', timestamp: Date.now() };
 
       setMessages((prev) => [...prev, { role: 'user', text, timestamp: Date.now() }]);
       setCurrentTranscript(text);
       setState('PROCESSING');
 
-      const tLlm0 = performance.now();
-      try {
-        await chatSendMessage({ text });
-      } catch (llmErr) {
-        console.error('LLM error:', llmErr);
-        timings.llmSendMs = performance.now() - tLlm0;
-        timings.totalMs = performance.now() - t0;
-        logTimings(timings as PipelineTimings);
-        setLastTimings(timings as PipelineTimings);
-        setTransientLLMError();
-        setState('IDLE');
-        processingRef.current = false;
-        textPipelineRef.current = false;
-        return;
+      // For text messages, we don't use the WebSocket audio pipeline.
+      // Instead we add the user message to the session and commit.
+      // The server-side session.update includes the conversation,
+      // so we send a text-only turn through the WebSocket.
+      // The WebSocket protocol handles this via session.update + commit.
+      if (!voiceWs.isConnected) {
+        voiceWs.connect([]);
+        // Wait briefly for connection
+        await new Promise((r) => setTimeout(r, 500));
       }
-      timings.llmSendMs = performance.now() - tLlm0;
-      // TTS handled by onFinish callback
-      timings.totalMs = performance.now() - t0;
-      logTimings(timings as PipelineTimings);
-      setLastTimings(timings as PipelineTimings);
-      processingRef.current = false;
+
+      // Send user text as a session update with the text in the conversation
+      voiceWs.sendAudio(new Float32Array(0)); // no-op, but needed to trigger
+      voiceWs.commitAudio();
+
+      // The response will come through the WebSocket event handlers
+      // and update state/messages via the effects above.
     },
-    [chatSendMessage]
+    [voiceWs],
   );
 
-  // Safety net: if the SDK is idle (chatStatus === 'ready') but the voice state
-  // is stuck on PROCESSING for too long, recover to IDLE. This catches edge
-  // cases where sendAutomaticallyWhen fails to fire the next follow-up (e.g.
-  // dedup race, server stream ending without text on the last response).
+  // Safety net: if WebSocket is idle but voice state is stuck on PROCESSING
   useEffect(() => {
-    if (chatStatus !== 'ready' || stateRef.current !== 'PROCESSING') return;
-    const timer = setTimeout(() => {
-      if (chatStatus === 'ready' && stateRef.current === 'PROCESSING') {
-        console.warn('[VoiceAgent] Recovering from stale PROCESSING state (SDK is idle)');
-        const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
-        textPipelineRef.current = false;
-        stateRef.current = nextState;
-        setState(nextState);
-        processingRef.current = false;
-      }
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [chatStatus, state]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (voiceWs.status === 'idle' && stateRef.current === 'PROCESSING') {
+      const timer = setTimeout(() => {
+        if (voiceWs.status === 'idle' && stateRef.current === 'PROCESSING') {
+          console.warn('[VoiceAgent] Recovering from stale PROCESSING state');
+          const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
+          textPipelineRef.current = false;
+          stateRef.current = nextState;
+          setState(nextState);
+          processingRef.current = false;
+        }
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [voiceWs.status, state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     state,
@@ -1167,7 +774,7 @@ export function useVoiceAgent({
     dismissError,
     messages,
     currentTranscript,
-    isLLMLoading: chatStatus === 'streaming' || chatStatus === 'submitted',
+    isLLMLoading: voiceWs.status === 'processing',
     getAmplitude,
     initContext,
     applyVolume,
