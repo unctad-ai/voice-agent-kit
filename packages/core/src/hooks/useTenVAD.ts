@@ -57,6 +57,8 @@ export interface UseTenVADOptions {
   onSpeechEnd?: (audio: Float32Array) => void;
   onVADMisfire?: () => void;
   onFrameProcessed?: (probabilities: { isSpeech: number; rms: number }) => void;
+  /** Called with each raw 256-sample PCM chunk from the AudioWorklet (16 kHz mono Float32). */
+  onRawAudio?: (pcm: Float32Array) => void;
 }
 
 type SegmentState = 'idle' | 'speaking' | 'redemption';
@@ -93,15 +95,16 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
     onSpeechEnd,
     onVADMisfire,
     onFrameProcessed,
+    onRawAudio,
   } = options;
 
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState<false | object>(false);
 
   // Stable refs for callbacks so we never re-create the worklet listener
-  const cbRef = useRef({ onSpeechStart, onSpeechEnd, onVADMisfire, onFrameProcessed });
+  const cbRef = useRef({ onSpeechStart, onSpeechEnd, onVADMisfire, onFrameProcessed, onRawAudio });
   useEffect(() => {
-    cbRef.current = { onSpeechStart, onSpeechEnd, onVADMisfire, onFrameProcessed };
+    cbRef.current = { onSpeechStart, onSpeechEnd, onVADMisfire, onFrameProcessed, onRawAudio };
   });
 
   // WASM module + handle
@@ -387,7 +390,9 @@ registerProcessor('ten-vad-processor', TenVADProcessor);`;
 
       worklet.port.onmessage = (e: MessageEvent) => {
         if (e.data?.type === 'audio') {
-          processFrameRef.current(e.data.samples as Float32Array);
+          const samples = e.data.samples as Float32Array;
+          cbRef.current.onRawAudio?.(samples);
+          processFrameRef.current(samples);
         }
       };
 
