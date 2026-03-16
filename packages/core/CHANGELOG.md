@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 2.0.4
+
+### Patch Changes
+
+- 4908b38: fix: convert Int16 PCM to Float32 for TTS playback, fix Processing/Speaking/Listening state transitions
+  - @unctad-ai/voice-agent-registries@2.0.4
+
 ## 2.0.3
 
 ### Patch Changes
