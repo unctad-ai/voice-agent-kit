@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 2.0.2
+
+### Patch Changes
+
+- f45346f: debug: add message logging to WebSocket handler for integration debugging
+  - @unctad-ai/voice-agent-core@2.0.2
+
 ## 2.0.1
 
 ### Patch Changes
