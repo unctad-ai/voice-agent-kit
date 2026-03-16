@@ -132,7 +132,9 @@ export class VoiceWebSocketManager {
    */
   sendAudio(pcm: Float32Array): void {
     if (this.state !== WsState.OPEN || !this.ws) return;
-    this.ws.send(pcm.buffer);
+    // Send only the relevant slice — pcm.buffer may be larger than the view
+    // (e.g. when pcm comes from OfflineAudioContext.getChannelData())
+    this.ws.send(pcm.buffer.slice(pcm.byteOffset, pcm.byteOffset + pcm.byteLength));
   }
 
   /**
