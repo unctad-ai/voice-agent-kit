@@ -23,9 +23,9 @@ export async function synthesizeWithQwen3TTS(
   if (opts?.temperature != null) formData.append('temperature', String(opts.temperature));
   if (opts?.voice) formData.append('voice', opts.voice);
 
-  // Uses /tts-pipeline for token-level streaming: audio chunks yielded as codec
-  // tokens are generated. TTFA ~200ms with two-phase emission + Hann crossfade.
-  // 50s timeout: accounts for GPU lock wait (up to 15s) + generation (up to 25s).
+  // Use /tts-pipeline for token-level streaming: first chunk in ~400ms vs ~2-3s.
+  // The TTS server's gpu_lock has a watchdog that auto-releases after 45s if a
+  // CUDA generator hangs on client disconnect, preventing permanent deadlock.
   const providerTimeout = AbortSignal.timeout(50_000);
   return fetch(`${url}/tts-pipeline`, {
     method: 'POST',
