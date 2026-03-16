@@ -32,6 +32,13 @@ export function createClientToolHandler(deps: ClientToolDeps) {
         navigate(`/service/${serviceId}`);
         return `Navigated to ${service.title} info page.`;
       }
+      case 'getServiceDetails': {
+        const serviceId = args.serviceId as string;
+        const service = config.services.find(s => s.id === serviceId);
+        if (!service) return 'Service not found';
+        const { id, ...details } = service;
+        return JSON.stringify(details);
+      }
       case 'startApplication': {
         const serviceId = args.serviceId as string;
         const service = config.services.find(s => s.id === serviceId);

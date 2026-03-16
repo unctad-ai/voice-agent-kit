@@ -91,16 +91,8 @@ export function createBuiltinTools(config: SiteConfig) {
         };
       },
     }),
-    getServiceDetails: tool({
-      description: 'Get full details about a service so you can answer verbally. Call searchServices first to get the id. Use alongside viewService.',
-      inputSchema: z.object({ serviceId: z.string() }),
-      execute: async ({ serviceId }) => {
-        const service = getServiceById(serviceId);
-        if (!service) return { error: 'Service not found' };
-        const { id, ...details } = service;
-        return details;
-      },
-    }),
+    // getServiceDetails is a CLIENT tool — the client has the full rich data
+    // (requirements, steps, cost, eligibility). See clientToolHandlers.ts.
     listServicesByCategory: tool({
       description: 'List all services in a category. Use when the user asks what services are available or wants to browse.',
       inputSchema: z.object({
@@ -138,6 +130,10 @@ export function createBuiltinTools(config: SiteConfig) {
     }),
     viewService: tool({
       description: 'Navigate to a specific service detail page. Use the id from searchServices.',
+      inputSchema: z.object({ serviceId: z.string() }),
+    }),
+    getServiceDetails: tool({
+      description: 'Get full details about a service (requirements, steps, cost, duration) so you can answer verbally. Call searchServices first to get the id. Use alongside viewService.',
       inputSchema: z.object({ serviceId: z.string() }),
     }),
     startApplication: tool({
