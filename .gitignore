@@ -3,3 +3,8 @@ dist/
 *.tsbuildinfo
 .worktrees/
 .npmrc
+
+# Autotune loop state (untracked — results are local per session)
+autotune/results.tsv
+run.json
+run.log
