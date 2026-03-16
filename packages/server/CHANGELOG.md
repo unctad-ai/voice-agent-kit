@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 2.0.1
+
+### Patch Changes
+
+- e1ee6ee: fix(server): buffer STT done result to prevent race condition where flush completes before pipeline sets up the listener
+  - @unctad-ai/voice-agent-core@2.0.1
+
 ## 2.0.0
 
 ### Major Changes

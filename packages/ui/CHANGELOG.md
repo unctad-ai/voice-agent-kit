@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-ui
 
+## 2.0.1
+
+### Patch Changes
+
+- @unctad-ai/voice-agent-core@2.0.1
+- @unctad-ai/voice-agent-registries@2.0.1
+
 ## 2.0.0
 
 ### Major Changes
