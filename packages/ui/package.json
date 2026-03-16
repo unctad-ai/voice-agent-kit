@@ -27,7 +27,9 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@unctad-ai/voice-agent-core": "workspace:*",
@@ -51,6 +53,7 @@
     "react-dom": "^19.2.4",
     "simplex-noise": "^4.0.0",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   }
 }
