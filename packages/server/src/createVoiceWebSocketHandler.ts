@@ -78,18 +78,29 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
 
     safeSend(createEvent('session.created', { session_id: sessionId }));
 
+    let msgCount = 0;
+    let audioFrameCount = 0;
     ws.on('message', (data, isBinary) => {
+      msgCount++;
+      if (msgCount <= 3 || msgCount % 100 === 0) {
+        console.log(`[WS] msg #${msgCount} isBinary=${isBinary} size=${Buffer.isBuffer(data) ? data.length : (data as any).byteLength || 0}`);
+      }
       if (isBinary) {
         const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
         if (isAudioFrame(buf)) {
+          audioFrameCount++;
           const pcm = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
           sttClient.sendAudio(pcm);
+          if (audioFrameCount <= 3 || audioFrameCount % 50 === 0) {
+            console.log(`[WS] audio frame #${audioFrameCount} samples=${pcm.length} sttConnected=${sttClient.isConnected}`);
+          }
         }
         return;
       }
 
       const event = parseEvent(data.toString());
       if (!event) return;
+      console.log(`[WS] event: ${event.type}`);
 
       switch (event.type) {
         case 'session.update':
