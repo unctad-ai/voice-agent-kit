@@ -300,7 +300,9 @@ export function useVoiceAgent({
         textPipelineRef.current = false;
         setTimeout(() => {
           if (stateRef.current === 'AI_SPEAKING') {
+            stateRef.current = nextState;
             setState(nextState);
+            processingRef.current = false;
           }
         }, GUARD_DELAY_MS);
       }
