@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 .worktrees/
+.claude/worktrees/
 .npmrc
 
 # Autotune loop state (untracked — results are local per session)

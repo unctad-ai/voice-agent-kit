@@ -27,10 +27,10 @@ LOOP FOREVER:
 #    - GPU endpoints reachable (STT + TTS)
 
 # 2. Create worktree (isolate tuning work)
-git worktree add -b autotune/$(date +%b%d | tr A-Z a-z) /tmp/wt-voice-kit
+git worktree add -b autotune/$(date +%b%d | tr A-Z a-z) .claude/worktrees/autotune
 
 # 3. Build and link into Swkenya
-cd /tmp/wt-voice-kit
+cd .claude/worktrees/autotune
 pnpm install && pnpm build
 ./autotune/link-to-swkenya.sh
 
@@ -44,9 +44,9 @@ pnpm install && pnpm build
 Copy-paste this into `/loop 20m`:
 
 ```
-Follow the instructions in /tmp/wt-voice-kit/autotune/VOICE-TUNING.md.
+Follow the instructions in .claude/worktrees/autotune/autotune/VOICE-TUNING.md.
 
-Work in /tmp/wt-voice-kit/ on the current branch.
+Work in .claude/worktrees/autotune/ on the current branch.
 
 YOU ARE TUNING A VOICE ASSISTANT FOR OPTIMAL CONVERSATION EXPERIENCE.
 

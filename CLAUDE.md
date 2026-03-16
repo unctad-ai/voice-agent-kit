@@ -137,3 +137,33 @@ document.querySelector('[data-testid="voice-agent-fab"]').click();
 // Or with CDP:
 // {action: "click", selector: "[data-testid='voice-agent-fab']"}
 ```
+
+## Voice Experience Auto-Tuning
+
+The `autotune/` directory contains an autonomous parameter optimization loop inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch). It tunes ~14 non-UI parameters (VAD thresholds, barge-in sensitivity, system prompt rules, TTS settings, latency timeouts) by running live e2e tests against a local Swkenya deployment and keeping improvements.
+
+**Quick start:**
+```bash
+# Create isolated worktree
+git worktree add -b autotune/$(date +%b%d | tr A-Z a-z) .claude/worktrees/autotune
+
+# Build and link into local Swkenya
+cd .claude/worktrees/autotune && pnpm install && pnpm build
+./autotune/link-to-swkenya.sh
+
+# Launch (paste loop prompt from VOICE-TUNING.md)
+/loop 20m <prompt from autotune/VOICE-TUNING.md>
+
+# Cleanup when done
+./autotune/unlink-from-swkenya.sh
+git worktree remove .claude/worktrees/autotune
+```
+
+**Key files:**
+- `autotune/VOICE-TUNING.md` — full loop instructions, scoring rubric (0-100), parameter queue
+- `autotune/queue.tsv` — 14 parameters with safe ranges, step sizes, and tuning rationale
+- `autotune/link-to-swkenya.sh` / `unlink-from-swkenya.sh` — npm link helpers for worktree testing
+
+**Requirements:** Chrome with claude-in-chrome extension, local Swkenya with `.env` matching production (from `ssh singlewindow`), GPU endpoints reachable (STT + TTS).
+
+**Pattern:** Modify ONE parameter → rebuild → run 5 e2e queries → score → keep if improved by 2+ points → discard otherwise → repeat forever.
