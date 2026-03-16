@@ -53,4 +53,9 @@ export class AsyncQueue<T> {
     this.waiters = [];
     this.buffer = [];
   }
+
+  /** Discard all buffered items without affecting waiters. */
+  drain(): void {
+    this.buffer = [];
+  }
 }

@@ -53,6 +53,8 @@ const CLIENT_TOOL_TIMEOUT_MS = 30_000;
 const WAV_HEADER_SIZE = 44;
 const NO_SPEECH_PROB_THRESHOLD = 0.6;
 const AVG_LOGPROB_THRESHOLD = -0.7;
+const LLM_TIMEOUT_MS = 15_000;
+const LLM_FALLBACK_TEXT = 'Sorry, I could not process that. Could you try again?';
 
 // ─── Pipeline ────────────────────────────────────────────────────────────────
 
@@ -66,6 +68,7 @@ export class VoicePipeline {
 
   // Client tool call promises
   private pendingToolCalls = new Map<string, (result: unknown) => void>();
+  private turnId = 0;
 
   constructor(options: VoicePipelineOptions) {
     this.options = options;
@@ -142,26 +145,36 @@ export class VoicePipeline {
    */
   async startTurn(): Promise<void> {
     const { send, sendBinary, siteConfig, groqApiKey, groqModel, ttsConfig } = this.options;
-    const turnStart = Date.now();
 
-    // 1. Create new AbortController for this turn
+    // 4a. Abort overlap — cancel previous turn if still running
+    if (this.abortController) {
+      this.cancel();
+    }
+
+    // 4c. Drain stale STT results from previous turns
+    this.sttQueue.drain();
+
+    const turn = ++this.turnId;
+    const turnStart = Date.now();
+    const log = (stage: string, detail = '', ms?: number) =>
+      console.log(`[turn:${turn}] ${stage} ${detail}${ms != null ? ` (${ms}ms)` : ''}`);
+
     this.abortController = new AbortController();
     const { signal } = this.abortController;
 
+    log('turn:start');
+
     try {
-      // 2. Send processing status
       send(createEvent('status', { status: 'processing' }));
 
-      // 3. Wait for STT done
+      // STT
       const sttStart = Date.now();
       const sttResult = await this.waitForSttDone(signal);
       const sttMs = Date.now() - sttStart;
-
-      // 4. Send STT result to client
-      console.log(`[pipeline] STT: "${sttResult.text.slice(0, 80)}" (${sttMs}ms)`);
+      log('stt:done', `"${sttResult.text.slice(0, 80)}"`, sttMs);
       send(createEvent('stt.result', { transcript: sttResult.text }));
 
-      // 5. Hallucination filter
+      // Hallucination filter
       const { noSpeechProb, avgLogprob } = this.extractVadMetrics(sttResult.vadProbs || []);
       const text = sttResult.text.trim();
 
@@ -170,91 +183,85 @@ export class VoicePipeline {
         noSpeechProb > NO_SPEECH_PROB_THRESHOLD ||
         avgLogprob < AVG_LOGPROB_THRESHOLD
       ) {
-        console.log(
-          `[voice-pipeline] Filtered: text="${text.slice(0, 50)}" noSpeech=${noSpeechProb.toFixed(3)} avgLog=${avgLogprob.toFixed(3)}`
-        );
+        log('stt:filtered', `"${text.slice(0, 50)}" noSpeech=${noSpeechProb.toFixed(3)} avgLog=${avgLogprob.toFixed(3)}`);
         send(createEvent('status', { status: 'listening' }));
         return;
       }
 
-      // 6. Add user message to conversation
+      // User message
       this.session.conversation.push({ role: 'user', content: text });
       send(
         createEvent('conversation.item.created', {
-          item: {
-            id: `msg_${Date.now()}`,
-            role: 'user',
-            content: text,
-          },
+          item: { id: `msg_${Date.now()}`, role: 'user', content: text },
         })
       );
 
-      // 7. Call LLM with tool loop
-      console.log(`[pipeline] LLM calling (model=${groqModel || 'qwen/qwen3-32b'})`);
+      // LLM — with timeout
+      const model = groqModel || 'qwen/qwen3-32b';
+      log('llm:start', `model=${model}`);
       const llmStart = Date.now();
-      const assistantText = await this.runLlmLoop(
-        siteConfig,
-        groqApiKey,
-        groqModel || 'qwen/qwen3-32b',
-        signal
-      );
+
+      let assistantText: string;
+      try {
+        const llmSignal = AbortSignal.any([signal, AbortSignal.timeout(LLM_TIMEOUT_MS)]);
+        assistantText = await this.runLlmLoop(siteConfig, groqApiKey, model, llmSignal);
+      } catch (err) {
+        if (signal.aborted) throw err;
+        log('llm:timeout', `${err instanceof Error ? err.message : String(err)}`, Date.now() - llmStart);
+        assistantText = LLM_FALLBACK_TEXT;
+      }
+
       const llmMs = Date.now() - llmStart;
-      console.log(`[pipeline] LLM: "${assistantText.slice(0, 80)}" (${llmMs}ms)`);
+      log('llm:done', `"${assistantText.slice(0, 80)}"`, llmMs);
 
-      // 8. Send response.text.done
+      // Send text response
       send(createEvent('response.text.done', { text: assistantText }));
-
-      // Add assistant message to conversation
       this.session.conversation.push({ role: 'assistant', content: assistantText });
 
-      // 9. Sanitize text for TTS
+      // TTS — with graceful degradation
       const ttsText = sanitizeForTTS(assistantText);
 
       if (!ttsText || ttsText === '[SILENT]' || ttsText.trim() === '') {
         send(createEvent('response.audio.done', {}));
-        send(
-          createEvent('timings', {
-            stt_ms: sttMs,
-            llm_ms: llmMs,
-            tts_ms: 0,
-            total_ms: Date.now() - turnStart,
-          })
-        );
+        send(createEvent('timings', { stt_ms: sttMs, llm_ms: llmMs, tts_ms: 0, total_ms: Date.now() - turnStart }));
         send(createEvent('status', { status: 'listening' }));
+        log('turn:done', 'silent', Date.now() - turnStart);
         return;
       }
 
-      // 10. Call TTS and stream audio
       const ttsStart = Date.now();
-      await this.streamTtsAudio(ttsText, ttsConfig, signal, sendBinary);
-      const ttsMs = Date.now() - ttsStart;
+      let ttsMs: number;
+      try {
+        await this.streamTtsAudio(ttsText, ttsConfig, signal, sendBinary);
+        ttsMs = Date.now() - ttsStart;
+        log('tts:done', '', ttsMs);
+      } catch (err) {
+        if (signal.aborted) throw err;
+        ttsMs = Date.now() - ttsStart;
+        log('tts:error', `${err instanceof Error ? err.message : String(err)}`, ttsMs);
+      }
 
-      // 11. Send audio done and timings
       send(createEvent('response.audio.done', {}));
-      send(
-        createEvent('timings', {
-          stt_ms: sttMs,
-          llm_ms: llmMs,
-          tts_ms: ttsMs,
-          total_ms: Date.now() - turnStart,
-        })
-      );
-
-      // 12. Back to listening
+      send(createEvent('timings', { stt_ms: sttMs, llm_ms: llmMs, tts_ms: ttsMs, total_ms: Date.now() - turnStart }));
       send(createEvent('status', { status: 'listening' }));
+      log('turn:done', '', Date.now() - turnStart);
     } catch (err) {
       if (signal.aborted) {
-        console.log('[voice-pipeline] Turn cancelled');
+        log('turn:cancelled');
         return;
       }
       const message = err instanceof Error ? err.message : String(err);
-      const stack = err instanceof Error ? err.stack : '';
-      console.error('[voice-pipeline] Turn error:', message);
-      if (stack) console.error('[voice-pipeline] Stack:', stack);
+      log('turn:error', message);
+      if (err instanceof Error && err.stack) console.error(err.stack);
       send(createEvent('error', { code: 'pipeline_error', message }));
       send(createEvent('status', { status: 'listening' }));
     } finally {
       this.abortController = null;
+      // 4b. Clear any pending tool calls that outlived the turn
+      for (const [, resolve] of this.pendingToolCalls) {
+        resolve({ error: 'turn_ended' });
+      }
+      this.pendingToolCalls.clear();
     }
   }
 
