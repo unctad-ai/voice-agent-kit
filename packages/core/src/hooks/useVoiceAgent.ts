@@ -404,16 +404,24 @@ export function useVoiceAgent({
       return result;
     },
     onAudio: (data: ArrayBuffer) => {
-      // Play PCM chunks as they arrive from the server
-      // Server sends 24kHz Float32 PCM
-      if (stateRef.current === 'AI_SPEAKING' || stateRef.current === 'PROCESSING') {
+      // Play PCM chunks as they arrive from the server (24kHz Int16 PCM)
+      if (stateRef.current === 'PROCESSING') {
+        // First audio chunk: transition to AI_SPEAKING
+        resetPcmSchedule();
+        stateRef.current = 'AI_SPEAKING';
+        setState('AI_SPEAKING');
+      }
+      if (stateRef.current === 'AI_SPEAKING') {
         playPcmChunk(data, TARGET_RATE);
       }
     },
     onPlaybackDone: () => {
       // response.audio.done: server finished sending all audio
-      // The actual audio may still be playing; the onPlaybackEnd handler
-      // in useAudioPlayback manages the state transition.
+      if (stateRef.current === 'AI_SPEAKING' || stateRef.current === 'PROCESSING') {
+        stateRef.current = 'LISTENING';
+        setState('LISTENING');
+        processingRef.current = false;
+      }
     },
     onTimings: (event: TimingsEvent) => {
       const timings: PipelineTimings = {

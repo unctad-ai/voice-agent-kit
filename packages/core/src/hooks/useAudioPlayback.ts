@@ -526,8 +526,12 @@ export function useAudioPlayback({
         ctx.resume(); // fire-and-forget
       }
 
-      // Convert raw bytes to Float32Array
-      const float32 = new Float32Array(pcm);
+      // TTS sends 16-bit Int16 PCM — convert to Float32 [-1, 1] for Web Audio API
+      const int16 = new Int16Array(pcm);
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) {
+        float32[i] = int16[i] / 32768;
+      }
 
       // Create AudioBuffer
       const audioBuffer = ctx.createBuffer(1, float32.length, sampleRate);
