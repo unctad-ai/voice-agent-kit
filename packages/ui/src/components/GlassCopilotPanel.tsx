@@ -819,7 +819,7 @@ function WiredPanelInner({
   const config = useSiteConfig();
   const resolvedPortrait = portraitSrc ?? config.avatarUrl;
   const { settings: voiceSettings, volumeRef, speedRef } = useVoiceSettings();
-  const { state, start, stop, messages, isLLMLoading, getAmplitude, analyser, sendTextMessage, voiceError, dismissError, lastTimings, applyVolume, settings } = useVoiceAgent({ settings: voiceSettings, volumeRef, speedRef });
+  const { state, start, stop, messages, getAmplitude, analyser, sendTextMessage, voiceError, dismissError, lastTimings, applyVolume, settings } = useVoiceAgent({ settings: voiceSettings, volumeRef, speedRef });
 
   const [toolResult, setToolResult] = useState<VoiceToolResult | null>(null);
   const orbState = voiceStateToOrbState(state);
@@ -887,7 +887,7 @@ function WiredPanelInner({
 
   const handleTextSubmit = useCallback((text: string) => { setMicPaused(false); bumpActivity(); sendTextMessage(text); }, [sendTextMessage, bumpActivity]);
 
-  const isTyping = state === 'AI_SPEAKING' || isLLMLoading;
+  const isTyping = state === 'AI_SPEAKING';
   const effectiveError = backendDown ? ('network_error' as const) : voiceError;
 
   const [isRetrying, setIsRetrying] = useState(false);
