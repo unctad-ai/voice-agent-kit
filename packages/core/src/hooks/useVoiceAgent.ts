@@ -267,6 +267,7 @@ export function useVoiceAgent({
   const CLIENT_TOOLS = new Set([
     'navigateTo',
     'viewService',
+    'getServiceDetails',
     'startApplication',
     'performUIAction',
     'getFormSchema',

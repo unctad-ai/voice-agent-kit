@@ -203,8 +203,7 @@ export class VoicePipeline {
 
       let assistantText: string;
       try {
-        const llmSignal = AbortSignal.any([signal, AbortSignal.timeout(LLM_TIMEOUT_MS)]);
-        assistantText = await this.runLlmLoop(siteConfig, groqApiKey, model, llmSignal);
+        assistantText = await this.runLlmLoop(siteConfig, groqApiKey, model, signal);
       } catch (err) {
         if (signal.aborted) throw err;
         log('llm:timeout', `${err instanceof Error ? err.message : String(err)}`, Date.now() - llmStart);
@@ -326,7 +325,7 @@ export class VoicePipeline {
     // Working copy of messages for this turn's tool loop.
     // Use CoreMessage[] directly — conversation stores { role, content } objects
     // which are already CoreMessage-compatible. No UIMessage conversion needed.
-    const limit = Math.max(4, Math.min(20, 40));
+    const limit = 20;
     const trimmed = this.session.conversation.length > limit
       ? this.session.conversation.slice(-limit)
       : this.session.conversation;
@@ -343,13 +342,18 @@ export class VoicePipeline {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       if (signal.aborted) throw new Error('cancelled');
 
+      // Per-round timeout: covers only the streamText call, not client tool waits.
+      // A multi-tool turn (search → view → details) can legitimately exceed 15s total,
+      // but each individual LLM call should not.
+      const roundSignal = AbortSignal.any([signal, AbortSignal.timeout(LLM_TIMEOUT_MS)]);
+
       const result = streamText({
         model: groq(model),
         system: buildSystemPrompt(siteConfig, this.session.clientState),
         messages,
         tools: toolsForModel,
         temperature: 0,
-        abortSignal: signal,
+        abortSignal: roundSignal,
       });
 
       // Stream text deltas to client
