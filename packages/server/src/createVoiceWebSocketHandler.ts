@@ -107,8 +107,12 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
           pipeline.setSession(event);
           break;
         case 'input_audio_buffer.commit':
+          // Cancel any in-flight turn before starting a new one
+          pipeline.cancel();
           sttClient.flush();
-          pipeline.startTurn();
+          pipeline.startTurn().catch((err) => {
+            console.error('[WS] startTurn error:', err);
+          });
           break;
         case 'input_audio_buffer.clear':
           sttClient.reset();
