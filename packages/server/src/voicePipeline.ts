@@ -56,6 +56,7 @@ export class VoicePipeline {
 
   // STT done promise
   private sttDoneResolve: ((result: SttDoneResult) => void) | null = null;
+  private bufferedSttDone: SttDoneResult | null = null;
 
   // Client tool call promises
   private pendingToolCalls = new Map<string, (result: unknown) => void>();
@@ -106,8 +107,14 @@ export class VoicePipeline {
    * Called when STT emits `done`. Resolves the promise that startTurn awaits.
    */
   resolveSttDone(text: string, vadProbs: number[], durationMs: number): void {
-    this.sttDoneResolve?.({ text, vadProbs, durationMs });
-    this.sttDoneResolve = null;
+    const result = { text, vadProbs, durationMs };
+    if (this.sttDoneResolve) {
+      this.sttDoneResolve(result);
+      this.sttDoneResolve = null;
+    } else {
+      // Buffer if startTurn hasn't called waitForSttDone yet
+      this.bufferedSttDone = result;
+    }
   }
 
   /**
@@ -125,6 +132,7 @@ export class VoicePipeline {
 
     // Reject pending STT
     this.sttDoneResolve = null;
+    this.bufferedSttDone = null;
   }
 
   /**
@@ -248,6 +256,14 @@ export class VoicePipeline {
   // ─── Private helpers ─────────────────────────────────────────────────────
 
   private waitForSttDone(signal: AbortSignal): Promise<SttDoneResult> {
+    // If STT done arrived before we started waiting (race condition),
+    // resolve immediately from the buffer.
+    if (this.bufferedSttDone) {
+      const result = this.bufferedSttDone;
+      this.bufferedSttDone = null;
+      return Promise.resolve(result);
+    }
+
     return new Promise((resolve, reject) => {
       this.sttDoneResolve = resolve;
       signal.addEventListener(
