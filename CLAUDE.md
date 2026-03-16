@@ -29,6 +29,7 @@ git add . && git commit   # Commit the changeset
 - Always release from `main` branch
 - All 4 packages are in a fixed version group (`.changeset/config.json`)
 - **After changing any `package.json`**, always run `pnpm install` to update `pnpm-lock.yaml` and commit the lockfile. CI uses `--frozen-lockfile` and will fail if the lockfile is stale.
+- **After releasing**, redeploy consuming projects: `cd ../singlewindow-deployments && ./scripts/update-all.sh` (requires `COOLIFY_TOKEN` in `.env`). The voice-agent-action only runs on Figma Make pushes — kit-only releases don't auto-deploy.
 
 ## Package Architecture
 
