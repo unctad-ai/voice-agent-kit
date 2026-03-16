@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 3.0.2
+
+### Patch Changes
+
+- e38eaac: Pipeline hardening fixes: streaming TTS with temperature passthrough, SILENT UX cleanup, browser AGC instead of server gain normalization, version logging
+  - @unctad-ai/voice-agent-registries@3.0.2
+
 ## 3.0.1
 
 ### Patch Changes
