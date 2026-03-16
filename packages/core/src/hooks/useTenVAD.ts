@@ -339,6 +339,7 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
+          autoGainControl: true,
         },
       });
 

@@ -9,22 +9,6 @@ import { VoicePipeline } from './voicePipeline.js';
 import { SttStreamClient } from './sttStreamClient.js';
 import type { VoiceServerOptions } from './types.js';
 
-/**
- * Normalize audio frame to a target RMS level in-place.
- * Skips near-silent frames (below floor) to avoid amplifying noise.
- * Clamps output to [-1, 1] to prevent clipping.
- */
-function normalizeGain(pcm: Float32Array, targetRms: number, floor = 0.002): void {
-  let sumSq = 0;
-  for (let i = 0; i < pcm.length; i++) sumSq += pcm[i] * pcm[i];
-  const rms = Math.sqrt(sumSq / pcm.length);
-  if (rms < floor) return; // silence — don't amplify noise
-  const gain = targetRms / rms;
-  if (gain > 20) return; // safety cap — don't amplify >26dB
-  for (let i = 0; i < pcm.length; i++) {
-    pcm[i] = Math.max(-1, Math.min(1, pcm[i] * gain));
-  }
-}
 
 // Read kit version once at module load
 let kitVersion = 'unknown';
@@ -128,8 +112,6 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
           // Copy to aligned buffer — ws may deliver Buffers with non-4-byte-aligned byteOffset
           const aligned = buf.byteOffset % 4 === 0 ? buf : Buffer.from(buf);
           const pcm = new Float32Array(aligned.buffer, aligned.byteOffset, aligned.byteLength / 4);
-          // Normalize gain so STT gets adequate levels regardless of mic gain
-          normalizeGain(pcm, 0.1);
           sttClient.sendAudio(pcm);
           if (captureAudio) capturedFrames.push(Buffer.from(aligned));
           if (audioFrameCount <= 3 || audioFrameCount % 50 === 0) {
