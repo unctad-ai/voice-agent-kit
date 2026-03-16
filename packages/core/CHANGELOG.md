@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 2.0.3
+
+### Patch Changes
+
+- 87eacb3: fix: guard sendAudio against null WebSocket, add debug logging to WebSocket handler
+  - @unctad-ai/voice-agent-registries@2.0.3
+
 ## 2.0.2
 
 ### Patch Changes

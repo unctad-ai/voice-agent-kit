@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-registries
 
+## 2.0.3
+
+### Patch Changes
+
+- Updated dependencies [87eacb3]
+  - @unctad-ai/voice-agent-core@2.0.3
+
 ## 2.0.2
 
 ### Patch Changes
