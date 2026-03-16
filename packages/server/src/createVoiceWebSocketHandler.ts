@@ -1,7 +1,9 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server as HttpServer } from 'http';
 import { randomUUID } from 'node:crypto';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { parseEvent, createEvent, isAudioFrame } from './protocol.js';
 import { VoicePipeline } from './voicePipeline.js';
 import { SttStreamClient } from './sttStreamClient.js';
@@ -24,8 +26,16 @@ function normalizeGain(pcm: Float32Array, targetRms: number, floor = 0.002): voi
   }
 }
 
+// Read kit version once at module load
+let kitVersion = 'unknown';
+try {
+  const pkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
+  kitVersion = JSON.parse(readFileSync(pkgPath, 'utf-8')).version;
+} catch { /* fallback to 'unknown' */ }
+
 export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceServerOptions): void {
   const wss = new WebSocketServer({ server, path: '/api/voice' });
+  console.log(`[voice-agent-kit] v${kitVersion} — WebSocket handler at /api/voice`);
 
   wss.on('connection', (ws) => {
     const sessionId = randomUUID();
