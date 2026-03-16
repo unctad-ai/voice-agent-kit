@@ -38,6 +38,7 @@ interface SessionState {
   conversation: ConversationMessage[];
   clientState?: ClientState;
   voice?: string;
+  ttsTemperature?: number;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -74,6 +75,7 @@ export class VoicePipeline {
     conversation?: unknown[];
     clientState?: ClientState;
     voice?: string;
+    voice_settings?: { expressiveness?: number; [key: string]: unknown };
   }): void {
     if (event.conversation) {
       this.session.conversation = event.conversation.map((msg) => {
@@ -89,6 +91,9 @@ export class VoicePipeline {
     }
     if (event.voice !== undefined) {
       this.session.voice = event.voice;
+    }
+    if (event.voice_settings?.expressiveness !== undefined) {
+      this.session.ttsTemperature = event.voice_settings.expressiveness;
     }
   }
 
@@ -295,6 +300,17 @@ export class VoicePipeline {
     const allTools = { ...allServerTools, ...clientTools };
     const serverToolNames = new Set(Object.keys(allServerTools));
 
+    // Strip execute from tools for streamText — we manage the tool loop manually
+    // to support client tools via WebSocket. Without this, the SDK auto-executes
+    // server tools and shifts response.messages (tool-result becomes last message),
+    // causing extractToolCalls to find nothing and the loop to exit immediately.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const toolsForModel: Record<string, any> = {};
+    for (const [name, t] of Object.entries(allTools)) {
+      const { execute, ...def } = t as any;
+      toolsForModel[name] = def;
+    }
+
     // Working copy of messages for this turn's tool loop.
     // Use CoreMessage[] directly — conversation stores { role, content } objects
     // which are already CoreMessage-compatible. No UIMessage conversion needed.
@@ -302,9 +318,13 @@ export class VoicePipeline {
     const trimmed = this.session.conversation.length > limit
       ? this.session.conversation.slice(-limit)
       : this.session.conversation;
-    // Cast to ModelMessage[] — our conversation stores { role, content } which
-    // streamText accepts directly as user/assistant messages.
-    const messages = trimmed as ModelMessage[];
+    // Filter to only user/assistant messages with string content — strip any
+    // tool call/result messages that may leak in from the client conversation.
+    // streamText expects clean { role: 'user'|'assistant', content: string }.
+    const cleaned = trimmed.filter(
+      (m: any) => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string'
+    );
+    const messages = cleaned as ModelMessage[];
 
     let fullText = '';
 
@@ -315,40 +335,53 @@ export class VoicePipeline {
         model: groq(model),
         system: buildSystemPrompt(siteConfig, this.session.clientState),
         messages,
-        tools: allTools,
+        tools: toolsForModel,
         temperature: 0,
         abortSignal: signal,
       });
 
       // Stream text deltas to client
       let roundText = '';
-      for await (const delta of result.textStream) {
-        roundText += delta;
-        send(createEvent('response.text.delta', { delta }));
-      }
-      fullText += roundText;
-
-      // Check for tool calls in the response
-      let response;
       try {
-        response = await result.response;
-      } catch (err) {
+        for await (const delta of result.textStream) {
+          roundText += delta;
+          send(createEvent('response.text.delta', { delta }));
+        }
+        fullText += roundText;
+      } catch (err: any) {
         if (signal.aborted) throw new Error('cancelled');
+        // AI_NoOutputGeneratedError: model returned empty — treat as empty response
+        if (err?.name === 'AI_NoOutputGeneratedError' || err?.message?.includes('No output generated')) {
+          console.log('[voice-pipeline] LLM returned no output — treating as empty response');
+          fullText += roundText;
+          break;
+        }
         console.error('[voice-pipeline] LLM stream error:', err);
         throw err;
       }
-      const lastMessage = response.messages[response.messages.length - 1];
 
-      // Extract tool calls from the assistant message
-      const toolCalls = this.extractToolCalls(lastMessage);
+      // Use SDK's toolCalls promise — more reliable than manually parsing
+      // response.messages, which shifts shape when tools have execute functions.
+      const toolCalls = await result.toolCalls;
 
-      if (toolCalls.length === 0) {
+      if (!toolCalls || toolCalls.length === 0) {
         // No tool calls — LLM is done
         break;
       }
 
-      // Add assistant message to working messages
-      messages.push(lastMessage as ModelMessage);
+      console.log(
+        `[voice-pipeline] Tool calls (round ${round + 1}):`,
+        toolCalls.map((tc) => tc.toolName)
+      );
+
+      // Add the assistant message (with tool-call parts) to working messages
+      const response = await result.response;
+      const assistantMsg = response.messages.find(
+        (m: Record<string, unknown>) => m.role === 'assistant'
+      );
+      if (assistantMsg) {
+        messages.push(assistantMsg as ModelMessage);
+      }
 
       // Process each tool call
       const toolResults: ModelMessage[] = [];
@@ -358,29 +391,37 @@ export class VoicePipeline {
 
         let toolResult: unknown;
 
-        if (serverToolNames.has(tc.name)) {
-          // Server tool — has execute, call it directly
-          const toolDef = allServerTools[tc.name];
+        if (serverToolNames.has(tc.toolName)) {
+          // Server tool — call execute from the original (un-stripped) tool definition
+          const toolDef = allServerTools[tc.toolName];
           if (toolDef && typeof toolDef.execute === 'function') {
             try {
-              toolResult = await toolDef.execute(tc.args);
+              toolResult = await toolDef.execute(tc.input);
+              console.log(
+                `[voice-pipeline] Server tool ${tc.toolName}:`,
+                JSON.stringify(toolResult).slice(0, 200)
+              );
             } catch (err) {
               toolResult = { error: err instanceof Error ? err.message : String(err) };
             }
           } else {
-            toolResult = { error: `Server tool ${tc.name} has no execute function` };
+            toolResult = { error: `Server tool ${tc.toolName} has no execute function` };
           }
         } else {
           // Client tool — send to browser and wait for result
           send(
             createEvent('tool.call', {
-              tool_call_id: tc.id,
-              name: tc.name,
-              arguments: JSON.stringify(tc.args),
+              tool_call_id: tc.toolCallId,
+              name: tc.toolName,
+              arguments: JSON.stringify(tc.input ?? {}),
             })
           );
 
-          toolResult = await this.waitForClientToolResult(tc.id, signal);
+          toolResult = await this.waitForClientToolResult(tc.toolCallId, signal);
+          console.log(
+            `[voice-pipeline] Client tool ${tc.toolName}:`,
+            JSON.stringify(toolResult).slice(0, 200)
+          );
         }
 
         toolResults.push({
@@ -388,8 +429,8 @@ export class VoicePipeline {
           content: [
             {
               type: 'tool-result',
-              toolCallId: tc.id,
-              toolName: tc.name,
+              toolCallId: tc.toolCallId,
+              toolName: tc.toolName,
               result: toolResult,
             },
           ],
@@ -401,38 +442,6 @@ export class VoicePipeline {
     }
 
     return fullText;
-  }
-
-  /**
-   * Extract tool calls from an assistant response message.
-   */
-  private extractToolCalls(
-    message: unknown
-  ): Array<{ id: string; name: string; args: unknown }> {
-    if (!message || typeof message !== 'object') return [];
-    const msg = message as Record<string, unknown>;
-
-    // Vercel AI SDK v6: assistant messages have content array with tool-call parts
-    const content = msg.content;
-    if (!Array.isArray(content)) return [];
-
-    const calls: Array<{ id: string; name: string; args: unknown }> = [];
-    for (const part of content) {
-      if (
-        part &&
-        typeof part === 'object' &&
-        'type' in part &&
-        (part as Record<string, unknown>).type === 'tool-call'
-      ) {
-        const p = part as Record<string, unknown>;
-        calls.push({
-          id: (p.toolCallId as string) || `tc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          name: p.toolName as string,
-          args: p.args,
-        });
-      }
-    }
-    return calls;
   }
 
   /**
@@ -475,7 +484,9 @@ export class VoicePipeline {
     signal: AbortSignal,
     sendBinary: (data: Buffer) => void
   ): Promise<void> {
-    const response = await synthesize(text, ttsConfig, signal);
+    const response = await synthesize(text, ttsConfig, signal, {
+      temperature: this.session.ttsTemperature,
+    });
 
     if (!response.ok) {
       const body = await response.text().catch(() => '');
