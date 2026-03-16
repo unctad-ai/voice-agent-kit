@@ -135,6 +135,7 @@ export class SttStreamClient {
       const ws = this.ws;
       this.ws = null;
       ws.removeAllListeners();
+      ws.on('error', () => {});          // absorb async errors emitted after close
       try { ws.close(); } catch { /* ignore */ }
     }
   }

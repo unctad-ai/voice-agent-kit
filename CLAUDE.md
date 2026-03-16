@@ -138,6 +138,24 @@ document.querySelector('[data-testid="voice-agent-fab"]').click();
 // {action: "click", selector: "[data-testid='voice-agent-fab']"}
 ```
 
+## Local Dev with Docker (Swkenya)
+
+To iterate on the kit and see changes in a consuming project without publishing to npm:
+
+```bash
+cd ../Swkenya
+docker compose -f docker-compose.dev.yml up --build
+# → http://localhost:3000 (Express serves frontend + API + WebSocket)
+```
+
+This builds the local `voice-agent-kit/` source inside the container (pnpm build → npm pack → tarball install), then builds the Swkenya Vite frontend and runs Express on port 80 (mapped to 3000).
+
+**Iteration flow:** edit kit source → re-run `docker compose up --build` → Docker layer caching makes rebuilds fast (only kit build + Vite layers re-run).
+
+**Requirements:** Docker Desktop running, `Swkenya/server/.env` with GPU endpoints and API keys.
+
+**Files:** `Swkenya/Dockerfile.dev`, `Swkenya/docker-compose.dev.yml`
+
 ## Voice Experience Auto-Tuning
 
 The `autotune/` directory contains an autonomous parameter optimization loop inspired by [karpathy/autoresearch](https://github.com/karpathy/autoresearch). It tunes ~14 non-UI parameters (VAD thresholds, barge-in sensitivity, system prompt rules, TTS settings, latency timeouts) by running live e2e tests against a local Swkenya deployment and keeping improvements.

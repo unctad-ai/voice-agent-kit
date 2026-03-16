@@ -598,10 +598,12 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
           <div style={{ paddingTop: 8, paddingBottom: 4, fontSize: 11, color: '#9ca3af' }}>
             VAD Threshold: <span style={{ fontWeight: 500, color: '#6b7280' }}>{VAD.positiveSpeechThreshold}</span>
           </div>
-          <div style={{ paddingTop: 2, paddingBottom: 4, fontSize: 11, color: '#9ca3af' }}>
-            Kit version: <span style={{ fontWeight: 500, color: '#6b7280' }}>{__KIT_VERSION__}</span>
-          </div>
         </SettingsSection>
+      </div>
+
+      {/* Kit version — pinned to bottom center */}
+      <div style={{ flexShrink: 0, textAlign: 'center', padding: '8px 16px', fontSize: 11, color: '#9ca3af' }}>
+        Kit v<span style={{ fontWeight: 500, color: '#6b7280' }}>{__KIT_VERSION__}</span>
       </div>
     </motion.div>
   );
