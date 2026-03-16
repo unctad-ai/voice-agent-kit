@@ -145,6 +145,12 @@ export async function synthesize(
 
   if (ttsProvider === 'qwen3-tts') {
     response = await synthesizeWithQwen3TTS(text, qwen3TtsUrl, signal, { temperature: opts?.temperature, voice: voiceId });
+    // Retry once on 503 (GPU lock may be releasing via watchdog)
+    if (response.status === 503 && !signal?.aborted) {
+      console.warn('[TTS] qwen3-tts 503, retrying in 2s...');
+      await new Promise((r) => setTimeout(r, 2000));
+      response = await synthesizeWithQwen3TTS(text, qwen3TtsUrl, signal, { temperature: opts?.temperature, voice: voiceId });
+    }
     if (!response.ok && ttsFallback) {
       console.warn('[TTS] qwen3-tts failed, falling back to pocket-tts');
       response = await synthesizeWithPocketTTS(text, pocketTtsUrl, signal);
