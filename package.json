@@ -11,7 +11,7 @@
     "validate": "bash scripts/validate-release.sh",
     "release": "changeset version && pnpm validate",
     "prepare": "husky",
-    "docker:kenya": "pnpm build && cd ../Swkenya && docker compose -f docker-compose.dev.yml up --build",
+    "docker:kenya": "pnpm build && cd ../Swkenya && docker compose -f docker-compose.dev.yml up --build -d",
     "docker:kenya:logs": "cd ../Swkenya && docker compose -f docker-compose.dev.yml logs -f"
   },
   "pnpm": {
