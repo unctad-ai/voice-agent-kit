@@ -148,6 +148,7 @@ export class VoicePipeline {
       const sttMs = Date.now() - sttStart;
 
       // 4. Send STT result to client
+      console.log(`[pipeline] STT: "${sttResult.text.slice(0, 80)}" (${sttMs}ms)`);
       send(createEvent('stt.result', { transcript: sttResult.text }));
 
       // 5. Hallucination filter
@@ -179,6 +180,7 @@ export class VoicePipeline {
       );
 
       // 7. Call LLM with tool loop
+      console.log(`[pipeline] LLM calling (model=${groqModel || 'openai/gpt-oss-120b'})`);
       const llmStart = Date.now();
       const assistantText = await this.runLlmLoop(
         siteConfig,
@@ -187,6 +189,7 @@ export class VoicePipeline {
         signal
       );
       const llmMs = Date.now() - llmStart;
+      console.log(`[pipeline] LLM: "${assistantText.slice(0, 80)}" (${llmMs}ms)`);
 
       // 8. Send response.text.done
       send(createEvent('response.text.done', { text: assistantText }));

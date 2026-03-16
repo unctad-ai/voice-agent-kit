@@ -57,6 +57,9 @@ export class SttStreamClient {
       this.ws.on('message', (data: WebSocket.RawData) => {
         try {
           const msg = JSON.parse(data.toString());
+          if (msg.type === 'done') {
+            console.log(`[STT] done: "${(msg.text || '').slice(0, 80)}" (${msg.duration_ms}ms)`);
+          }
           switch (msg.type) {
             case 'word':
               this.callbacks.onWord?.(msg.text, msg.token_id);
@@ -110,7 +113,11 @@ export class SttStreamClient {
    * Tell the STT service to finalize the current utterance.
    */
   flush(): void {
-    if (!canSend(this._state) || !this.ws) return;
+    if (!canSend(this._state) || !this.ws) {
+      console.log(`[STT] flush DROPPED (state=${WsState[this._state]})`);
+      return;
+    }
+    console.log('[STT] flush sent');
     this.ws.send(JSON.stringify({ type: 'flush' }));
   }
 
