@@ -80,7 +80,6 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
 
     let msgCount = 0;
     let audioFrameCount = 0;
-    let processingTurn = false;
 
     ws.on('message', (data, isBinary) => {
       msgCount++;
@@ -91,14 +90,12 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
         const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
         if (isAudioFrame(buf)) {
           audioFrameCount++;
-          // Turn boundary: ignore audio frames during turn processing
-          if (processingTurn) {
-            if (audioFrameCount % 100 === 0) {
-              console.log(`[WS] Ignoring audio frame #${audioFrameCount} (turn in progress)`);
-            }
-            return;
-          }
-          const pcm = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
+          // Always forward audio to STT — it needs continuous audio to produce
+          // results on flush. Turn boundary is enforced client-side (useVoiceAgent
+          // stops sending audio during PROCESSING/AI_SPEAKING states).
+          // Copy to aligned buffer — ws may deliver Buffers with non-4-byte-aligned byteOffset
+          const aligned = buf.byteOffset % 4 === 0 ? buf : Buffer.from(buf);
+          const pcm = new Float32Array(aligned.buffer, aligned.byteOffset, aligned.byteLength / 4);
           sttClient.sendAudio(pcm);
           if (audioFrameCount <= 3 || audioFrameCount % 50 === 0) {
             console.log(`[WS] audio frame #${audioFrameCount} samples=${pcm.length} sttConnected=${sttClient.isConnected}`);
@@ -119,7 +116,6 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
           // Cancel any in-flight turn before starting a new one
           pipeline.cancel();
           sttClient.flush();
-          processingTurn = true;
           pipeline.startTurn()
             .catch((err) => {
               if (err?.message !== 'cancelled') {
@@ -127,9 +123,6 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
                 safeSend(createEvent('error', { code: 'pipeline_error', message: err?.message || 'Unknown error' }));
                 safeSend(createEvent('status', { status: 'listening' }));
               }
-            })
-            .finally(() => {
-              processingTurn = false;
             });
           break;
         case 'input_audio_buffer.clear':
@@ -138,7 +131,6 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
         case 'response.cancel':
           pipeline.cancel();
           sttClient.reset();
-          processingTurn = false;
           break;
         case 'tool.result':
           pipeline.resolveToolCall(event.tool_call_id, event.result);
@@ -153,7 +145,6 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
     ws.on('close', () => {
       pipeline.cancel();
       sttClient.close();
-      processingTurn = false;
       console.log(`[WS] Session ${sessionId} closed`);
     });
   });

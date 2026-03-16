@@ -444,6 +444,17 @@ export function useVoiceAgent({
   // Track WebSocket status -> voice state mapping
   useEffect(() => {
     switch (voiceWs.status) {
+      case 'listening':
+        // Server returned to listening (e.g. after Filtered/empty STT result).
+        // Transition client back so it doesn't get stuck in PROCESSING.
+        if (stateRef.current === 'PROCESSING') {
+          const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
+          textPipelineRef.current = false;
+          stateRef.current = nextState;
+          setState(nextState);
+          processingRef.current = false;
+        }
+        break;
       case 'processing':
         if (stateRef.current !== 'PROCESSING' && stateRef.current !== 'AI_SPEAKING') {
           setState('PROCESSING');
