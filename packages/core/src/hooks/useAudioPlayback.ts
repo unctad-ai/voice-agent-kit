@@ -587,6 +587,46 @@ export function useAudioPlayback({
     [getContext, schedulePcmChunk],
   );
 
+  /**
+   * Signal that no more PCM chunks will arrive for this response.
+   * Flushes any buffered chunks and wires onPlaybackEnd to the last
+   * scheduled AudioBufferSourceNode. Without this, playPcmChunk has no
+   * way to know when playback is complete — onPlaybackEnd never fires
+   * and the UI stays stuck on AI_SPEAKING.
+   */
+  const finalizePcmPlayback = useCallback(
+    (sampleRate: number) => {
+      const ctx = audioCtxRef.current;
+      if (!ctx) return;
+
+      // Flush any remaining buffered chunks
+      const remaining = pcmBufferQueueRef.current.flush();
+      for (const chunk of remaining) {
+        schedulePcmChunk(chunk, sampleRate, ctx);
+      }
+
+      // Wire onPlaybackEnd to the last scheduled source
+      const sources = streamingSourcesRef.current;
+      const lastSource = sources.length > 0 ? sources[sources.length - 1] : null;
+
+      if (lastSource) {
+        const existingOnEnded = lastSource.onended;
+        lastSource.onended = (ev) => {
+          existingOnEnded?.call(lastSource, ev);
+          if (!stoppingRef.current) {
+            onPlaybackEndRef.current?.();
+          }
+        };
+      } else {
+        // No audio was scheduled — fire immediately
+        if (!stoppingRef.current) {
+          onPlaybackEndRef.current?.();
+        }
+      }
+    },
+    [schedulePcmChunk],
+  );
+
   useEffect(() => {
     return () => {
       try {
@@ -613,6 +653,7 @@ export function useAudioPlayback({
     playAudioSequence,
     playStreamingAudio,
     playPcmChunk,
+    finalizePcmPlayback,
     resetPcmSchedule,
     stopAudio,
     suspendPlayback,

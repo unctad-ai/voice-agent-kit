@@ -286,6 +286,7 @@ export function useVoiceAgent({
     initContext,
     applyVolume,
     analyser,
+    finalizePcmPlayback,
   } = useAudioPlayback({
     volumeRef,
     speedRef,
@@ -420,21 +421,24 @@ export function useVoiceAgent({
       }
     },
     onPlaybackDone: () => {
-      // response.audio.done: server finished sending audio chunks.
-      // Do NOT transition to LISTENING here — audio is still playing from
-      // scheduled AudioBuffers. The onPlaybackEnd callback in useAudioPlayback
-      // fires when the last AudioBufferSourceNode.onended triggers, which is
-      // the correct signal. Transitioning here causes the mic to go live while
-      // TTS is still audible, creating a feedback loop.
+      // response.audio.done: server finished sending all audio chunks.
       //
-      // If we're still in PROCESSING (LLM returned [SILENT] or empty), transition
-      // since there's no audio to wait for.
+      // If PROCESSING (LLM returned [SILENT] or empty — no audio was played),
+      // transition immediately since there is nothing to wait for.
       if (stateRef.current === 'PROCESSING') {
         const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
         textPipelineRef.current = false;
         stateRef.current = nextState;
         setState(nextState);
         processingRef.current = false;
+        return;
+      }
+      // If AI_SPEAKING, finalize PCM playback: flush remaining buffered chunks
+      // and wire onPlaybackEnd to the last scheduled AudioBufferSourceNode.
+      // Without this, playPcmChunk has no way to know audio is complete —
+      // onPlaybackEnd never fires and the UI stays stuck on "Speaking..."
+      if (stateRef.current === 'AI_SPEAKING') {
+        finalizePcmPlayback(TARGET_RATE);
       }
     },
     onTimings: (event: TimingsEvent) => {
