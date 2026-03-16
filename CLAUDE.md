@@ -31,6 +31,14 @@ git add . && git commit   # Commit the changeset
 - **After changing any `package.json`**, always run `pnpm install` to update `pnpm-lock.yaml` and commit the lockfile. CI uses `--frozen-lockfile` and will fail if the lockfile is stale.
 - **After releasing**, redeploy consuming projects: `cd ../singlewindow-deployments && ./scripts/update-all.sh` (requires `COOLIFY_TOKEN` in `.env`). The voice-agent-action only runs on Figma Make pushes — kit-only releases don't auto-deploy.
 
+## AI SDK Reference
+
+This project uses Vercel AI SDK v6 (`ai` package). Before touching LLM integration, tool calling, or message construction, **always ground yourself** against these sources — never guess field names or message shapes:
+
+1. **WebFetch `https://ai-sdk.dev/llms.txt`** — load this into context before any SDK work
+2. **Read `packages/server/node_modules/ai/src/prompt/content-part.ts`** — canonical Zod schemas that `streamText` validates at runtime; the TypeScript types alone are not enough
+3. **Docs**: https://ai-sdk.dev/docs/reference
+
 ## Package Architecture
 
 | Package | Role | Build |
@@ -143,14 +151,22 @@ document.querySelector('[data-testid="voice-agent-fab"]').click();
 To iterate on the kit and see changes in a consuming project without publishing to npm:
 
 ```bash
-cd ../Swkenya
-docker compose -f docker-compose.dev.yml up --build
-# → http://localhost:3000 (Express serves frontend + API + WebSocket)
+pnpm docker:kenya          # Build kit + Docker image + start (all-in-one)
+pnpm docker:kenya:logs     # Tail server logs
 ```
 
-This builds the local `voice-agent-kit/` source inside the container (pnpm build → npm pack → tarball install), then builds the Swkenya Vite frontend and runs Express on port 80 (mapped to 3000).
+**Important:** Always build the kit locally first (`pnpm build`) before Docker build. The Docker `COPY` layer detects changed files and only rebuilds affected layers. Using `--no-cache` is almost never needed and wastes time.
 
-**Iteration flow:** edit kit source → re-run `docker compose up --build` → Docker layer caching makes rebuilds fast (only kit build + Vite layers re-run).
+**Iteration flow:** edit kit source → `pnpm docker:kenya` → http://localhost:3000
+
+## Model Comparison
+
+```bash
+python3 scripts/compare-models.py                                    # Default candidates
+python3 scripts/compare-models.py qwen/qwen3-32b openai/gpt-oss-20b # Specific models
+```
+
+Tests tool calling, brevity, [SILENT] detection, contraction avoidance, and latency across Groq models. Uses the real system prompt and tool definitions.
 
 **Requirements:** Docker Desktop running, `Swkenya/server/.env` with GPU endpoints and API keys.
 

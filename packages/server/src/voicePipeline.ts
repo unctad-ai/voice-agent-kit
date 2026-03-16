@@ -1,4 +1,9 @@
-import { streamText, type ModelMessage } from 'ai';
+import {
+  streamText,
+  type ModelMessage,
+  type AssistantModelMessage,
+  type ToolModelMessage,
+} from 'ai';
 import { createGroq } from '@ai-sdk/groq';
 import type { SiteConfig } from '@unctad-ai/voice-agent-core';
 import type { SttStreamClient } from './sttStreamClient.js';
@@ -185,12 +190,12 @@ export class VoicePipeline {
       );
 
       // 7. Call LLM with tool loop
-      console.log(`[pipeline] LLM calling (model=${groqModel || 'openai/gpt-oss-120b'})`);
+      console.log(`[pipeline] LLM calling (model=${groqModel || 'qwen/qwen3-32b'})`);
       const llmStart = Date.now();
       const assistantText = await this.runLlmLoop(
         siteConfig,
         groqApiKey,
-        groqModel || 'openai/gpt-oss-120b',
+        groqModel || 'qwen/qwen3-32b',
         signal
       );
       const llmMs = Date.now() - llmStart;
@@ -374,14 +379,25 @@ export class VoicePipeline {
         toolCalls.map((tc) => tc.toolName)
       );
 
-      // Add the assistant message (with tool-call parts) to working messages
-      const response = await result.response;
-      const assistantMsg = response.messages.find(
-        (m: Record<string, unknown>) => m.role === 'assistant'
-      );
-      if (assistantMsg) {
-        messages.push(assistantMsg as ModelMessage);
+      // Build the assistant message manually — response.messages may include
+      // provider-specific parts (e.g. reasoning) that fail ModelMessage validation.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const assistantContent: any[] = [];
+      if (roundText) {
+        assistantContent.push({ type: 'text', text: roundText });
       }
+      for (const tc of toolCalls) {
+        assistantContent.push({
+          type: 'tool-call',
+          toolCallId: tc.toolCallId,
+          toolName: tc.toolName,
+          input: tc.input,
+        });
+      }
+      messages.push({
+        role: 'assistant' as const,
+        content: assistantContent,
+      } satisfies AssistantModelMessage);
 
       // Process each tool call
       const toolResults: ModelMessage[] = [];
@@ -425,16 +441,16 @@ export class VoicePipeline {
         }
 
         toolResults.push({
-          role: 'tool',
+          role: 'tool' as const,
           content: [
             {
-              type: 'tool-result',
+              type: 'tool-result' as const,
               toolCallId: tc.toolCallId,
               toolName: tc.toolName,
-              result: toolResult,
+              output: { type: 'json' as const, value: JSON.parse(JSON.stringify(toolResult)) },
             },
           ],
-        } as unknown as ModelMessage);
+        } satisfies ToolModelMessage);
       }
 
       // Add tool results and continue the loop

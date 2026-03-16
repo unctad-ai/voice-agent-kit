@@ -10,7 +10,9 @@
     "version": "changeset version",
     "validate": "bash scripts/validate-release.sh",
     "release": "changeset version && pnpm validate",
-    "prepare": "husky"
+    "prepare": "husky",
+    "docker:kenya": "pnpm build && cd ../Swkenya && docker compose -f docker-compose.dev.yml up --build",
+    "docker:kenya:logs": "cd ../Swkenya && docker compose -f docker-compose.dev.yml logs -f"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild"]

@@ -50,9 +50,9 @@ export function fuzzySearch(
   }
   const queryWords = q.split(/\s+/).filter((w) => w.length >= 3);
   return services.filter((s) => {
-    const titleLower = s.title.toLowerCase();
-    const overviewLower = s.overview?.toLowerCase() || '';
-    const categoryLower = s.category.toLowerCase();
+    const titleLower = (s.title || '').toLowerCase();
+    const overviewLower = (s.overview || '').toLowerCase();
+    const categoryLower = (s.category || '').toLowerCase();
     const corpus = `${titleLower} ${overviewLower} ${categoryLower}`;
     const substringMatch = searchTerms.some(
       (term) => titleLower.includes(term) || overviewLower.includes(term) || categoryLower.includes(term)
