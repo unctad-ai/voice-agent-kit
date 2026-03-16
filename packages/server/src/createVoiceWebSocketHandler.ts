@@ -1,10 +1,28 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import type { Server as HttpServer } from 'http';
 import { randomUUID } from 'node:crypto';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { parseEvent, createEvent, isAudioFrame } from './protocol.js';
 import { VoicePipeline } from './voicePipeline.js';
 import { SttStreamClient } from './sttStreamClient.js';
 import type { VoiceServerOptions } from './types.js';
+
+/**
+ * Normalize audio frame to a target RMS level in-place.
+ * Skips near-silent frames (below floor) to avoid amplifying noise.
+ * Clamps output to [-1, 1] to prevent clipping.
+ */
+function normalizeGain(pcm: Float32Array, targetRms: number, floor = 0.002): void {
+  let sumSq = 0;
+  for (let i = 0; i < pcm.length; i++) sumSq += pcm[i] * pcm[i];
+  const rms = Math.sqrt(sumSq / pcm.length);
+  if (rms < floor) return; // silence — don't amplify noise
+  const gain = targetRms / rms;
+  if (gain > 20) return; // safety cap — don't amplify >26dB
+  for (let i = 0; i < pcm.length; i++) {
+    pcm[i] = Math.max(-1, Math.min(1, pcm[i] * gain));
+  }
+}
 
 export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceServerOptions): void {
   const wss = new WebSocketServer({ server, path: '/api/voice' });
@@ -81,6 +99,10 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
     let msgCount = 0;
     let audioFrameCount = 0;
 
+    // Audio capture for diagnostics (enabled via CAPTURE_AUDIO=1)
+    const captureAudio = process.env.CAPTURE_AUDIO === '1';
+    const capturedFrames: Buffer[] = [];
+
     ws.on('message', (data, isBinary) => {
       msgCount++;
       if (msgCount <= 3 || msgCount % 100 === 0) {
@@ -96,7 +118,10 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
           // Copy to aligned buffer — ws may deliver Buffers with non-4-byte-aligned byteOffset
           const aligned = buf.byteOffset % 4 === 0 ? buf : Buffer.from(buf);
           const pcm = new Float32Array(aligned.buffer, aligned.byteOffset, aligned.byteLength / 4);
+          // Normalize gain so STT gets adequate levels regardless of mic gain
+          normalizeGain(pcm, 0.1);
           sttClient.sendAudio(pcm);
+          if (captureAudio) capturedFrames.push(Buffer.from(aligned));
           if (audioFrameCount <= 3 || audioFrameCount % 50 === 0) {
             console.log(`[WS] audio frame #${audioFrameCount} samples=${pcm.length} sttConnected=${sttClient.isConnected}`);
           }
@@ -145,6 +170,27 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
     ws.on('close', () => {
       pipeline.cancel();
       sttClient.close();
+      if (captureAudio && capturedFrames.length > 0) {
+        try {
+          mkdirSync('/tmp/audio-capture', { recursive: true });
+          const raw = Buffer.concat(capturedFrames);
+          // Write raw Float32 PCM
+          writeFileSync(`/tmp/audio-capture/${sessionId}.f32`, raw);
+          // Write WAV header + PCM for easy playback
+          const wavHeader = Buffer.alloc(44);
+          const dataSize = raw.length;
+          const fileSize = 36 + dataSize;
+          wavHeader.write('RIFF', 0); wavHeader.writeUInt32LE(fileSize, 4);
+          wavHeader.write('WAVE', 8); wavHeader.write('fmt ', 12);
+          wavHeader.writeUInt32LE(16, 16); wavHeader.writeUInt16LE(3, 20); // IEEE float
+          wavHeader.writeUInt16LE(1, 22); wavHeader.writeUInt32LE(24000, 24);
+          wavHeader.writeUInt32LE(24000 * 4, 28); wavHeader.writeUInt16LE(4, 32);
+          wavHeader.writeUInt16LE(32, 34); wavHeader.write('data', 36);
+          wavHeader.writeUInt32LE(dataSize, 40);
+          writeFileSync(`/tmp/audio-capture/${sessionId}.wav`, Buffer.concat([wavHeader, raw]));
+          console.log(`[WS] Captured ${capturedFrames.length} frames → /tmp/audio-capture/${sessionId}.wav`);
+        } catch (e) { console.error('[WS] Audio capture write failed:', e); }
+      }
       console.log(`[WS] Session ${sessionId} closed`);
     });
   });
