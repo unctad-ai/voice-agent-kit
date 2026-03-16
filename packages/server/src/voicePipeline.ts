@@ -1,11 +1,6 @@
-import { streamText, convertToModelMessages } from 'ai';
+import { streamText, type ModelMessage } from 'ai';
 import { createGroq } from '@ai-sdk/groq';
 import type { SiteConfig } from '@unctad-ai/voice-agent-core';
-
-// Vercel AI SDK v6 uses ModelMessage internally but doesn't re-export the type.
-// We use the inferred type from convertToModelMessages to stay compatible.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ModelMessage = any;
 import type { SttStreamClient } from './sttStreamClient.js';
 import type { TtsProviderConfig } from './ttsProviders.js';
 import { synthesize } from './ttsProviders.js';
@@ -156,7 +151,7 @@ export class VoicePipeline {
       send(createEvent('stt.result', { transcript: sttResult.text }));
 
       // 5. Hallucination filter
-      const { noSpeechProb, avgLogprob } = this.extractVadMetrics(sttResult.vadProbs);
+      const { noSpeechProb, avgLogprob } = this.extractVadMetrics(sttResult.vadProbs || []);
       const text = sttResult.text.trim();
 
       if (
@@ -240,7 +235,9 @@ export class VoicePipeline {
         return;
       }
       const message = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : '';
       console.error('[voice-pipeline] Turn error:', message);
+      if (stack) console.error('[voice-pipeline] Stack:', stack);
       send(createEvent('error', { code: 'pipeline_error', message }));
       send(createEvent('status', { status: 'listening' }));
     } finally {
@@ -303,13 +300,15 @@ export class VoicePipeline {
     const serverToolNames = new Set(Object.keys(allServerTools));
 
     // Working copy of messages for this turn's tool loop.
-    // Trim and convert to ModelMessage format.
+    // Use CoreMessage[] directly — conversation stores { role, content } objects
+    // which are already CoreMessage-compatible. No UIMessage conversion needed.
     const limit = Math.max(4, Math.min(20, 40));
     const trimmed = this.session.conversation.length > limit
       ? this.session.conversation.slice(-limit)
       : this.session.conversation;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const messages: ModelMessage[] = await convertToModelMessages(trimmed as any);
+    // Cast to ModelMessage[] — our conversation stores { role, content } which
+    // streamText accepts directly as user/assistant messages.
+    const messages = trimmed as ModelMessage[];
 
     let fullText = '';
 
@@ -391,7 +390,7 @@ export class VoicePipeline {
               result: toolResult,
             },
           ],
-        } as ModelMessage);
+        } as unknown as ModelMessage);
       }
 
       // Add tool results and continue the loop
