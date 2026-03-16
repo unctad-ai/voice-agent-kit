@@ -501,7 +501,18 @@ export function useVoiceAgent({
       // Silent rejection
       if (cleaned?.includes(SILENT_MARKER)) {
         console.debug('[VoiceAgent] LLM returned SILENT marker, skipping');
-        setMessages((prev) => (prev.length > 0 ? prev.slice(0, -1) : prev));
+        // Remove the assistant [SILENT] message AND the user message that triggered it
+        setMessages((prev) => {
+          // First remove the last message (assistant [SILENT])
+          const withoutAssistant = prev.length > 0 ? prev.slice(0, -1) : prev;
+          // Then find and remove the last user message that triggered this turn
+          let lastUserIdx = -1;
+          for (let i = withoutAssistant.length - 1; i >= 0; i--) {
+            if (withoutAssistant[i].role === 'user') { lastUserIdx = i; break; }
+          }
+          if (lastUserIdx === -1) return withoutAssistant;
+          return [...withoutAssistant.slice(0, lastUserIdx), ...withoutAssistant.slice(lastUserIdx + 1)];
+        });
         setVoiceError('not_addressed');
         setTimeout(() => {
           setVoiceError((prev) => (prev === 'not_addressed' ? null : prev));
