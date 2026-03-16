@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { parseWavHeader, pcmToFloat32 } from '../utils/wavParser';
 import { WAV_HEADER_SIZE, TTS_STREAM_CHUNK_MS } from '../config/defaults';
+import { PcmBufferQueue } from '../utils/pcmBufferQueue';
 
 export interface UseAudioPlaybackOptions {
   onPlaybackEnd?: () => void;
@@ -35,6 +36,7 @@ export function useAudioPlayback({
   const pcmTotalSamplesRef = useRef(0);
   const pcmNextTimeRef = useRef(0);
   const pcmFirstChunkRef = useRef(true);
+  const pcmBufferQueueRef = useRef(new PcmBufferQueue());
 
   const getContext = useCallback((): AudioContext | null => {
     if (!audioCtxRef.current) {
@@ -508,6 +510,7 @@ export function useAudioPlayback({
     pcmTotalSamplesRef.current = 0;
     pcmNextTimeRef.current = 0;
     pcmFirstChunkRef.current = true;
+    pcmBufferQueueRef.current.reset();
   }, []);
 
   /**
@@ -518,22 +521,19 @@ export function useAudioPlayback({
    * @param pcm Raw PCM bytes (Float32 little-endian, i.e. 4 bytes per sample)
    * @param sampleRate Sample rate of the PCM data (e.g. 24000)
    */
-  const playPcmChunk = useCallback(
-    (pcm: ArrayBuffer, sampleRate: number): void => {
-      const ctx = getContext();
-      if (!ctx) return;
-      if (ctx.state === 'suspended') {
-        ctx.resume(); // fire-and-forget
-      }
-
+  /**
+   * Schedule a single PCM chunk for playback.
+   * Handles Int16→Float32 conversion and sample-exact timing.
+   */
+  const schedulePcmChunk = useCallback(
+    (chunk: ArrayBuffer, sampleRate: number, ctx: AudioContext): void => {
       // TTS sends 16-bit Int16 PCM — convert to Float32 [-1, 1] for Web Audio API
-      const int16 = new Int16Array(pcm);
+      const int16 = new Int16Array(chunk);
       const float32 = new Float32Array(int16.length);
       for (let i = 0; i < int16.length; i++) {
         float32[i] = int16[i] / 32768;
       }
 
-      // Create AudioBuffer
       const audioBuffer = ctx.createBuffer(1, float32.length, sampleRate);
       audioBuffer.copyToChannel(float32, 0);
 
@@ -543,7 +543,6 @@ export function useAudioPlayback({
       source.connect(gainRef.current!);
       streamingSourcesRef.current.push(source);
 
-      // Cleanup when source ends
       source.onended = () => {
         const idx = streamingSourcesRef.current.indexOf(source);
         if (idx !== -1) streamingSourcesRef.current.splice(idx, 1);
@@ -563,7 +562,29 @@ export function useAudioPlayback({
         pcmScheduleStartRef.current +
         pcmTotalSamplesRef.current / (sampleRate * effectiveSpeed);
     },
-    [getContext, speedRef],
+    [speedRef],
+  );
+
+  /**
+   * Play a raw PCM chunk received over WebSocket.
+   * Buffers N chunks before scheduling to prevent choppy playback.
+   */
+  const playPcmChunk = useCallback(
+    (pcm: ArrayBuffer, sampleRate: number): void => {
+      const ctx = getContext();
+      if (!ctx) return;
+      if (ctx.state === 'suspended') {
+        ctx.resume(); // fire-and-forget
+      }
+
+      const chunksToSchedule = pcmBufferQueueRef.current.push(pcm);
+      if (chunksToSchedule.length === 0) return; // still buffering
+
+      for (const chunk of chunksToSchedule) {
+        schedulePcmChunk(chunk, sampleRate, ctx);
+      }
+    },
+    [getContext, schedulePcmChunk],
   );
 
   useEffect(() => {

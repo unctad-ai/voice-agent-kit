@@ -1,4 +1,5 @@
 import WebSocket from 'ws';
+import { WsState, canSend, transitionTo } from './wsState.js';
 
 export interface SttStreamCallbacks {
   onWord?: (text: string, tokenId: number) => void;
@@ -12,6 +13,9 @@ export interface SttStreamCallbacks {
 /**
  * WebSocket client for streaming audio to the Python STT service.
  *
+ * Uses a state machine (CONNECTING → OPEN → CLOSING → CLOSED) to guard
+ * all send/close operations and prevent crashes on invalid WebSocket states.
+ *
  * - Sends raw PCM Float32 frames as binary WebSocket frames (no JSON wrapping)
  * - Sends JSON control messages: flush, reset
  * - Receives JSON messages: word, vad, done
@@ -24,21 +28,28 @@ export class SttStreamClient {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectDelay = 1000;
   private readonly maxReconnectDelay = 30000;
-  private closed = false;
+  private _state: WsState = WsState.CLOSED;
 
   constructor(url: string, callbacks: SttStreamCallbacks) {
     this.url = url;
     this.callbacks = callbacks;
   }
 
+  get state(): WsState {
+    return this._state;
+  }
+
   connect(): void {
-    if (this.closed) return;
+    if (this._state !== WsState.CLOSED) return;
+
+    this._state = WsState.CONNECTING;
 
     try {
       this.ws = new WebSocket(this.url);
       this.ws.binaryType = 'arraybuffer';
 
       this.ws.on('open', () => {
+        this._state = transitionTo(this._state, WsState.OPEN);
         this.reconnectDelay = 1000; // reset backoff on successful connect
         this.callbacks.onConnected?.();
       });
@@ -71,18 +82,18 @@ export class SttStreamClient {
       });
 
       this.ws.on('close', () => {
+        this._state = transitionTo(this._state, WsState.CLOSED);
         this.callbacks.onDisconnected?.();
-        if (!this.closed) {
+        if (this._state === WsState.CLOSED && this.reconnectTimer === null) {
           this.scheduleReconnect();
         }
       });
     } catch (err) {
+      this._state = WsState.CLOSED;
       this.callbacks.onError?.(
         err instanceof Error ? err : new Error(String(err))
       );
-      if (!this.closed) {
-        this.scheduleReconnect();
-      }
+      this.scheduleReconnect();
     }
   }
 
@@ -91,7 +102,7 @@ export class SttStreamClient {
    * Silently drops frames if the connection is not open.
    */
   sendAudio(pcm: Float32Array): void {
-    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    if (!canSend(this._state) || !this.ws) return;
     this.ws.send(Buffer.from(pcm.buffer, pcm.byteOffset, pcm.byteLength));
   }
 
@@ -99,7 +110,7 @@ export class SttStreamClient {
    * Tell the STT service to finalize the current utterance.
    */
   flush(): void {
-    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    if (!canSend(this._state) || !this.ws) return;
     this.ws.send(JSON.stringify({ type: 'flush' }));
   }
 
@@ -107,7 +118,7 @@ export class SttStreamClient {
    * Tell the STT service to discard state and start fresh.
    */
   reset(): void {
-    if (this.ws?.readyState !== WebSocket.OPEN) return;
+    if (!canSend(this._state) || !this.ws) return;
     this.ws.send(JSON.stringify({ type: 'reset' }));
   }
 
@@ -115,32 +126,29 @@ export class SttStreamClient {
    * Permanently close the connection. No reconnect will be attempted.
    */
   close(): void {
-    this.closed = true;
+    this._state = WsState.CLOSED;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     if (this.ws) {
-      this.ws.removeAllListeners();
-      if (
-        this.ws.readyState === WebSocket.OPEN ||
-        this.ws.readyState === WebSocket.CONNECTING
-      ) {
-        this.ws.close();
-      }
+      const ws = this.ws;
       this.ws = null;
+      ws.removeAllListeners();
+      try { ws.close(); } catch { /* ignore */ }
     }
   }
 
   get isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN;
+    return this._state === WsState.OPEN;
   }
 
   private scheduleReconnect(): void {
-    if (this.closed || this.reconnectTimer) return;
+    if (this._state !== WsState.CLOSED || this.reconnectTimer) return;
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
+      this._state = WsState.CLOSED; // Ensure clean state before reconnect
       this.connect();
     }, this.reconnectDelay);
 

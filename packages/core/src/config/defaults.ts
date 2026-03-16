@@ -24,6 +24,13 @@ export const BARGE_IN = {
   framesRequired: 5,
 } as const;
 
+/**
+ * Time in ms after bot starts speaking during which VAD barge-in is suppressed.
+ * Prevents echo-cancellation false triggers from TTS playback being picked up
+ * by the mic. Inspired by Unmute's UNINTERRUPTIBLE_BY_VAD_TIME_SEC.
+ */
+export const UNINTERRUPTIBLE_WINDOW_MS = 3000;
+
 // ---------------------------------------------------------------------------
 // Pipeline Behavior
 // ---------------------------------------------------------------------------

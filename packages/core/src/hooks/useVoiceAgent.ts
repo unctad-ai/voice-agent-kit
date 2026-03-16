@@ -18,6 +18,7 @@ import {
   VAD,
   SILENT_MARKER,
   ACTION_BADGE_CONFIG,
+  UNINTERRUPTIBLE_WINDOW_MS,
 } from '../config/defaults';
 
 // ---------------------------------------------------------------------------
@@ -239,6 +240,8 @@ export function useVoiceAgent({
   const textPipelineRef = useRef(false);
   /** Whether we are in the middle of a turn (processing server response) */
   const processingRef = useRef(false);
+  /** Timestamp when AI started speaking (for uninterruptible window) */
+  const aiSpeakingStartRef = useRef(0);
 
   // Audio frame buffer for accumulating VAD frames
   const audioFrameBufferRef = useRef<Float32Array[]>([]);
@@ -410,6 +413,7 @@ export function useVoiceAgent({
         resetPcmSchedule();
         stateRef.current = 'AI_SPEAKING';
         setState('AI_SPEAKING');
+        aiSpeakingStartRef.current = Date.now();
       }
       if (stateRef.current === 'AI_SPEAKING') {
         playPcmChunk(data, TARGET_RATE);
@@ -504,7 +508,8 @@ export function useVoiceAgent({
   // --- Audio frame buffering + resampling ---
   const handleRawAudio = useCallback(
     (pcm: Float32Array) => {
-      if (stateRef.current === 'IDLE') return;
+      // Turn boundary: only send audio when LISTENING or USER_SPEAKING
+      if (stateRef.current !== 'LISTENING' && stateRef.current !== 'USER_SPEAKING') return;
 
       audioFrameBufferRef.current.push(pcm);
 
@@ -634,6 +639,10 @@ export function useVoiceAgent({
 
     onFrameProcessed: (probabilities) => {
       if (bargeInEnabled && stateRef.current === 'AI_SPEAKING') {
+        // Uninterruptible window: suppress barge-in for first N ms after TTS starts
+        const elapsed = Date.now() - aiSpeakingStartRef.current;
+        if (elapsed < UNINTERRUPTIBLE_WINDOW_MS) return;
+
         if (
           probabilities.isSpeech > settings.bargeInThreshold &&
           probabilities.rms >= settings.minAudioRms

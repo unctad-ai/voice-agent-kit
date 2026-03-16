@@ -1,7 +1,13 @@
 import { parseServerEvent, type ServerEvent } from '../protocol/events';
 
+/** WebSocket connection state machine — mirrors server-side WsState. */
+enum WsState { CONNECTING, OPEN, CLOSING, CLOSED }
+
 /**
  * WebSocket connection manager for the voice pipeline.
+ * Uses a state machine (CONNECTING → OPEN → CLOSING → CLOSED) to guard
+ * all send/close operations and prevent crashes on invalid states.
+ *
  * Handles binary (audio) and text (JSON events) messages,
  * automatic reconnection with exponential backoff, and
  * session restoration on reconnect.
@@ -9,9 +15,9 @@ import { parseServerEvent, type ServerEvent } from '../protocol/events';
 export class VoiceWebSocketManager {
   private ws: WebSocket | null = null;
   private url: string;
+  private state: WsState = WsState.CLOSED;
   private reconnectDelay = 1000;
   private maxReconnectDelay = 30000;
-  private closed = false;
   private eventHandlers = new Map<string, Set<(payload: any) => void>>();
   private audioHandler: ((data: ArrayBuffer) => void) | null = null;
   private lastSessionData: {
@@ -35,24 +41,27 @@ export class VoiceWebSocketManager {
     voice_settings?: unknown;
     language?: string;
   }): void {
-    this.closed = false;
     this.lastSessionData = sessionData;
     this._open();
   }
 
   private _open(): void {
-    if (this.closed) return;
+    if (this.state !== WsState.CLOSED) return;
+
+    this.state = WsState.CONNECTING;
 
     try {
       this.ws = new WebSocket(this.url);
       this.ws.binaryType = 'arraybuffer';
     } catch (err) {
+      this.state = WsState.CLOSED;
       console.error('[VoiceWS] Failed to create WebSocket:', err);
       this._scheduleReconnect();
       return;
     }
 
     this.ws.onopen = () => {
+      this.state = WsState.OPEN;
       this.reconnectDelay = 1000; // Reset backoff on successful connect
       // Send session data
       if (this.lastSessionData) {
@@ -93,10 +102,9 @@ export class VoiceWebSocketManager {
     };
 
     this.ws.onclose = () => {
+      this.state = WsState.CLOSED;
       this.ws = null;
-      if (!this.closed) {
-        this._scheduleReconnect();
-      }
+      this._scheduleReconnect();
     };
 
     this.ws.onerror = (err) => {
@@ -106,7 +114,7 @@ export class VoiceWebSocketManager {
   }
 
   private _scheduleReconnect(): void {
-    if (this.closed || this.reconnectTimer) return;
+    if (this.state !== WsState.CLOSED || this.reconnectTimer) return;
 
     console.log(`[VoiceWS] Reconnecting in ${this.reconnectDelay}ms...`);
     this.reconnectTimer = setTimeout(() => {
@@ -120,25 +128,20 @@ export class VoiceWebSocketManager {
 
   /**
    * Send raw PCM audio as a binary WebSocket frame.
-   * The Float32Array is sent as its underlying ArrayBuffer.
+   * Guarded by state machine — silently drops if not OPEN.
    */
   sendAudio(pcm: Float32Array): void {
-    try {
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        this.ws.send(pcm.buffer);
-      }
-    } catch {
-      // Connection closed between check and send — ignore
-    }
+    if (this.state !== WsState.OPEN || !this.ws) return;
+    this.ws.send(pcm.buffer);
   }
 
   /**
    * Send a JSON event over the WebSocket.
+   * Guarded by state machine — silently drops if not OPEN.
    */
   sendEvent(type: string, payload?: Record<string, unknown>): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type, ...payload }));
-    }
+    if (this.state !== WsState.OPEN || !this.ws) return;
+    this.ws.send(JSON.stringify({ type, ...payload }));
   }
 
   /**
@@ -179,7 +182,7 @@ export class VoiceWebSocketManager {
    * Close the WebSocket and stop reconnection attempts.
    */
   close(): void {
-    this.closed = true;
+    this.state = WsState.CLOSED;
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -198,7 +201,7 @@ export class VoiceWebSocketManager {
    * Whether the WebSocket is currently connected and open.
    */
   get isConnected(): boolean {
-    return this.ws?.readyState === WebSocket.OPEN;
+    return this.state === WsState.OPEN;
   }
 }
 

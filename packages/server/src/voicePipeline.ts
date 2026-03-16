@@ -8,6 +8,7 @@ import { buildSystemPrompt, type ClientState } from './systemPrompt.js';
 import { createBuiltinTools } from './builtinTools.js';
 import { createEvent } from './protocol.js';
 import { sanitizeForTTS } from './textUtils.js';
+import { AsyncQueue } from './asyncQueue.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -54,9 +55,8 @@ export class VoicePipeline {
   private session: SessionState = { conversation: [] };
   private abortController: AbortController | null = null;
 
-  // STT done promise
-  private sttDoneResolve: ((result: SttDoneResult) => void) | null = null;
-  private bufferedSttDone: SttDoneResult | null = null;
+  // STT done queue (replaces fragile sttDoneResolve pattern)
+  private sttQueue = new AsyncQueue<SttDoneResult>();
 
   // Client tool call promises
   private pendingToolCalls = new Map<string, (result: unknown) => void>();
@@ -104,17 +104,10 @@ export class VoicePipeline {
   }
 
   /**
-   * Called when STT emits `done`. Resolves the promise that startTurn awaits.
+   * Called when STT emits `done`. Enqueues the result for startTurn to consume.
    */
   resolveSttDone(text: string, vadProbs: number[], durationMs: number): void {
-    const result = { text, vadProbs, durationMs };
-    if (this.sttDoneResolve) {
-      this.sttDoneResolve(result);
-      this.sttDoneResolve = null;
-    } else {
-      // Buffer if startTurn hasn't called waitForSttDone yet
-      this.bufferedSttDone = result;
-    }
+    this.sttQueue.put({ text, vadProbs, durationMs });
   }
 
   /**
@@ -130,9 +123,8 @@ export class VoicePipeline {
       this.pendingToolCalls.delete(id);
     }
 
-    // Reject pending STT
-    this.sttDoneResolve = null;
-    this.bufferedSttDone = null;
+    // Cancel pending STT
+    this.sttQueue.cancel();
   }
 
   /**
@@ -256,22 +248,7 @@ export class VoicePipeline {
   // ─── Private helpers ─────────────────────────────────────────────────────
 
   private waitForSttDone(signal: AbortSignal): Promise<SttDoneResult> {
-    // If STT done arrived before we started waiting (race condition),
-    // resolve immediately from the buffer.
-    if (this.bufferedSttDone) {
-      const result = this.bufferedSttDone;
-      this.bufferedSttDone = null;
-      return Promise.resolve(result);
-    }
-
-    return new Promise((resolve, reject) => {
-      this.sttDoneResolve = resolve;
-      signal.addEventListener(
-        'abort',
-        () => reject(new Error('cancelled')),
-        { once: true }
-      );
-    });
+    return this.sttQueue.take(signal);
   }
 
   /**
@@ -349,7 +326,14 @@ export class VoicePipeline {
       fullText += roundText;
 
       // Check for tool calls in the response
-      const response = await result.response;
+      let response;
+      try {
+        response = await result.response;
+      } catch (err) {
+        if (signal.aborted) throw new Error('cancelled');
+        console.error('[voice-pipeline] LLM stream error:', err);
+        throw err;
+      }
       const lastMessage = response.messages[response.messages.length - 1];
 
       // Extract tool calls from the assistant message
