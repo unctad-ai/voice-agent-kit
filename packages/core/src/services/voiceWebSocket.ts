@@ -123,8 +123,12 @@ export class VoiceWebSocketManager {
    * The Float32Array is sent as its underlying ArrayBuffer.
    */
   sendAudio(pcm: Float32Array): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(pcm.buffer);
+    try {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send(pcm.buffer);
+      }
+    } catch {
+      // Connection closed between check and send — ignore
     }
   }
 
