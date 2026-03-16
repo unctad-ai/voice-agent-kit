@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 2.0.5
+
+### Patch Changes
+
+- e82ede4: fix: cancel previous turn before starting new one to prevent racing startTurn calls
+  - @unctad-ai/voice-agent-core@2.0.5
+
 ## 2.0.4
 
 ### Patch Changes
