@@ -436,6 +436,20 @@ export function useVoiceAgent({
         setState(nextState);
         processingRef.current = false;
       }
+      // Safety net: if onPlaybackEnd never fires (buffer underrun, no audio
+      // scheduled, AudioContext issue), force transition after 10s so the UI
+      // never gets stuck on "Speaking..." forever.
+      if (stateRef.current === 'AI_SPEAKING') {
+        setTimeout(() => {
+          if (stateRef.current === 'AI_SPEAKING') {
+            const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
+            textPipelineRef.current = false;
+            stateRef.current = nextState;
+            setState(nextState);
+            processingRef.current = false;
+          }
+        }, 10_000);
+      }
     },
     onTimings: (event: TimingsEvent) => {
       const timings: PipelineTimings = {
