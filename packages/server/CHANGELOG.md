@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 3.0.1
+
+### Patch Changes
+
+- 7411f1c: Fix STT transcription quality: normalize audio gain before forwarding to STT, fix buffer alignment crash, add pipeline observability logs
+  - @unctad-ai/voice-agent-core@3.0.1
+
 ## 3.0.0
 
 ### Minor Changes

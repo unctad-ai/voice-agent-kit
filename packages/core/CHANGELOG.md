@@ -1,5 +1,11 @@
 # @unctad-ai/voice-agent-core
 
+## 3.0.1
+
+### Patch Changes
+
+- @unctad-ai/voice-agent-registries@3.0.1
+
 ## 3.0.0
 
 ### Minor Changes
