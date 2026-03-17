@@ -148,7 +148,7 @@ export function createBuiltinTools(config: SiteConfig) {
       }),
     }),
     getFormSchema: tool({
-      description: 'Get available form field IDs and types. Call this ONCE before fillFormFields.',
+      description: 'Get currently visible form fields. Call before fillFormFields and again after each fill to discover new sections.',
       inputSchema: z.object({}),
     }),
     fillFormFields: tool({

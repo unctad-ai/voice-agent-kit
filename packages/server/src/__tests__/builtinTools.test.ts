@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { levenshtein, fuzzySearch, buildSynonymMap } from '../builtinTools.js';
+import { levenshtein, fuzzySearch, buildSynonymMap, createBuiltinTools } from '../builtinTools.js';
 import type { ServiceBase } from '@unctad-ai/voice-agent-core';
 
 // --- levenshtein ---
@@ -89,5 +89,40 @@ describe('fuzzySearch', () => {
   it('is case-insensitive', () => {
     const results = fuzzySearch('BUSINESS LICENSE', sampleServices, synonymMap);
     expect(results.some((s) => s.id === '1')).toBe(true);
+  });
+});
+
+// --- tool descriptions ---
+
+const stubConfig = {
+  copilotName: 'TestBot',
+  siteTitle: 'Test Portal',
+  systemPromptIntro: '',
+  services: [],
+  categories: [],
+  categoryMap: { general: 'General' },
+  routeMap: { home: '/' },
+  synonyms: {},
+  getServiceFormRoute: () => null,
+} as any;
+
+describe('tool descriptions', () => {
+  it('getFormSchema does not say ONCE', () => {
+    const { clientTools } = createBuiltinTools(stubConfig);
+    const desc = (clientTools.getFormSchema as any).description;
+    expect(desc.toLowerCase()).not.toContain('once');
+  });
+
+  it('getFormSchema mentions calling again after fill', () => {
+    const { clientTools } = createBuiltinTools(stubConfig);
+    const desc = (clientTools.getFormSchema as any).description;
+    expect(desc).toContain('again after');
+  });
+
+  it('searchServices description does not contain behavioral instructions', () => {
+    const { serverTools } = createBuiltinTools(stubConfig);
+    const desc = (serverTools.searchServices as any).description;
+    expect(desc).not.toContain('immediately');
+    expect(desc).not.toContain('follow up');
   });
 });
