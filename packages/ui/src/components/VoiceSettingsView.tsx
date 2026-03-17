@@ -261,13 +261,16 @@ export function SelectSetting({
         onFocus={(e) => { e.currentTarget.style.borderColor = '#9ca3af'; }}
         onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e7eb'; }}
         style={{
-          height: 32,
+          height: 34,
+          lineHeight: '34px',
           fontSize: 12,
           fontWeight: 500,
           color: '#374151',
           borderRadius: 9999,
           border: '1px solid #e5e7eb',
           backgroundColor: '#f9fafb',
+          paddingTop: 0,
+          paddingBottom: 0,
           paddingLeft: 12,
           paddingRight: 28,
           outline: 'none',
