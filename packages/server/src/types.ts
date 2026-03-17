@@ -13,6 +13,9 @@ export interface VoiceServerOptions {
   qwen3TtsUrl?: string;
   chatterboxTurboUrl?: string;
   cosyVoiceTtsUrl?: string;
+  luxTtsUrl?: string;
+  luxTtsSpeed?: number;
+  luxTtsTShift?: number;
   pocketTtsUrl?: string;
   resembleApiKey?: string;
   resembleModel?: string;
