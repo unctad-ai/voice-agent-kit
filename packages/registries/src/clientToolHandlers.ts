@@ -65,7 +65,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           return `No online application form exists for "${resolveServiceTitle(service)}" yet — tell the user clearly that only the information page is available. Navigated to the info page instead.`;
         }
         navigate(route);
-        return `Opened "${resolveServiceTitle(service)}" application form. [INTERNAL: check UI_ACTIONS for the first step — do NOT call getFormSchema yet.]`;
+        return `Opened "${resolveServiceTitle(service)}" application form. <internal>Check UI_ACTIONS for the first step — do NOT call getFormSchema yet.</internal>`;
       }
       case 'performUIAction': {
         const actionId = args.actionId as string;
@@ -137,7 +137,12 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           })),
         ];
         const result: Record<string, unknown> = { sections };
-        if (hint) result.hint = hint;
+        if (gatedSections.length > 0) {
+          const actions = gatedSections.map(s => `${s.action} (opens ${s.section})`).join(', ');
+          result.hint = `FIRST call performUIAction for: ${actions}. Then call getFormSchema again.`;
+        } else if (hint) {
+          result.hint = hint;
+        }
         return JSON.stringify(result);
       }
       case 'fillFormFields': {
