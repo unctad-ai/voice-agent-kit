@@ -20,7 +20,7 @@ export function attachVoicePipeline(
   if (options.personaDir && app) {
     const { router } = createPersonaRoutes({
       personaDir: options.personaDir,
-      ttsUpstreamUrl: options.qwen3TtsUrl,
+      ttsUpstreamUrl: options.luxTtsUrl ?? options.qwen3TtsUrl,
     });
     app.use('/api/agent', router);
   }
