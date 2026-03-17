@@ -77,4 +77,14 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('<internal>');
     expect(prompt).not.toContain('[INTERNAL:');
   });
+
+  it('includes currentTab when provided in clientState', () => {
+    const prompt = buildSystemPrompt(stubConfig, { currentTab: 'Documents' });
+    expect(prompt).toContain('Active form tab: Documents');
+  });
+
+  it('omits tab line when currentTab is not set', () => {
+    const prompt = buildSystemPrompt(stubConfig, { route: '/dashboard/tax' });
+    expect(prompt).not.toContain('Active form tab');
+  });
 });

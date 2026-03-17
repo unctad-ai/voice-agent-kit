@@ -6,6 +6,7 @@ export interface ClientState {
   categories?: Array<{ category: string; count: number }>;
   uiActions?: Array<{ id: string; description: string; category?: string; params?: unknown }>;
   formStatus?: { fieldCount: number; groups: string[] } | null;
+  currentTab?: string;
 }
 
 const BASE_RULES = `RULES:
@@ -70,6 +71,9 @@ export function buildSystemPrompt(config: SiteConfig, clientState?: ClientState)
   if (clientState.formStatus) {
     const f = clientState.formStatus;
     prompt += `\n\nForm: ${f.fieldCount} fields in ${f.groups.length} sections. Call getFormSchema before fillFormFields.`;
+  }
+  if (clientState.currentTab) {
+    prompt += `\nActive form tab: ${clientState.currentTab}`;
   }
 
   return prompt;
