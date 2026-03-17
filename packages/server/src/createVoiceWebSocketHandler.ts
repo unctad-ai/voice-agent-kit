@@ -149,6 +149,19 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
           pipeline.cancel();
           sttClient.reset();
           break;
+        case 'text.submit':
+          // Text-only turn — bypass STT, go straight to LLM → TTS
+          if (event.text) {
+            pipeline.startTextTurn(event.text)
+              .catch((err) => {
+                if (err?.message !== 'cancelled') {
+                  console.error('[WS] startTextTurn error:', err);
+                  safeSend(createEvent('error', { code: 'pipeline_error', message: err?.message || 'Unknown error' }));
+                  safeSend(createEvent('status', { status: 'listening' }));
+                }
+              });
+          }
+          break;
         case 'tool.result':
           pipeline.resolveToolCall(event.tool_call_id, event.result);
           break;

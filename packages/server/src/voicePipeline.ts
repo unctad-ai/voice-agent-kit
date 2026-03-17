@@ -264,6 +264,83 @@ export class VoicePipeline {
     }
   }
 
+  /**
+   * Text-only turn: skip STT, go straight to LLM → TTS.
+   * Used for typed input and headless pipeline testing.
+   */
+  async startTextTurn(text: string): Promise<void> {
+    const { send, sendBinary, siteConfig, groqApiKey, groqModel, ttsConfig } = this.options;
+
+    if (this.abortController) this.cancel();
+    this.sttQueue.drain();
+
+    const turn = ++this.turnId;
+    const turnStart = Date.now();
+    const log = (stage: string, detail = '', ms?: number) =>
+      console.log(`[turn:${turn}] ${stage} ${detail}${ms != null ? ` (${ms}ms)` : ''}`);
+
+    this.abortController = new AbortController();
+    const { signal } = this.abortController;
+
+    log('text-turn:start', `"${text.slice(0, 80)}"`);
+
+    try {
+      send(createEvent('status', { status: 'processing' }));
+      send(createEvent('stt.result', { transcript: text }));
+
+      this.session.conversation.push({ role: 'user', content: text });
+      send(createEvent('conversation.item.created', {
+        item: { id: `msg_${Date.now()}`, role: 'user', content: text },
+      }));
+
+      const model = groqModel || 'qwen/qwen3-32b';
+      log('llm:start', `model=${model}`);
+      const llmStart = Date.now();
+
+      let assistantText: string;
+      try {
+        assistantText = await this.runLlmLoop(siteConfig, groqApiKey, model, signal);
+      } catch (err) {
+        if (signal.aborted) throw err;
+        throw err;
+      }
+      const llmMs = Date.now() - llmStart;
+      log('llm:done', `"${assistantText.slice(0, 80)}"`, llmMs);
+
+      if (assistantText.trim() && !assistantText.includes('[SILENT]')) {
+        this.session.conversation.push({ role: 'assistant', content: assistantText });
+        send(createEvent('response.text.done', { text: assistantText }));
+        send(createEvent('conversation.item.created', {
+          item: { id: `msg_${Date.now()}`, role: 'assistant', content: assistantText },
+        }));
+
+        send(createEvent('status', { status: 'speaking' }));
+        const ttsStart = Date.now();
+        await this.streamTtsAudio(assistantText, ttsConfig, signal, sendBinary);
+        const ttsMs = Date.now() - ttsStart;
+        log('tts:done', '', ttsMs);
+
+        send(createEvent('response.audio.done', {}));
+        send(createEvent('timings', { stt_ms: 0, llm_ms: llmMs, tts_ms: ttsMs, total_ms: Date.now() - turnStart }));
+      } else {
+        send(createEvent('response.text.done', { text: assistantText }));
+        send(createEvent('response.audio.done', {}));
+        send(createEvent('timings', { stt_ms: 0, llm_ms: llmMs, tts_ms: 0, total_ms: Date.now() - turnStart }));
+      }
+      send(createEvent('status', { status: 'listening' }));
+    } catch (err) {
+      if (signal.aborted) return;
+      const message = err instanceof Error ? err.message : String(err);
+      log('text-turn:error', message);
+      send(createEvent('error', { code: 'pipeline_error', message }));
+      send(createEvent('status', { status: 'listening' }));
+    } finally {
+      this.abortController = null;
+      for (const [, resolve] of this.pendingToolCalls) resolve({ error: 'turn_ended' });
+      this.pendingToolCalls.clear();
+    }
+  }
+
   // ─── Private helpers ─────────────────────────────────────────────────────
 
   private waitForSttDone(signal: AbortSignal): Promise<SttDoneResult> {

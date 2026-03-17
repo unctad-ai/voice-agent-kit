@@ -25,12 +25,18 @@ export interface ToolResultEvent {
   result: unknown;
 }
 
+export interface TextSubmitEvent {
+  type: 'text.submit';
+  text: string;
+}
+
 export type ClientEvent =
   | SessionUpdateEvent
   | InputAudioCommitEvent
   | InputAudioClearEvent
   | ResponseCancelEvent
-  | ToolResultEvent;
+  | ToolResultEvent
+  | TextSubmitEvent;
 
 // ─── Server → Client Events ───────────────────────────────────────────────────
 
