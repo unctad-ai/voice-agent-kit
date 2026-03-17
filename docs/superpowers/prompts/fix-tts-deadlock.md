@@ -28,9 +28,14 @@ async def tts_pipeline(text, temperature):
             for chunk_audio, sr in model.stream_generate_voice_clone(...):
                 if stop.is_set():
                     break
-                q.put(float32_to_pcm16(chunk_audio))
+                try:
+                    q.put(float32_to_pcm16(chunk_audio), timeout=5)
+                except queue.Full:
+                    logger.warning("TTS queue full — consumer likely disconnected")
+                    break
             q.put(None)  # sentinel: generation complete
         except Exception as e:
+            logger.error("TTS worker error: %s", e)
             q.put(e)  # propagate error
         finally:
             gpu_lock.release()
@@ -40,21 +45,33 @@ async def tts_pipeline(text, temperature):
     thread.start()
 
     def stream_from_queue():
-        yield build_wav_header(sample_rate)
-        while True:
-            item = q.get(timeout=30)
-            if item is None:
-                break  # done
-            if isinstance(item, Exception):
-                break  # error
-            yield item
+        try:
+            yield build_wav_header(sample_rate)
+            while True:
+                try:
+                    item = q.get(timeout=30)
+                except queue.Empty:
+                    logger.warning("TTS queue read timeout — worker may be stuck")
+                    break
+                if item is None:
+                    break  # done
+                if isinstance(item, Exception):
+                    logger.error("TTS worker reported error: %s", item)
+                    break
+                yield item
+        finally:
+            stop.set()  # signal worker to stop on client disconnect
 
     return StreamingResponse(stream_from_queue(), media_type="audio/wav")
 ```
 
-When the client disconnects, `GeneratorExit` hits `stream_from_queue()` — which is just reading from a Python queue, not running CUDA. The `GeneratorExit` is delivered cleanly. The background `worker` thread finishes its current CUDA decode step (microseconds), checks `stop.is_set()` (not strictly necessary since the queue consumer is gone, but clean), and releases the lock in the `finally` block.
+**How client disconnect is handled:**
 
-**Why this works:** `GeneratorExit` only needs to interrupt a `q.get()` call, not a CUDA kernel. Python can always interrupt `queue.Queue.get()`.
+When the client disconnects, Starlette raises `GeneratorExit` on `stream_from_queue()`. Since the generator is blocked on `q.get()` (pure Python, not a CUDA kernel), the exception is delivered cleanly. The `finally` block runs `stop.set()`, signaling the worker thread. The worker sees `stop.is_set()` on its next loop iteration, breaks out, and releases `gpu_lock` in its own `finally` block.
+
+**Why `q.get()` is interruptible but CUDA isn't:** `queue.Queue.get()` uses a Python `Condition` internally — pure Python code that cooperates with exceptions. The CUDA kernel is a C-extension call that blocks the GIL; Python cannot inject `GeneratorExit` until the C code returns.
+
+**Why `q.put(timeout=5)` is needed:** Even with `stop.set()`, there's a race window: the worker checks `stop.is_set()`, gets False, then the consumer disconnects and sets `stop`, then the worker calls `q.put()` on a full queue. Without a timeout, the worker blocks forever holding `gpu_lock`. The 5s timeout ensures the worker retries the `stop` check.
 
 ## File to modify
 
@@ -67,7 +84,7 @@ Only the `/tts-pipeline` endpoint needs this change. The `/tts` (non-streaming) 
 - The `gpu_lock` serialization — still needed, just acquired/released in the thread
 - The two-phase streaming parameters (FIRST_CHUNK_EMIT_EVERY, etc.)
 - The `gpu_lock.locked()` fast-reject before starting the thread — if the lock is already held, return 503 immediately (don't even spawn a thread)
-- The watchdog wrapper (`_WatchdogGpuLock`) — keep as a safety net even though the new pattern should prevent deadlocks
+- The watchdog wrapper (`_WatchdogGpuLock`) — keep as a safety net, but note the interaction: if the watchdog force-releases the lock while the worker thread is blocked (e.g., on a full queue), the worker's `finally: gpu_lock.release()` would release a lock acquired by a *different* request. The `q.put(timeout=5)` fix above prevents this scenario by ensuring the worker never blocks long enough to trigger the watchdog
 - The WAV header as the first yield
 - The PCM Int16 conversion
 - The max audio duration cap
@@ -77,7 +94,7 @@ Only the `/tts-pipeline` endpoint needs this change. The `/tts` (non-streaming) 
 
 ```bash
 # 1. Run the TTS eval
-node scripts/test-tts.mjs http://5.9.49.171:8005
+node scripts/test-tts.mjs $QWEN3_TTS_URL  # e.g. http://gpu-host:8005
 
 # Expected: Cancel + Recovery test should PASS
 # Before fix: FAIL (GPU lock stuck after cancel)
