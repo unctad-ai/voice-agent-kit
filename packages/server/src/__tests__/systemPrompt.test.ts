@@ -45,6 +45,27 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('/no_think');
   });
 
+  it('FORMS section uses numbered sub-rules', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toMatch(/FORMS:.*\n1\./s);
+    expect(prompt).toContain('2.');
+    expect(prompt).toContain('3.');
+  });
+
+  it('SILENT rule comes after FORMS section', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    const formsIndex = prompt.indexOf('FORMS:');
+    const silentIndex = prompt.indexOf('[SILENT]');
+    expect(formsIndex).toBeLessThan(silentIndex);
+  });
+
+  it('GOODBYE comes after FORMS section', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    const formsIndex = prompt.indexOf('FORMS:');
+    const goodbyeIndex = prompt.indexOf('GOODBYE:');
+    expect(formsIndex).toBeLessThan(goodbyeIndex);
+  });
+
   it('returns prompt without dynamic section when no clientState', () => {
     const prompt = buildSystemPrompt(stubConfig);
     expect(prompt).not.toContain('Current page:');
