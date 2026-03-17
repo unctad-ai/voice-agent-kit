@@ -43,4 +43,16 @@ describe('sanitizeForTTS', () => {
     const input = '<think>let me think</think>**Answer here**';
     expect(sanitizeForTTS(input)).toBe('Answer here');
   });
+
+  it('strips <internal> tags and content from TTS output', () => {
+    const input = 'Action completed. <internal>Check UI_ACTIONS for valid action IDs.</internal>';
+    expect(sanitizeForTTS(input)).toBe('Action completed.');
+  });
+
+  it('strips <internal> tags that span multiple lines', () => {
+    const input = 'Done. <internal>\nCheck UI_ACTIONS\nfor next step.\n</internal> Great.';
+    const result = sanitizeForTTS(input);
+    expect(result).not.toContain('UI_ACTIONS');
+    expect(result).toContain('Great');
+  });
 });

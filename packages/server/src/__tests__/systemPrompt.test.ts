@@ -71,4 +71,10 @@ describe('buildSystemPrompt', () => {
     expect(prompt).not.toContain('Current page:');
     expect(prompt).not.toContain('UI_ACTIONS available on this page');
   });
+
+  it('rule 3 references <internal> tags, not [INTERNAL:]', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toContain('<internal>');
+    expect(prompt).not.toContain('[INTERNAL:');
+  });
 });

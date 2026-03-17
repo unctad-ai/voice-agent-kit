@@ -81,7 +81,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           }
         }
         const result = await executeUIAction(actionId, params);
-        if (!result) return `Action "${actionId}" not found or did not execute. [INTERNAL: check UI_ACTIONS for valid action IDs.]`;
+        if (!result) return `Action "${actionId}" not found or did not execute. <internal>Check UI_ACTIONS for valid action IDs.</internal>`;
         const firstSentence = result.split(/\.(?:\s|$)/)[0];
         return firstSentence || result;
       }
@@ -92,7 +92,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
         const fields = allFields.filter(f => !f.gatedAction);
 
         if (fields.length === 0 && gatedFields.length === 0)
-          return 'No form fields are visible right now. [INTERNAL: a UI action may be needed first — check UI_ACTIONS for the next step.]';
+          return 'No form fields are visible right now. <internal>A UI action may be needed first — check UI_ACTIONS for the next step.</internal>';
 
         const fieldToSchema = (f: FormField) => ({
           id: f.id,
@@ -104,7 +104,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
         const fillableFields = fields.filter(f => f.type !== 'upload');
         const allFilled = fillableFields.length > 0 && fillableFields.every(f => isFilled(f.value));
         const hint = allFilled
-          ? 'All visible fields are filled. [INTERNAL: check UI_ACTIONS for the next tab or submit action.]'
+          ? 'All visible fields are filled. <internal>Check UI_ACTIONS for the next tab or submit action.</internal>'
           : undefined;
 
         // Build gated section placeholders — deduplicate by action ID
