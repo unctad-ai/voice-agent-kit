@@ -603,6 +603,7 @@ export class VoicePipeline {
 
     const reader = response.body.getReader();
     let isFirstChunk = true;
+    let carry = Buffer.alloc(0); // leftover byte from odd-sized chunks
 
     try {
       while (true) {
@@ -623,6 +624,17 @@ export class VoicePipeline {
           }
         } else if (isFirstChunk) {
           isFirstChunk = false;
+        }
+
+        // Align to 2-byte boundary for Int16 PCM — HTTP chunked transfer
+        // can deliver odd-sized chunks that crash new Int16Array() on the client.
+        if (carry.length > 0) {
+          chunk = Buffer.concat([carry, chunk]);
+          carry = Buffer.alloc(0);
+        }
+        if (chunk.length % 2 !== 0) {
+          carry = chunk.subarray(chunk.length - 1);
+          chunk = chunk.subarray(0, chunk.length - 1);
         }
 
         if (chunk.length > 0) {
