@@ -4,6 +4,15 @@ import type { FormField } from './FormFieldRegistry';
 /** Values the LLM might produce for checkbox "true". */
 const TRUTHY = new Set(['true', 'yes', '1', 'on']);
 
+/**
+ * Resolve a display-friendly service title.
+ * Some consuming projects use `name` instead of the canonical `title` field,
+ * so we fall back through: title → name → id.
+ */
+function resolveServiceTitle(service: Record<string, unknown>): string {
+  return (service.title as string) || (service.name as string) || (service.id as string);
+}
+
 interface ClientToolDeps {
   navigate: (path: string) => void;
   executeUIAction: (
@@ -30,7 +39,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
         const service = config.services.find(s => s.id === serviceId);
         if (!service) return 'Service not found';
         navigate(`/service/${serviceId}`);
-        return `Navigated to ${service.title} info page.`;
+        return `Navigated to ${resolveServiceTitle(service)} info page.`;
       }
       case 'getServiceDetails': {
         const serviceId = args.serviceId as string;
@@ -46,10 +55,10 @@ export function createClientToolHandler(deps: ClientToolDeps) {
         const route = config.getServiceFormRoute(serviceId);
         if (!route) {
           navigate(`/service/${serviceId}`);
-          return `No online application form exists for "${service.title}" yet — tell the user clearly that only the information page is available. Navigated to the info page instead.`;
+          return `No online application form exists for "${resolveServiceTitle(service)}" yet — tell the user clearly that only the information page is available. Navigated to the info page instead.`;
         }
         navigate(route);
-        return `Opened "${service.title}" application form. Check UI_ACTIONS for what the user needs to do first — do NOT call getFormSchema yet. Guide the user through the first visible step.`;
+        return `Opened "${resolveServiceTitle(service)}" application form. Check UI_ACTIONS for what the user needs to do first — do NOT call getFormSchema yet. Guide the user through the first visible step.`;
       }
       case 'performUIAction': {
         const actionId = args.actionId as string;
