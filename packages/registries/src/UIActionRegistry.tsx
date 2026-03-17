@@ -204,7 +204,7 @@ export function useRegisterTabSwitchAction(
 ) {
   useRegisterUIAction(
     `${prefix}.switchTab`,
-    `Switch between ${validTabs.join(', ')} tabs`,
+    `Switch tabs (sequence: ${validTabs.join(' → ')}). Advance to the next tab in order unless the user asks otherwise.`,
     (params?: Record<string, unknown>) => {
       const tab = params?.tab as string;
       if (!validTabs.includes(tab)) return `Invalid tab "${tab}". Use: ${validTabs.join(', ')}.`;

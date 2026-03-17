@@ -65,7 +65,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           return `No online application form exists for "${resolveServiceTitle(service)}" yet — tell the user clearly that only the information page is available. Navigated to the info page instead.`;
         }
         navigate(route);
-        return `Opened "${resolveServiceTitle(service)}" application form. Check UI_ACTIONS for what the user needs to do first — do NOT call getFormSchema yet. Guide the user through the first visible step.`;
+        return `Opened "${resolveServiceTitle(service)}" application form. [INTERNAL: check UI_ACTIONS for the first step — do NOT call getFormSchema yet.]`;
       }
       case 'performUIAction': {
         const actionId = args.actionId as string;
@@ -81,14 +81,14 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           }
         }
         const result = await executeUIAction(actionId, params);
-        if (!result) return `Action "${actionId}" not found or did not execute. Check UI_ACTIONS for valid action IDs on this page.`;
+        if (!result) return `Action "${actionId}" not found or did not execute. [INTERNAL: check UI_ACTIONS for valid action IDs.]`;
         const firstSentence = result.split(/\.(?:\s|$)/)[0];
         return firstSentence || result;
       }
       case 'getFormSchema': {
         const fields = getFormFields();
         if (fields.length === 0)
-          return 'No form fields are visible right now. The form may need a UI action first — check UI_ACTIONS for the next step (e.g. "Add Director").';
+          return 'No form fields are visible right now. [INTERNAL: a UI action may be needed first — check UI_ACTIONS for the next step.]';
         const fieldToSchema = (f: FormField) => ({
           id: f.id,
           label: f.label,
@@ -98,7 +98,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
         });
         const allFilled = fields.every(f => isFilled(f.value));
         const hint = allFilled
-          ? 'All visible fields are filled. Check UI_ACTIONS for the next step.'
+          ? 'All visible fields are filled. [INTERNAL: check UI_ACTIONS for the next tab or submit action.]'
           : undefined;
 
         const hasGroups = fields.some((f) => f.group);
