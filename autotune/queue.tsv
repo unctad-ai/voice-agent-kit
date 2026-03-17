@@ -1,4 +1,5 @@
 param	file	current	range	step	method	reason
+AUTO_SCHEMA_DELAY_MS	voicePipeline.ts	500	200-1000	100	rebuild	delay before auto getFormSchema — too short misses progressive fields, too long slows response
 expressiveness	session.update	0.3	0.1-0.8	0.1	ws	TTS emotion — send voice_settings.expressiveness via session.update, no rebuild
 systemPrompt.wordLimit	systemPrompt.ts	40	30-60	5	rebuild	response verbosity — directly measurable via text length
 systemPrompt.sentenceLimit	systemPrompt.ts	2	1-3	1	rebuild	response length — fewer sentences = more conversational

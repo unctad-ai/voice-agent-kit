@@ -54,6 +54,10 @@ const WAV_HEADER_SIZE = 44;
 const NO_SPEECH_PROB_THRESHOLD = 0.6;
 const AVG_LOGPROB_THRESHOLD = -0.7;
 const LLM_TIMEOUT_MS = 15_000;
+/** Delay before auto getFormSchema after fillFormFields (ms).
+ *  Gives the client one React render cycle to register new progressive fields.
+ *  Too short → stale schema (missing sections). Too long → slow response. */
+const AUTO_SCHEMA_DELAY_MS = 500;
 const LLM_FALLBACK_TEXT = 'Sorry, I could not process that. Could you try again?';
 
 // ─── Pipeline ────────────────────────────────────────────────────────────────
@@ -551,6 +555,10 @@ export class VoicePipeline {
       // visible instead of checking, leading to wrong field assumptions.
       const didFillForm = toolCalls.some((tc) => tc.toolName === 'fillFormFields');
       if (didFillForm && !signal.aborted) {
+        // Wait for client React render cycle to register new progressive fields
+        await new Promise((r) => setTimeout(r, AUTO_SCHEMA_DELAY_MS));
+        if (signal.aborted) throw new Error('cancelled');
+
         const schemaCallId = `auto-schema-${Date.now()}`;
         send(
           createEvent('tool.call', {
@@ -560,10 +568,18 @@ export class VoicePipeline {
           })
         );
         const schemaResult = await this.waitForClientToolResult(schemaCallId, signal);
+        const schemaJson = JSON.stringify(schemaResult);
         console.log(
           '[voice-pipeline] Auto getFormSchema after fillFormFields:',
-          JSON.stringify(schemaResult).slice(0, 200)
+          schemaJson.slice(0, 200)
         );
+        console.log('[voice-pipeline] Auto schema full length:', schemaJson.length, 'chars');
+        // Log section names to see what's visible
+        try {
+          const parsed = typeof schemaResult === 'string' ? JSON.parse(schemaResult) : schemaResult;
+          const sections = parsed?.sections?.map((s: any) => `${s.section} (${s.fields?.length} fields)`) ?? [];
+          console.log('[voice-pipeline] Auto schema sections:', sections.join(', '));
+        } catch { /* ignore parse errors */ }
 
         // Inject as if the LLM called getFormSchema itself
         messages.push({
