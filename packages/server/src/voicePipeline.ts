@@ -564,7 +564,8 @@ export class VoicePipeline {
       // visible instead of checking, leading to wrong field assumptions.
       const didFillForm = toolCalls.some((tc) => tc.toolName === 'fillFormFields');
       const didUIAction = toolCalls.some((tc) => tc.toolName === 'performUIAction');
-      if ((didFillForm || didUIAction) && !signal.aborted) {
+      const isFormPage = this.session.clientState?.route?.startsWith('/dashboard');
+      if ((didFillForm || didUIAction) && isFormPage && !signal.aborted) {
         // Wait for client React render cycle to register new progressive fields
         await new Promise((r) => setTimeout(r, AUTO_SCHEMA_DELAY_MS));
         if (signal.aborted) throw new Error('cancelled');
