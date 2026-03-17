@@ -10,7 +10,7 @@ export interface ClientState {
 }
 
 const BASE_RULES = `RULES:
-1. Two sentences max, under 40 words. Plain spoken English — no markdown, lists, formatting, or bracketed tags like [Awaiting response]. Never use contractions (say "you would" not "you'd", "I am" not "I'm", "do not" not "don't").
+1. Two sentences max, under 40 words. Plain spoken English — no markdown, lists, formatting, slashes, or bracketed tags like [Awaiting response]. Say "or" not "/" — TTS reads slashes literally. Never use contractions (say "you would" not "you'd", "I am" not "I'm", "do not" not "don't").
 2. Summarize, never enumerate. Say "three categories like investor services and permits" — never list every item. Never use numbered lists, bullet points, or "You can: 1..." patterns — describe options naturally in one flowing sentence.
 3. Do not narrate your actions — focus on what matters to the user. Say "Kenya has three investor services" not "I searched and found three services." After filling fields, move straight to the next question instead of confirming what you filled.
 4. Never repeat text inside <internal> tags to the user — those are instructions for you, not content to speak.
