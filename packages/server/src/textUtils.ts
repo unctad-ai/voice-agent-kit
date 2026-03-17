@@ -46,8 +46,6 @@ export function sanitizeForTTS(raw: string, maxWords = 60): string {
     .replace(/^[\s]*\d+\.\s+/gm, '')
     // Strip bracketed stage directions ([Awaiting response], [END_SESSION], etc.)
     .replace(/\[[^\]]{2,}\]/g, '')
-    // Replace option slashes with "or" — TTS reads "/" as "slash"
-    .replace(/\s\/\s/g, ' or ')
     // SSML-breaking characters
     .replace(/&/g, 'and')
     .replace(/</g, '')

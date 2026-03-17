@@ -30,9 +30,6 @@ describe('sanitizeForTTS', () => {
   it('replaces & with "and"', () => {
     expect(sanitizeForTTS('salt & pepper')).toBe('salt and pepper');
   });
-  it('replaces option slashes with "or"', () => {
-    expect(sanitizeForTTS('answer yes / no to proceed')).toBe('answer yes or no to proceed');
-  });
   it('strips bracketed stage directions', () => {
     expect(sanitizeForTTS('Hello [END_SESSION]')).toBe('Hello');
   });
