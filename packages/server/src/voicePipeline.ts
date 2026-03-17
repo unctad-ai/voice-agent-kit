@@ -544,6 +544,46 @@ export class VoicePipeline {
 
       // Add tool results and continue the loop
       messages.push(...toolResults);
+
+      // Auto-refresh form schema after fillFormFields — progressive forms reveal
+      // new sections after each fill, and the LLM must see the updated state to
+      // guide the user to the next field. Without this, the LLM guesses what's
+      // visible instead of checking, leading to wrong field assumptions.
+      const didFillForm = toolCalls.some((tc) => tc.toolName === 'fillFormFields');
+      if (didFillForm && !signal.aborted) {
+        const schemaCallId = `auto-schema-${Date.now()}`;
+        send(
+          createEvent('tool.call', {
+            tool_call_id: schemaCallId,
+            name: 'getFormSchema',
+            arguments: '{}',
+          })
+        );
+        const schemaResult = await this.waitForClientToolResult(schemaCallId, signal);
+        console.log(
+          '[voice-pipeline] Auto getFormSchema after fillFormFields:',
+          JSON.stringify(schemaResult).slice(0, 200)
+        );
+
+        // Inject as if the LLM called getFormSchema itself
+        messages.push({
+          role: 'assistant' as const,
+          content: [
+            { type: 'tool-call', toolCallId: schemaCallId, toolName: 'getFormSchema', input: {} },
+          ],
+        } satisfies AssistantModelMessage);
+        messages.push({
+          role: 'tool' as const,
+          content: [
+            {
+              type: 'tool-result' as const,
+              toolCallId: schemaCallId,
+              toolName: 'getFormSchema',
+              output: { type: 'json' as const, value: JSON.parse(JSON.stringify(schemaResult)) },
+            },
+          ],
+        } satisfies ToolModelMessage);
+      }
     }
 
     // Persist this turn's messages (including tool calls/results) back to
