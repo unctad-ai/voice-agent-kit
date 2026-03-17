@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 
-export type FormFieldType = 'text' | 'email' | 'tel' | 'date' | 'select' | 'radio' | 'checkbox';
+export type FormFieldType = 'text' | 'email' | 'tel' | 'date' | 'select' | 'radio' | 'checkbox' | 'upload';
 
 export interface FormFieldOption {
   value: string;

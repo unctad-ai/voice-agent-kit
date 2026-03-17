@@ -101,7 +101,8 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           value: f.value ?? null,
           ...(f.options?.length ? { opts: f.options } : {}),
         });
-        const allFilled = fields.length > 0 && fields.every(f => isFilled(f.value));
+        const fillableFields = fields.filter(f => f.type !== 'upload');
+        const allFilled = fillableFields.length > 0 && fillableFields.every(f => isFilled(f.value));
         const hint = allFilled
           ? 'All visible fields are filled. [INTERNAL: check UI_ACTIONS for the next tab or submit action.]'
           : undefined;
@@ -147,6 +148,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
         for (const entry of fieldEntries) {
           const fieldDef = allFields.find((f) => f.id === entry.fieldId);
           if (fieldDef?.gatedAction) { errors.push(`"${entry.fieldId}" is gated — call ${fieldDef.gatedAction} first`); continue; }
+          if (fieldDef?.type === 'upload') { errors.push(`"${entry.fieldId}" is a file upload — the user must handle it manually`); continue; }
           const coerced =
             fieldDef?.type === 'checkbox'
               ? typeof entry.value === 'boolean'
