@@ -10,33 +10,36 @@ LOOP FOREVER:
   1. Read queue.tsv → pick next parameter
   2. Read the source file → understand current value
   3. Change ONE parameter within its safe range
-  4. Rebuild: pnpm build
-  5. Start local Swkenya → run 5 test queries via browser
-  6. Score 0-100 (correctness, quality, latency, stability)
-  7. If score > baseline + 2 → keep (commit). Otherwise → discard (git reset)
-  8. Log to results.tsv
-  9. NEVER STOP
+  4. Rebuild kit: pnpm build
+  5. Rebuild Docker: pnpm docker:kenya
+  6. Run headless eval: node scripts/test-pipeline.mjs
+  7. Score 0-100 from eval output
+  8. If score > baseline + 2 → keep (commit). Otherwise → discard (git reset)
+  9. Log to results.tsv
+  10. NEVER STOP
 ```
 
 ## Quick Start
 
 ```bash
 # 1. Prerequisites
-#    - Chrome with claude-in-chrome extension running
-#    - Swkenya cloned at ../Swkenya with .env configured
+#    - Docker Desktop running
+#    - Swkenya at ../Swkenya with server/.env configured (matching production)
 #    - GPU endpoints reachable (STT + TTS)
 
 # 2. Create worktree (isolate tuning work)
 git worktree add -b autotune/$(date +%b%d | tr A-Z a-z) .claude/worktrees/autotune
 
-# 3. Build and link into Swkenya
+# 3. Build and start
 cd .claude/worktrees/autotune
 pnpm install && pnpm build
-./autotune/link-to-swkenya.sh
+pnpm docker:kenya
 
-# 4. Establish baseline
-#    Launch the loop — first iteration scores current defaults as baseline
-/loop 20m Follow the instructions in autotune/VOICE-TUNING.md exactly.
+# 4. Verify baseline
+node scripts/test-pipeline.mjs ws://localhost:3001/api/voice
+
+# 5. Launch the loop
+/loop 20m <paste prompt below>
 ```
 
 ## The Loop Prompt
@@ -44,115 +47,101 @@ pnpm install && pnpm build
 Copy-paste this into `/loop 20m`:
 
 ```
-Follow the instructions in .claude/worktrees/autotune/autotune/VOICE-TUNING.md.
-
-Work in .claude/worktrees/autotune/ on the current branch.
+Work in the voice-agent-kit autotune worktree.
 
 YOU ARE TUNING A VOICE ASSISTANT FOR OPTIMAL CONVERSATION EXPERIENCE.
 
 CONTEXT:
 - Read autotune/results.tsv to see what's been done and the current baseline score.
-- Read autotune/queue.tsv for the next parameter to try.
+- Read autotune/queue.tsv for the next parameter to try (first line not marked DONE).
 - The baseline is the score from the last "keep" row (or "baseline" row if first run).
 
 FILES YOU CAN MODIFY (and ONLY these):
 - packages/core/src/config/defaults.ts — VAD, barge-in, timeouts, thresholds
 - packages/server/src/systemPrompt.ts — response rules, tone, format constraints
-- packages/server/src/voicePipeline.ts — MAX_TOOL_ROUNDS, CLIENT_TOOL_TIMEOUT_MS
-- packages/server/src/ttsProviders.ts — TTS provider timeouts
+- packages/server/src/voicePipeline.ts — LLM_TIMEOUT_MS, MAX_TOOL_ROUNDS, CLIENT_TOOL_TIMEOUT_MS
+- packages/server/src/ttsProviders.ts — TTS provider timeouts, speeds, expressiveness
 
-RULES:
+RULES (adapted from karpathy/autoresearch):
 - Change ONE parameter per iteration. Never change multiple at once.
 - Read the current value before changing. Understand what it does.
 - Stay within the range documented in queue.tsv.
-- After changing: pnpm build > /dev/null 2>&1
+- NEVER STOP. NEVER ASK. Run until manually interrupted.
 
-EVALUATION:
-1. Start Swkenya backend:
-   cd $PROJECT_ROOT/Swkenya/server && npx tsx index.ts > /dev/null 2>&1 &
-   SERVER_PID=$!
-   sleep 3
-   curl -sf localhost:3001/api/health || (kill $SERVER_PID; echo "BACKEND DOWN"; exit 1)
+PROCEDURE:
+1. Pop next parameter from queue.tsv (first line not marked DONE).
+2. Check the "method" column:
 
-2. Open browser tab to http://localhost:5173
+   IF method = "ws" (runtime-configurable):
+   - The eval script will send the new value via session.update
+   - Modify test-pipeline.mjs to include the parameter in the session.update message
+   - No rebuild needed — just re-run eval
+   - Example: expressiveness → add voice_settings.expressiveness to session.update
 
-3. Run 5 test queries via the text composer (use data-testid="voice-agent-input" and data-testid="voice-agent-send"):
+   IF method = "rebuild" (hardcoded):
+   - Read and modify the source file
+   - Rebuild: pnpm build > /dev/null 2>&1
+   - Rebuild Docker: pnpm docker:kenya 2>&1 | tail -3
+   - Wait for container: sleep 5
 
-   Q1: "What investor services are available?"
-       Expect: summary of services, NO tool card, conversational tone
-   Q2: "Tell me about Tax Registration PIN"
-       Expect: searchServices tool card, specific content about KRA/PIN
-   Q3: "Take me to the application form"
-       Expect: navigation tool card, URL changes
-   Q4: "Thank you for the help"
-       Expect: warm reply, NO tool call, NOT a farewell/close
-   Q5: "What categories of services do you offer?"
-       Expect: listServicesByCategory tool card, category summary
+3. Run eval: node scripts/test-pipeline.mjs ws://localhost:3001/api/voice > /tmp/eval.log 2>&1
+4. Read /tmp/eval.log and score:
 
-   For each query:
-   - Record time from send to first bot text appearing (data-testid="voice-agent-transcript")
-   - Read the response text
-   - Check for tool cards in transcript
+   SCORING RUBRIC (0-100):
 
-4. Score using this rubric:
+   CORRECTNESS (40 points):
+   - Count PASS lines in eval output. Each PASS = 6.67 points (6 tests × 6.67 = 40)
+   - A FAIL scores 0 for that test
 
-   CORRECTNESS (35 points):
-   - 7 points per query where the expected behavior occurred
-   - Q1: response mentions services/investment, no tool card
-   - Q2: searchServices tool card appeared, response mentions PIN/KRA/tax
-   - Q3: navigation tool card appeared, URL changed
-   - Q4: warm reply, no tool call, no farewell/close behavior
-   - Q5: listServicesByCategory tool card appeared, mentions categories
+   RESPONSE LATENCY (25 points):
+   - Extract elapsed times from PASS lines (e.g., "PASS (1234ms)")
+   - Average across all passing tests
+   - 25 if avg < 3000ms; linear decay: 25 * max(0, (8000 - avg) / 5000); 0 if avg > 8000ms
 
-   RESPONSE QUALITY (20 points):
-   - 20 if ALL responses: no emoji, no markdown (**,|,#,`), no HTML tags, length 30-300 chars
-   - -5 per violation type found across all responses
+   TTS AUDIO (15 points):
+   - Count tests with "+NKB audio" in output (non-zero audio bytes)
+   - 15 if all non-SILENT tests produced audio; proportional otherwise
+   - SILENT test should NOT produce audio
 
-   RESPONSE LATENCY (20 points):
-   - Average response time across all 5 queries
-   - 20 if avg < 3s; linear decay: 20 * max(0, (8 - avg) / 5); 0 if avg > 8s
+   NO ERRORS (10 points):
+   - 10 if no "error:" lines in eval output; 0 if any errors
 
-   NO FALSE TRIGGERS (15 points):
-   - 15 if no unexpected messages appeared in transcript between queries
-   - 0 if any spurious bot message appeared
-
-   STABILITY (10 points):
-   - If this is a re-run: 10 * max(0, 1 - abs(this_score - last_score) / 10)
-   - If first run: 10
+   SILENT ACCURACY (10 points):
+   - 10 if the filler test ("hmm yeah okay") correctly returned SILENT
+   - 0 if it triggered a real response
 
    TOTAL = sum, clamped to [0, 100]
 
-5. Kill Swkenya: kill $SERVER_PID 2>/dev/null
+9. KEEP/DISCARD:
+   - If score >= baseline + 2:
+       git add -A
+       git commit -m "tune: {param} {old_value} -> {new_value} (score: {score})"
+       Mark as DONE in queue.tsv
+       Update baseline in results.tsv
+   - If score < baseline + 2:
+       git checkout -- . (discard all changes)
+       Log as "discard" in results.tsv
+   - If Docker build fails or eval crashes:
+       git checkout -- . (discard)
+       Log as "crash" in results.tsv
 
-KEEP/DISCARD:
-- If score >= baseline + 2:
-    git add -A
-    git commit -m "tune: {param} {old_value} -> {new_value} (score: {score})"
-    Update baseline in results.tsv
-- If score < baseline + 2:
-    git checkout -- . (discard all changes)
-    Log as "discard" in results.tsv
-
-AFTER EACH ITERATION:
-- Append a row to autotune/results.tsv with ALL fields
-- Move to next parameter in queue.tsv
-- If queue exhausted: revisit parameters that produced "keep" with finer steps,
-  OR try combining two kept changes (pair sweep)
-
-NEVER STOP. NEVER ASK. Run until manually interrupted.
+10. Append a row to autotune/results.tsv with ALL fields.
+11. NEVER STOP. Pop next parameter from queue.tsv.
+    If queue exhausted: revisit parameters that produced "keep" with finer steps,
+    OR try combining two kept changes (pair sweep — see below).
 ```
 
 ## Scoring Rubric Summary
 
-| Dimension | Weight | What it measures |
-|-----------|--------|-----------------|
-| Correctness | 35 | Right tool called, right content in response |
-| Response Quality | 20 | No emoji/markdown/HTML, appropriate length |
-| Response Latency | 20 | Time to first bot text |
-| No False Triggers | 15 | No spurious bot messages |
-| Stability | 10 | Score consistency across runs |
+| Dimension | Weight | Source |
+|-----------|--------|--------|
+| Correctness | 40 | PASS/FAIL count from test-pipeline.mjs |
+| Response Latency | 25 | Elapsed ms per query |
+| TTS Audio | 15 | Audio bytes > 0 for non-SILENT tests |
+| No Errors | 10 | No error lines in output |
+| SILENT Accuracy | 10 | Filler correctly detected |
 
-**Keep threshold:** score must exceed baseline by **at least 2 points** (noise floor).
+**Keep threshold:** score must exceed baseline by **at least 2 points**.
 
 ## Parameter Interaction (Pair Sweep)
 
@@ -164,13 +153,47 @@ After the greedy single-parameter pass, parameters that interact should be teste
 | `BARGE_IN.threshold` + `UNINTERRUPTIBLE_WINDOW_MS` | Together determine interrupt behavior |
 | `redemptionMs` + `minSpeechMs` | Together determine end-of-speech detection |
 | `systemPrompt.wordLimit` + `systemPrompt.sentenceLimit` | Together control response verbosity |
+| `luxTtsSpeed` + `luxTtsTShift` | Together control LuxTTS voice character |
 
 For each pair: test combined change vs. each alone. Keep the best of the three.
 
+## Eval Infrastructure
+
+### `scripts/test-pipeline.mjs` (headless, no browser)
+
+Tests the full pipeline via WebSocket `text.submit` — bypasses STT entirely:
+- 6 test scenarios: general Q, navigation, search, category browse, filler ([SILENT]), politeness
+- Measures: response time, tool call accuracy, TTS audio bytes, per-turn timings
+- Mock tool results for searchServices, listServicesByCategory, getServiceDetails, navigateTo
+- 30s timeout per query, returns exit code 0 (all pass) or 1 (any fail)
+
+```bash
+node scripts/test-pipeline.mjs ws://localhost:3001/api/voice
+```
+
+### `scripts/test-tts.mjs` (TTS-only)
+
+Tests TTS provider latency and streaming independently:
+- TTFA (time-to-first-audio), total latency, audio format
+- Cancel recovery (abort mid-stream, retry)
+- GPU lock watchdog validation
+
+```bash
+node scripts/test-tts.mjs http://localhost:3001
+```
+
+### Docker workflow (`pnpm docker:kenya`)
+
+Builds kit from local source + starts Swkenya in Docker:
+- No npm link, no React dedup issues, no module resolution problems
+- Layer caching makes rebuilds fast (only changed kit files re-build)
+- Backend on port 3001, frontend on port 3000
+
 ## Known Limitations
 
-- **Non-deterministic:** LLM responses vary per run. Median of 3 helps but doesn't eliminate noise.
-- **Overfitting risk:** 5 test queries is narrow. Validate tuned params with full `/test-voice` journey.
+- **Non-deterministic:** LLM responses vary per run. Run eval 2-3 times and take median for noisy parameters.
+- **Overfitting risk:** 6 test queries is narrow. Validate tuned params with full `/test-voice` investor journey.
 - **Greedy search:** One-at-a-time misses interaction effects. Pair sweep partially mitigates.
-- **Browser required:** Needs Chrome + claude-in-chrome. Extract to Playwright for CI later.
-- **Cost:** Each iteration uses Claude tokens + Groq API + GPU STT/TTS calls.
+- **Docker rebuild time:** ~30s per iteration (cached). Budget this into the 20m loop window.
+- **Cost:** Each iteration uses Claude tokens + Groq API calls + GPU TTS/STT calls.
+- **VAD params not testable headless:** VAD thresholds only matter with real audio. `test-pipeline.mjs` uses `text.submit` which bypasses VAD. VAD tuning requires `/test-voice` with a microphone.

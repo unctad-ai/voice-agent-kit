@@ -1,15 +1,21 @@
-param	file	current	range	step	reason
-VAD.redemptionMs	defaults.ts	600	300-1200	100	pause tolerance — most noticeable in conversation flow
-VAD.positiveSpeechThreshold	defaults.ts	0.6	0.4-0.8	0.05	speech start — affects responsiveness
-VAD.negativeSpeechThreshold	defaults.ts	0.35	0.2-0.5	0.05	speech end — affects cut-off feel
-BARGE_IN.threshold	defaults.ts	0.7	0.5-0.9	0.05	interrupt sensitivity
-UNINTERRUPTIBLE_WINDOW_MS	defaults.ts	3000	1000-5000	500	echo protection vs interrupt delay
-systemPrompt.wordLimit	systemPrompt.ts	40	30-60	5	response verbosity
-systemPrompt.sentenceLimit	systemPrompt.ts	2	1-3	1	response length
-DEFAULT_EXPRESSIVENESS	defaults.ts	0.3	0.1-0.8	0.1	TTS emotion level
-DEFAULT_PLAYBACK_SPEED	defaults.ts	1.0	0.85-1.15	0.05	speech speed
-GUARD_DELAY_MS	defaults.ts	200	100-400	50	event suppression delay
-VAD.minSpeechMs	defaults.ts	500	200-800	100	minimum utterance length
-MISFIRE_DISMISS_MS	defaults.ts	2500	1500-4000	500	error message display time
-MIN_AUDIO_RMS	defaults.ts	0.02	0.01-0.05	0.005	noise floor
-DEFAULT_MAX_HISTORY_MESSAGES	defaults.ts	20	10-30	5	conversation memory depth
+param	file	current	range	step	method	reason
+expressiveness	session.update	0.3	0.1-0.8	0.1	ws	TTS emotion — send voice_settings.expressiveness via session.update, no rebuild
+systemPrompt.wordLimit	systemPrompt.ts	40	30-60	5	rebuild	response verbosity — directly measurable via text length
+systemPrompt.sentenceLimit	systemPrompt.ts	2	1-3	1	rebuild	response length — fewer sentences = more conversational
+LLM_TIMEOUT_MS	voicePipeline.ts	15000	8000-25000	2000	rebuild	per-round LLM timeout — too tight clips, too loose hangs
+DEFAULT_PLAYBACK_SPEED	defaults.ts	1.0	0.85-1.15	0.05	rebuild	speech speed — affects audio duration in TTS
+luxTtsSpeed	ttsProviders.ts	0.85	0.7-1.1	0.05	rebuild	LuxTTS speech rate (if LuxTTS active)
+luxTtsTShift	ttsProviders.ts	0.8	0.2-1.0	0.1	rebuild	LuxTTS expressiveness t_shift
+ttsFallback	createVoiceWebSocketHandler.ts	false	true/false	toggle	rebuild	enable TTS fallback chain (qwen3 → pocket → resemble)
+DEFAULT_MAX_HISTORY_MESSAGES	defaults.ts	20	10-30	5	rebuild	conversation memory depth
+GUARD_DELAY_MS	defaults.ts	200	100-400	50	rebuild	event suppression delay
+MISFIRE_DISMISS_MS	defaults.ts	2500	1500-4000	500	rebuild	error message display time
+MAX_TOOL_ROUNDS	voicePipeline.ts	25	10-25	5	rebuild	tool chain depth limit
+CLIENT_TOOL_TIMEOUT_MS	voicePipeline.ts	30000	15000-45000	5000	rebuild	client tool execution timeout
+negativeSpeechThreshold	defaults.ts	0.35	0.2-0.5	0.05	rebuild	speech end detection (VAD — voice-only testing)
+UNINTERRUPTIBLE_WINDOW_MS	defaults.ts	3000	1000-5000	500	rebuild	echo protection window (voice-only testing)
+VAD.redemptionMs	defaults.ts	600	300-1200	100	rebuild	pause tolerance (voice-only testing)
+VAD.positiveSpeechThreshold	defaults.ts	0.6	0.4-0.8	0.05	rebuild	speech start detection (voice-only testing)
+BARGE_IN.threshold	defaults.ts	0.7	0.5-0.9	0.05	rebuild	interrupt sensitivity (voice-only testing)
+VAD.minSpeechMs	defaults.ts	500	200-800	100	rebuild	minimum utterance length (voice-only testing)
+MIN_AUDIO_RMS	defaults.ts	0.02	0.01-0.05	0.005	rebuild	noise floor (voice-only testing)

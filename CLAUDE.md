@@ -181,23 +181,30 @@ The `autotune/` directory contains an autonomous parameter optimization loop ins
 # Create isolated worktree
 git worktree add -b autotune/$(date +%b%d | tr A-Z a-z) .claude/worktrees/autotune
 
-# Build and link into local Swkenya
-cd .claude/worktrees/autotune && pnpm install && pnpm build
-./autotune/link-to-swkenya.sh
+# Build and start Docker
+cd .claude/worktrees/autotune
+pnpm install && pnpm build && pnpm docker:kenya
+
+# Verify baseline
+node scripts/test-pipeline.mjs ws://localhost:3001/api/voice
 
 # Launch (paste loop prompt from VOICE-TUNING.md)
 /loop 20m <prompt from autotune/VOICE-TUNING.md>
 
 # Cleanup when done
-./autotune/unlink-from-swkenya.sh
 git worktree remove .claude/worktrees/autotune
 ```
 
 **Key files:**
 - `autotune/VOICE-TUNING.md` — full loop instructions, scoring rubric (0-100), parameter queue
-- `autotune/queue.tsv` — 14 parameters with safe ranges, step sizes, and tuning rationale
-- `autotune/link-to-swkenya.sh` / `unlink-from-swkenya.sh` — npm link helpers for worktree testing
+- `autotune/queue.tsv` — 20 parameters with safe ranges, step sizes, method (ws/rebuild)
+- `scripts/test-pipeline.mjs` — headless WebSocket eval (6 scenarios, no browser needed)
+- `scripts/test-tts.mjs` — isolated TTS latency eval
 
-**Requirements:** Chrome with claude-in-chrome extension, local Swkenya with `.env` matching production (from `ssh singlewindow`), GPU endpoints reachable (STT + TTS).
+**Requirements:** Docker Desktop running, Swkenya at `../Swkenya` with `server/.env` matching production, GPU endpoints reachable (STT + TTS).
 
-**Pattern:** Modify ONE parameter → rebuild → run 5 e2e queries → score → keep if improved by 2+ points → discard otherwise → repeat forever.
+**Two tuning methods:**
+- `ws` params (expressiveness) — change via session.update, no rebuild, ~15s/iteration
+- `rebuild` params (timeouts, system prompt, thresholds) — edit source → `pnpm docker:kenya` → eval, ~60s/iteration
+
+**Pattern:** Modify ONE parameter → rebuild if needed → `node scripts/test-pipeline.mjs` → score 0-100 → keep if improved by 2+ points → discard otherwise → repeat forever.
