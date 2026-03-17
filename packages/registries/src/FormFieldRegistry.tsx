@@ -31,14 +31,23 @@ export interface FormField {
   gatedAction?: string;
 }
 
+/** FormField with loose options type — accepts bare strings alongside {value, label}. */
+type FormFieldInput = Omit<FormField, 'options'> & { options?: (FormFieldOption | string)[] };
+
 interface FormFieldRegistry {
-  register(field: FormField): void;
+  register(field: FormFieldInput): void;
   unregister(id: string): void;
   getFields(): FormField[];
   /** Returns the field label on success, or null if the field was not found / value was invalid. */
   setValue(id: string, value: unknown): string | null;
   subscribe(listener: () => void): () => void;
   getSnapshot(): FormField[];
+}
+
+/** Normalize options: bare strings become {value, label} objects. */
+function normalizeOptions(options?: (FormFieldOption | string)[]): FormFieldOption[] | undefined {
+  if (!options) return undefined;
+  return options.map(o => typeof o === 'string' ? { value: o, label: o } : o);
 }
 
 export const FormFieldRegistryContext = createContext<FormFieldRegistry | null>(null);
@@ -68,7 +77,7 @@ export function FormFieldRegistryProvider({ children }: { children: ReactNode })
   const registry = useMemo<FormFieldRegistry>(
     () => ({
       register(field: FormField) {
-        fieldsRef.current.set(field.id, field);
+        fieldsRef.current.set(field.id, { ...field, options: normalizeOptions(field.options) });
         notify();
       },
       unregister(id: string) {

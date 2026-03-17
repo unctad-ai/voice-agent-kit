@@ -141,7 +141,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
         // cannot truly be "all filled" — the gated fields aren't even visible yet.
         if (gatedSections.length > 0) {
           const actions = gatedSections.map(s => `${s.action} (opens ${s.section})`).join(', ');
-          result.hint = `FIRST call performUIAction for: ${actions}. Then call getFormSchema again.`;
+          result.hint = `<internal>FIRST call performUIAction for: ${actions}. Then call getFormSchema again.</internal>`;
         } else if (hint) {
           result.hint = hint;
         }
