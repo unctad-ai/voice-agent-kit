@@ -87,9 +87,9 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toMatch(/NEVER describe the outcome of an action before it executes/);
   });
 
-  it('FORMS rule 8 enforces upload-first ordering', () => {
+  it('FORMS rule 8 enforces upload-first and forbids offering manual entry', () => {
     const prompt = buildSystemPrompt(stubConfig);
-    expect(prompt).toMatch(/handle uploads FIRST/);
+    expect(prompt).toMatch(/Do NOT offer manual entry as an alternative/);
   });
 
   it('SILENT rule comes after FORMS section', () => {
