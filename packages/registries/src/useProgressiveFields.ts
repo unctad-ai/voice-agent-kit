@@ -27,6 +27,12 @@ export interface ProgressiveStepConfig {
   step: string;
   /** Whether this step's fields should be registered. */
   visible: boolean;
+  /**
+   * Whether the form inputs are actually rendered and interactive.
+   * Use this for sections gated behind an "Add" button — set to true
+   * only when the sub-form is open. Defaults to true.
+   */
+  ready?: boolean;
   fields: ProgressiveFieldConfig[];
 }
 
@@ -75,7 +81,7 @@ export function useProgressiveFields(prefix: string, steps: ProgressiveStepConfi
         type: field.type,
         required: field.required ?? false,
         value: field.bind[0],
-        enabled: step.visible && (field.visible ?? true),
+        enabled: step.visible && (step.ready ?? true) && (field.visible ?? true),
         group: step.step,
         elementRef: field.elementRef,
       });
