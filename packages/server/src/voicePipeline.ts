@@ -25,6 +25,7 @@ export interface VoicePipelineOptions {
   send: (event: string) => void;
   sendBinary: (data: Buffer) => void;
   siteConfig: SiteConfig;
+  sttHallucinationFilter?: boolean;
 }
 
 interface SttDoneResult {
@@ -178,16 +179,23 @@ export class VoicePipeline {
       log('stt:done', `"${sttResult.text.slice(0, 80)}"`, sttMs);
       send(createEvent('stt.result', { transcript: sttResult.text }));
 
-      // Hallucination filter
-      const { noSpeechProb, avgLogprob } = this.extractVadMetrics(sttResult.vadProbs || []);
       const text = sttResult.text.trim();
 
-      if (
-        !text ||
-        noSpeechProb > NO_SPEECH_PROB_THRESHOLD ||
-        avgLogprob < AVG_LOGPROB_THRESHOLD
-      ) {
-        log('stt:filtered', `"${text.slice(0, 50)}" noSpeech=${noSpeechProb.toFixed(3)} avgLog=${avgLogprob.toFixed(3)}`);
+      // Hallucination filter — skip for STT providers that don't produce
+      // kyutai-compatible vadProbs (e.g. Nemotron, Parakeet)
+      const useHallucinationFilter = this.options.sttHallucinationFilter ?? true;
+      if (useHallucinationFilter) {
+        const { noSpeechProb, avgLogprob } = this.extractVadMetrics(sttResult.vadProbs || []);
+        if (
+          !text ||
+          noSpeechProb > NO_SPEECH_PROB_THRESHOLD ||
+          avgLogprob < AVG_LOGPROB_THRESHOLD
+        ) {
+          log('stt:filtered', `"${text.slice(0, 50)}" noSpeech=${noSpeechProb.toFixed(3)} avgLog=${avgLogprob.toFixed(3)}`);
+          send(createEvent('status', { status: 'listening' }));
+          return;
+        }
+      } else if (!text) {
         send(createEvent('status', { status: 'listening' }));
         return;
       }

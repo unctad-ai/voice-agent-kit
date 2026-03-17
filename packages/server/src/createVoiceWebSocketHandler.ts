@@ -98,6 +98,7 @@ export function createVoiceWebSocketHandler(
       send: safeSend,
       sendBinary: safeSendBinary,
       siteConfig: options.config,
+      sttHallucinationFilter: options.sttHallucinationFilter ?? (process.env.STT_HALLUCINATION_FILTER !== 'false'),
     });
 
     sttClient.connect();
