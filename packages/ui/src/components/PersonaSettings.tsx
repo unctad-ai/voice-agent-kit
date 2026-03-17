@@ -534,6 +534,7 @@ function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onP
           onSelect={() => onSelect(v.id)}
           onPreview={() => handlePreview(v.id)}
           onDelete={disabled ? undefined : () => onDelete(v.id)}
+          disabled={disabled}
           primaryColor={primaryColor}
         />
       ))}
@@ -561,7 +562,7 @@ function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onP
   );
 }
 
-function VoiceRow({ voice, isActive, isPreviewing, onSelect, onPreview, onDelete, primaryColor }: {
+function VoiceRow({ voice, isActive, isPreviewing, onSelect, onPreview, onDelete, primaryColor, disabled }: {
   voice: { id: string; name: string };
   isActive: boolean;
   isPreviewing: boolean;
@@ -569,6 +570,7 @@ function VoiceRow({ voice, isActive, isPreviewing, onSelect, onPreview, onDelete
   onPreview: () => void;
   onDelete?: () => void;
   primaryColor: string;
+  disabled?: boolean;
 }) {
   const [previewHovered, setPreviewHovered] = useState(false);
   const [deleteHovered, setDeleteHovered] = useState(false);
@@ -592,6 +594,7 @@ function VoiceRow({ voice, isActive, isPreviewing, onSelect, onPreview, onDelete
         name="active-voice"
         checked={isActive}
         onChange={onSelect}
+        disabled={disabled}
         style={{ accentColor: primaryColor }}
       />
       <span style={{ flex: 1 }}>{voice.name}</span>
