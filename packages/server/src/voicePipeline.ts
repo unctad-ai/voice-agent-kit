@@ -562,7 +562,8 @@ export class VoicePipeline {
       // guide the user to the next field. Without this, the LLM guesses what's
       // visible instead of checking, leading to wrong field assumptions.
       const didFillForm = toolCalls.some((tc) => tc.toolName === 'fillFormFields');
-      if (didFillForm && !signal.aborted) {
+      const didUIAction = toolCalls.some((tc) => tc.toolName === 'performUIAction');
+      if ((didFillForm || didUIAction) && !signal.aborted) {
         // Wait for client React render cycle to register new progressive fields
         await new Promise((r) => setTimeout(r, AUTO_SCHEMA_DELAY_MS));
         if (signal.aborted) throw new Error('cancelled');
