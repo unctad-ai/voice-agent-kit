@@ -86,9 +86,14 @@ export function createClientToolHandler(deps: ClientToolDeps) {
         return firstSentence || result;
       }
       case 'getFormSchema': {
-        const fields = getFormFields();
-        if (fields.length === 0)
+        const allFields = getFormFields();
+        // Separate gated marker fields from real fields
+        const gatedFields = allFields.filter(f => f.gatedAction);
+        const fields = allFields.filter(f => !f.gatedAction);
+
+        if (fields.length === 0 && gatedFields.length === 0)
           return 'No form fields are visible right now. [INTERNAL: a UI action may be needed first — check UI_ACTIONS for the next step.]';
+
         const fieldToSchema = (f: FormField) => ({
           id: f.id,
           label: f.label,
@@ -96,13 +101,21 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           value: f.value ?? null,
           ...(f.options?.length ? { opts: f.options } : {}),
         });
-        const allFilled = fields.every(f => isFilled(f.value));
+        const realFields = fields.filter(f => !f.gatedAction);
+        const allFilled = realFields.length > 0 && realFields.every(f => isFilled(f.value));
         const hint = allFilled
           ? 'All visible fields are filled. [INTERNAL: check UI_ACTIONS for the next tab or submit action.]'
           : undefined;
 
+        // Build gated section placeholders
+        const gatedSections = gatedFields.map(f => ({
+          section: f.group || f.label,
+          gated: true,
+          action: f.gatedAction,
+        }));
+
         const hasGroups = fields.some((f) => f.group);
-        if (!hasGroups) {
+        if (!hasGroups && gatedSections.length === 0) {
           if (hint) return JSON.stringify({ fields: fields.map(fieldToSchema), hint });
           return JSON.stringify(fields.map(fieldToSchema));
         }
@@ -113,12 +126,14 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           if (arr) arr.push(f);
           else sectionMap.set(key, [f]);
         }
-        const result: Record<string, unknown> = {
-          sections: Array.from(sectionMap.entries()).map(([section, sectionFields]) => ({
+        const sections = [
+          ...gatedSections,
+          ...Array.from(sectionMap.entries()).map(([section, sectionFields]) => ({
             section: section === '_ungrouped' ? 'Other' : section,
             fields: sectionFields.map(fieldToSchema),
           })),
-        };
+        ];
+        const result: Record<string, unknown> = { sections };
         if (hint) result.hint = hint;
         return JSON.stringify(result);
       }

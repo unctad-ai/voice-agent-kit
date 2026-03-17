@@ -27,6 +27,8 @@ export interface FormField {
   elementRef?: React.RefObject<HTMLElement>;
   /** Step/section name for progressive forms — used by getFormSchema to group fields. */
   group?: string;
+  /** When set, this field is a placeholder for a gated section that needs an action to open. */
+  gatedAction?: string;
 }
 
 interface FormFieldRegistry {

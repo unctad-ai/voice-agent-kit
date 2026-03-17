@@ -33,6 +33,12 @@ export interface ProgressiveStepConfig {
    * only when the sub-form is open. Defaults to true.
    */
   ready?: boolean;
+  /**
+   * UI action ID that opens this section (e.g. 'reg-form.showDirectorForm').
+   * When ready is false, a placeholder is registered so getFormSchema can
+   * tell the LLM which action to call to reveal the section's fields.
+   */
+  gatedAction?: string;
   fields: ProgressiveFieldConfig[];
 }
 
@@ -45,6 +51,7 @@ interface FlatField {
   enabled: boolean;
   group: string;
   elementRef?: React.RefObject<HTMLElement>;
+  gatedAction?: string;
 }
 
 /**
@@ -72,6 +79,26 @@ export function useProgressiveFields(prefix: string, steps: ProgressiveStepConfi
   const currentIds = new Set<string>();
 
   for (const step of steps) {
+    const isReady = step.ready ?? true;
+    const isGated = step.visible && !isReady && step.gatedAction;
+
+    if (isGated) {
+      // Register a single marker field so getFormSchema knows this section
+      // exists but needs an action before fields become available.
+      const gatedId = `${prefix}.__gated__.${step.step}`;
+      currentIds.add(gatedId);
+      flatFields.push({
+        id: gatedId,
+        label: step.step,
+        type: 'text',
+        required: false,
+        value: null,
+        enabled: true,
+        group: step.step,
+        gatedAction: step.gatedAction,
+      });
+    }
+
     for (const field of step.fields) {
       const fullId = `${prefix}.${field.id}`;
       currentIds.add(fullId);
@@ -81,7 +108,7 @@ export function useProgressiveFields(prefix: string, steps: ProgressiveStepConfi
         type: field.type,
         required: field.required ?? false,
         value: field.bind[0],
-        enabled: step.visible && (step.ready ?? true) && (field.visible ?? true),
+        enabled: step.visible && isReady && (field.visible ?? true),
         group: step.step,
         elementRef: field.elementRef,
       });
@@ -125,7 +152,7 @@ export function useProgressiveFields(prefix: string, steps: ProgressiveStepConfi
   // and group changes also trigger re-registration. Values are constrained to
   // JSON-safe primitives via the FieldConfig type, so stringify is deterministic.
   const fingerprint = JSON.stringify(
-    flatFields.map((f) => [f.id, f.label, f.type, f.required, f.value, f.enabled, f.group])
+    flatFields.map((f) => [f.id, f.label, f.type, f.required, f.value, f.enabled, f.group, f.gatedAction])
   );
 
   // ── Registration effect ──
@@ -147,9 +174,10 @@ export function useProgressiveFields(prefix: string, steps: ProgressiveStepConfi
         required: field.required,
         value: field.value,
         options: optionsRef.current.get(field.id),
-        setter: wrappersRef.current.get(field.id)!,
+        setter: wrappersRef.current.get(field.id) ?? (() => {}),
         group: field.group,
         elementRef: field.elementRef,
+        gatedAction: field.gatedAction,
       });
       registeredIds.push(field.id);
     }
