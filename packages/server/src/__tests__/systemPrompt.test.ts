@@ -57,6 +57,16 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toMatch(/NEVER say a form is complete without calling getFormSchema/);
   });
 
+  it('FORMS rule 7 forbids premature completion claims', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toMatch(/NEVER describe the outcome of an action before it executes/);
+  });
+
+  it('FORMS rule 8 enforces upload-first ordering', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toMatch(/handle uploads FIRST/);
+  });
+
   it('SILENT rule comes after FORMS section', () => {
     const prompt = buildSystemPrompt(stubConfig);
     const formsIndex = prompt.indexOf('FORMS:');

@@ -1,7 +1,7 @@
 # System Prompt Refactor
 
 **Date:** 2026-03-17
-**Status:** Proposed
+**Status:** Implemented (with adjustments)
 
 ## Problem
 
@@ -11,13 +11,13 @@ The system prompt in `packages/server/src/systemPrompt.ts` has grown organically
 
 ### HIGH
 
-#### 1. Add `/no_think` for Qwen3
+#### 1. ~~Add `/no_think` for Qwen3~~ — REVERTED
 
 Qwen3-32B defaults to thinking mode, emitting `<think>...</think>` blocks before every response. For a voice assistant where latency matters, suppress this.
 
-**File:** `packages/server/src/systemPrompt.ts` (line 40)
+**Outcome:** `/no_think` was implemented then reverted. It suppressed Qwen3's reasoning step, causing the model to skip tool calls (e.g. `getFormSchema`) and generate text-only responses. The thinking step is where the model plans "I need to call getFormSchema per the rules." Without it, tool compliance dropped significantly.
 
-Append `/no_think` to the identity line, or set `enable_thinking=false` at the Groq API level if available. Belt-and-suspenders: do both.
+**Current approach:** Let the model think; `stripChainOfThought` in `textUtils.ts` strips `<think>` blocks from TTS output. Groq does not expose `enable_thinking=false` at the API level.
 
 #### 2. Split FORMS into numbered sub-rules
 
@@ -79,15 +79,39 @@ Move SILENT (rule 5) and GOODBYE after FORMS. These are terminal/short-circuit b
 
 "Never use contractions" makes TTS sound robotic ("I am" vs "I'm"). If the rule exists to avoid TTS pronunciation bugs with apostrophes, document that. Otherwise consider relaxing.
 
-#### 8. Set Qwen3 generation params
+#### 8. Set Qwen3 generation params — ADJUSTED
 
 Qwen3's recommended non-thinking params: `temperature=0.7, topP=0.8, topK=20`. Verify these are set in the Groq API call, not left at defaults.
 
 **File:** `packages/server/src/voicePipeline.ts` (streamText call)
 
+**Outcome:** Set to `temperature=0.3, topP=0.8`. The recommended `temperature=0.7` was too loose — tool calling became unreliable. `topK=20` omitted because `@ai-sdk/groq` may not forward it to the Groq API.
+
 #### 9. Remove behavioral instructions from tool descriptions
 
 `searchServices` tool description says "immediately follow up with viewService" but the system prompt's PROACTIVE NAVIGATION rule says "call BOTH viewService AND getServiceDetails." Keep behavioral instructions only in the system prompt (single source of truth), keep tool descriptions factual.
+
+### Findings from voice testing (2026-03-17)
+
+These issues were observed during live testing and should be addressed in the refactor:
+
+#### 10. Upload fields should be handled before text fields — IMPLEMENTED
+
+When a section has an upload field first (e.g., passport OCR that auto-fills details), the LLM skips it and asks for text input. FORMS rule 8 (upload handling) needs to be stronger — upload fields MUST be processed before text fields in the same section.
+
+**Outcome:** FORMS rule 8 rewritten to enforce upload-first ordering. Instructs the LLM to handle uploads before text fields, call `getFormSchema` after upload to see auto-filled values.
+
+#### 11. TTS punctuation handling (em dashes, etc.) — OPEN
+
+The LLM uses em dashes (" — ") which TTS reads without pausing. Need to investigate LuxTTS behavior with different punctuation before fixing `sanitizeForTTS`. Determine: what characters cause pauses, whether SSML `<break>` tags are supported, and what the current best practice is for the active TTS engine.
+
+**Status:** Requires investigation. No code change yet.
+
+#### 12. Premature completion claims — IMPLEMENTED
+
+The LLM narrates future outcomes as facts ("I will send it now — your registration has been submitted") before the submit action executes. The confirmation rule exists but isn't being followed. Reinforce: "Never describe the outcome of an action before executing it."
+
+**Outcome:** Added to FORMS rule 7: `NEVER describe the outcome of an action before it executes — say "let me submit that" not "your registration has been submitted."`
 
 ## Testing
 
