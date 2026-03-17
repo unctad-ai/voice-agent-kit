@@ -13,47 +13,20 @@ const LANGUAGE_OPTIONS = [
   { value: 'dz', label: 'Dzongkha' },
 ];
 
-export function PersonaSettings() {
+export function PersonaSettings({ adminPassword }: { adminPassword?: string | null }) {
   const config = useSiteConfig();
   if (!config.personaEndpoint) return null;
 
-  return <PersonaSettingsInner />;
+  return <PersonaSettingsInner adminPassword={adminPassword ?? null} />;
 }
 
-function PersonaSettingsInner() {
+function PersonaSettingsInner({ adminPassword }: { adminPassword: string | null }) {
   const config = useSiteConfig();
   const persona = usePersonaContext();
   if (!persona) return null;
-  const { persona: data, isLoaded, updateName, uploadAvatar, uploadVoice, deleteVoice, setActiveVoice, previewVoice, updateConfig } = persona;
+  const { persona: data, isLoaded, uploadAvatar, uploadVoice, deleteVoice, setActiveVoice, previewVoice, updateConfig } = persona;
 
-  // Admin auth state
-  const [adminPassword, setAdminPassword] = useState<string | null>(
-    () => sessionStorage.getItem('voice-admin-pw')
-  );
-  const [authError, setAuthError] = useState('');
-  const [showPasswordInput, setShowPasswordInput] = useState(false);
-  const [passwordInput, setPasswordInput] = useState('');
   const isAdmin = adminPassword !== null;
-
-  const handleAdminLogin = useCallback(async (pw: string) => {
-    try {
-      await updateConfig({}, pw);
-      sessionStorage.setItem('voice-admin-pw', pw);
-      setAdminPassword(pw);
-      setAuthError('');
-      setShowPasswordInput(false);
-      setPasswordInput('');
-    } catch {
-      setAuthError('Invalid password');
-    }
-  }, [updateConfig]);
-
-  const handleAdminLogout = useCallback(() => {
-    sessionStorage.removeItem('voice-admin-pw');
-    setAdminPassword(null);
-    setShowPasswordInput(false);
-    setPasswordInput('');
-  }, []);
 
   const handleSharedSave = useCallback(async (fields: Record<string, string>) => {
     if (!adminPassword) return;
@@ -140,17 +113,6 @@ function PersonaSettingsInner() {
             </SettingRow>
           </div>
 
-          {/* Logout */}
-          <button
-            onClick={handleAdminLogout}
-            style={{
-              fontSize: 11, color: '#9ca3af', background: 'none', border: 'none',
-              cursor: 'pointer', textAlign: 'left', padding: '4px 0',
-              fontFamily: 'inherit',
-            }}
-          >
-            Lock admin settings
-          </button>
         </>
       ) : (
         <>
@@ -169,57 +131,6 @@ function PersonaSettingsInner() {
             primaryColor={config.colors.primary}
             disabled
           />
-
-          {/* Admin login */}
-          <div style={{ paddingTop: 4 }}>
-            {!showPasswordInput ? (
-              <button
-                onClick={() => setShowPasswordInput(true)}
-                style={{
-                  fontSize: 11, color: '#9ca3af', background: 'none', border: 'none',
-                  cursor: 'pointer', fontFamily: 'inherit', padding: '4px 0',
-                }}
-              >
-                Admin settings...
-              </button>
-            ) : (
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input
-                  type="password"
-                  placeholder="Admin password"
-                  value={passwordInput}
-                  onChange={e => { setPasswordInput(e.target.value); setAuthError(''); }}
-                  onKeyDown={e => e.key === 'Enter' && handleAdminLogin(passwordInput)}
-                  autoFocus
-                  style={{
-                    fontSize: 12, padding: '4px 8px', borderRadius: 6,
-                    border: `1px solid ${authError ? '#ef4444' : '#e5e7eb'}`,
-                    outline: 'none', fontFamily: 'inherit', width: 120,
-                  }}
-                />
-                <button
-                  onClick={() => handleAdminLogin(passwordInput)}
-                  style={{
-                    fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 6,
-                    border: 'none', backgroundColor: '#1f2937', color: '#fff',
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  OK
-                </button>
-                <button
-                  onClick={() => { setShowPasswordInput(false); setPasswordInput(''); setAuthError(''); }}
-                  style={{
-                    fontSize: 11, color: '#9ca3af', background: 'none', border: 'none',
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  Cancel
-                </button>
-                {authError && <span style={{ fontSize: 11, color: '#ef4444' }}>{authError}</span>}
-              </div>
-            )}
-          </div>
         </>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft,
@@ -29,8 +29,9 @@ import {
   Globe,
 } from 'lucide-react';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
-import { VAD, useSiteConfig } from '@unctad-ai/voice-agent-core';
+import { VAD, useSiteConfig, usePersonaContext } from '@unctad-ai/voice-agent-core';
 import { PersonaSettings } from './PersonaSettings.js';
+import { Lock, Unlock } from 'lucide-react';
 
 interface VoiceSettingsViewProps {
   onBack: () => void;
@@ -245,7 +246,7 @@ export function SelectSetting({
   return (
     <div style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
       {icon}
-      <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#111827' }}>{label}</span>
+      <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#111827', minWidth: 0 }}>{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -273,6 +274,8 @@ export function SelectSetting({
           WebkitAppearance: 'none',
           appearance: 'none',
           cursor: 'pointer',
+          flexShrink: 0,
+          width: 110,
           transition: 'border-color 0.15s, background-color 0.15s',
           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
           backgroundRepeat: 'no-repeat',
@@ -292,6 +295,7 @@ export function SelectSetting({
 export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSettingsViewProps) {
   const { settings, updateSetting, resetSettings } = useVoiceSettings();
   const config = useSiteConfig();
+  const persona = usePersonaContext();
   const { colors } = config;
   const [openSection, setOpenSection] = useState<string | null>(null);
   const iconStyle = { width: 16, height: 16, flexShrink: 0, color: colors.primary };
@@ -300,6 +304,40 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
     open: openSection === id,
     onToggle: () => setOpenSection(openSection === id ? null : id),
   });
+
+  // Admin auth state — lifted here so the toggle lives in the footer
+  const [adminPassword, setAdminPassword] = useState<string | null>(
+    () => sessionStorage.getItem('voice-admin-pw')
+  );
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [authError, setAuthError] = useState('');
+  const isAdmin = adminPassword !== null;
+
+  const handleAdminLogin = useCallback(async (pw: string) => {
+    if (!persona) return;
+    try {
+      await persona.updateConfig({}, pw);
+      sessionStorage.setItem('voice-admin-pw', pw);
+      setAdminPassword(pw);
+      setAuthError('');
+      setShowPasswordInput(false);
+      setPasswordInput('');
+    } catch {
+      setAuthError('Invalid password');
+    }
+  }, [persona]);
+
+  const handleAdminToggle = useCallback(() => {
+    if (isAdmin) {
+      sessionStorage.removeItem('voice-admin-pw');
+      setAdminPassword(null);
+      setShowPasswordInput(false);
+      setPasswordInput('');
+    } else {
+      setShowPasswordInput(true);
+    }
+  }, [isAdmin]);
 
   return (
     <motion.div
@@ -360,7 +398,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
         {/* Agent Persona */}
         {config.personaEndpoint && (
           <SettingsSection title="Persona" icon={<User style={sectionIconStyle} />} {...sectionProps('persona')}>
-            <PersonaSettings />
+            <PersonaSettings adminPassword={adminPassword} />
           </SettingsSection>
         )}
 
@@ -601,9 +639,61 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
         </SettingsSection>
       </div>
 
-      {/* Kit version — pinned to bottom center */}
-      <div style={{ flexShrink: 0, textAlign: 'center', padding: '8px 16px', fontSize: 11, color: '#9ca3af' }}>
-        Kit v<span style={{ fontWeight: 500, color: '#6b7280' }}>{__KIT_VERSION__}</span>
+      {/* Footer — admin toggle + kit version */}
+      <div style={{ flexShrink: 0, padding: '8px 16px', fontSize: 11, color: '#9ca3af', borderTop: '1px solid #f3f4f6' }}>
+        {showPasswordInput ? (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center', padding: '4px 0' }}>
+            <input
+              type="password"
+              placeholder="Admin password"
+              value={passwordInput}
+              onChange={e => { setPasswordInput(e.target.value); setAuthError(''); }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleAdminLogin(passwordInput);
+                if (e.key === 'Escape') { setShowPasswordInput(false); setPasswordInput(''); setAuthError(''); }
+              }}
+              autoFocus
+              style={{
+                fontSize: 11, padding: '3px 8px', borderRadius: 6,
+                border: `1px solid ${authError ? '#ef4444' : '#e5e7eb'}`,
+                outline: 'none', fontFamily: 'inherit', width: 110,
+              }}
+            />
+            <button
+              onClick={() => handleAdminLogin(passwordInput)}
+              style={{
+                fontSize: 10, fontWeight: 500, padding: '3px 8px', borderRadius: 6,
+                border: 'none', backgroundColor: '#1f2937', color: '#fff',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >OK</button>
+            <button
+              onClick={() => { setShowPasswordInput(false); setPasswordInput(''); setAuthError(''); }}
+              style={{ fontSize: 10, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
+            >Cancel</button>
+            {authError && <span style={{ fontSize: 10, color: '#ef4444' }}>{authError}</span>}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            {config.personaEndpoint ? (
+              <button
+                onClick={handleAdminToggle}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  fontSize: 11, color: isAdmin ? colors.primary : '#9ca3af',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontFamily: 'inherit', padding: 0, transition: 'color 0.15s',
+                }}
+              >
+                {isAdmin
+                  ? <><Unlock style={{ width: 12, height: 12 }} /> Admin mode</>
+                  : <><Lock style={{ width: 12, height: 12 }} /> Admin mode</>
+                }
+              </button>
+            ) : <span />}
+            <span>Kit v<span style={{ fontWeight: 500, color: '#6b7280' }}>{__KIT_VERSION__}</span></span>
+          </div>
+        )}
       </div>
     </motion.div>
   );
