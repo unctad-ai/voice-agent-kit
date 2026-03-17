@@ -227,6 +227,11 @@ export function useVoiceAgent({
     stateRef.current = state;
   }, [state]);
 
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
   const settingsRef = useRef(settings);
   useEffect(() => {
     settingsRef.current = settings;
@@ -803,14 +808,18 @@ export function useVoiceAgent({
 
     processingRef.current = false;
     setVoiceError(null);
-    setMessages([]);
-    setCurrentTranscript('');
-    actionSeqRef.current = 0;
-    processedToolCalls.clear();
     audioFrameBufferRef.current = [];
 
-    // Connect WebSocket
-    voiceWs.connect([]);
+    // Reconnect WS (needed after stop() which disconnects).
+    // Only clear messages on a truly fresh session (no prior conversation).
+    const hasConversation = stateRef.current !== 'IDLE' || messagesRef.current.length > 0;
+    if (!hasConversation) {
+      setMessages([]);
+      setCurrentTranscript('');
+      actionSeqRef.current = 0;
+      processedToolCalls.clear();
+    }
+    voiceWs.connect(hasConversation ? messagesRef.current.map(m => ({ role: m.role === 'action' ? 'assistant' : m.role, content: m.text })) : []);
 
     setState('LISTENING');
     vad.start();

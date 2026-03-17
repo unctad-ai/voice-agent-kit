@@ -631,17 +631,12 @@ function ExpandedContent({
       onKeyDown={onInteraction}
     >
       {/* Header (64px) */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1], delay: 0.12 }}
+      <div
         className="flex items-center gap-3 shrink-0"
         style={{ height: 64, padding: '12px 16px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}
       >
         <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1, opacity: isOffline ? 0.35 : 1 }}
-          transition={{ ...SPRING_MICRO, delay: 0.14 }}
+          animate={{ opacity: isOffline ? 0.35 : 1 }}
           className="relative shrink-0"
           style={{ width: 46, height: 46, filter: isOffline ? 'grayscale(0.8)' : 'none' }}
         >
@@ -696,7 +691,7 @@ function ExpandedContent({
         <button onClick={onClose} className="shrink-0 rounded-full transition-colors cursor-pointer" style={{ color: 'rgba(0,0,0,0.4)', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.05)' }} aria-label="Close voice assistant" data-testid="voice-agent-close">
           <X style={{ width: 16, height: 16 }} />
         </button>
-      </motion.div>
+      </div>
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div data-testid="voice-agent-transcript" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}><VoiceTranscript messages={messages} isTyping={isTyping} variant="panel" voiceError={voiceError} voiceState={voiceState} onStartMic={onStartMic} onSwitchToKeyboard={onSwitchToKeyboard} /></div>
@@ -719,9 +714,9 @@ function ExpandedContent({
         </div>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...SPRING_MICRO, delay: 0.2 }} className="shrink-0">
+      <div className="shrink-0">
         <ComposerBar voiceState={voiceState} isListening={isListening} micPaused={micPaused} onTextSubmit={onTextSubmit} onMicToggle={onMicToggle} disabled={voiceError === 'network_error' || voiceError === 'stt_failed'} switchToTextRef={switchToTextRef} />
-      </motion.div>
+      </div>
     </div>
   );
 }

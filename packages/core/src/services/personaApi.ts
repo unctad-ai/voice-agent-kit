@@ -73,7 +73,10 @@ export class PersonaApi {
     const headers = authHeaders();
     if (adminPassword) headers['X-Admin-Password'] = adminPassword;
     const res = await fetch(this.url('/avatar'), { method: 'POST', headers, body: form });
-    if (!res.ok) throw new Error(`Avatar upload failed: ${res.status}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error(body?.error ?? `Avatar upload failed: ${res.status}`);
+    }
     return res.json();
   }
 

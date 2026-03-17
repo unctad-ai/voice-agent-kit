@@ -98,9 +98,17 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
     }
   });
 
-  // POST /avatar (2MB limit, admin-gated)
-  const avatarUpload = multer({ limits: { fileSize: 2 * 1024 * 1024 } });
-  router.post('/avatar', avatarUpload.single('image'), async (req, res) => {
+  // POST /avatar (admin-gated)
+  const avatarUpload = multer({ limits: { fileSize: 5 * 1024 * 1024 } });
+  router.post('/avatar', (req, res, next) => {
+    avatarUpload.single('image')(req, res, (err) => {
+      if (err && err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ error: 'Image too large (max 5MB)' });
+      }
+      if (err) return res.status(400).json({ error: err.message });
+      next();
+    });
+  }, async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
       if (!req.file) {
@@ -121,7 +129,7 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
       res.json({ avatarUrl: getAvatarDataUri() });
     } catch (err) {
       console.error('[Persona] avatar upload error:', err);
-      res.status(500).json({ error: 'Failed to process avatar' });
+      res.status(400).json({ error: 'Could not read image — try a different file' });
     }
   });
 

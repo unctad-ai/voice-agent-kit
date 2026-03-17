@@ -216,15 +216,21 @@ function AvatarSection({ avatarUrl, name, onUpload, disabled }: {
   const [uploading, setUploading] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const initial = (name || '?')[0].toUpperCase();
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !onUpload) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError('Image too large (max 5 MB)');
+      return;
+    }
     setUploading(true);
+    setUploadError(null);
     try { await onUpload(file); setImgError(false); }
-    catch (err) { console.error('Avatar upload failed:', err); }
+    catch (err) { setUploadError(err instanceof Error ? err.message : 'Upload failed'); }
     finally { setUploading(false); }
   };
 
@@ -285,8 +291,8 @@ function AvatarSection({ avatarUrl, name, onUpload, disabled }: {
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>Avatar</div>
-        <div style={{ fontSize: 11, color: '#6b7280' }}>
-          {disabled ? '' : uploading ? 'Uploading...' : 'Click to change'}
+        <div style={{ fontSize: 11, color: uploadError ? '#DC2626' : '#6b7280' }}>
+          {uploadError ?? (disabled ? '' : uploading ? 'Uploading...' : 'PNG, JPG or WebP (max 5 MB)')}
         </div>
       </div>
       {canEdit && <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFile} style={{ display: 'none' }} />}

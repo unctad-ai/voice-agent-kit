@@ -20,8 +20,8 @@ export const MAX_NO_SPEECH_PROB = 0.6;
 export const MIN_AVG_LOGPROB = -0.7;
 
 export const BARGE_IN = {
-  threshold: 0.7,
-  framesRequired: 5,
+  threshold: 0.5,
+  framesRequired: 3,
 } as const;
 
 /**
@@ -154,7 +154,7 @@ export const DEFAULT_SHOW_PIPELINE_METRICS = false;
 export const DEFAULT_PIPELINE_METRICS_AUTO_HIDE_MS = 8_000;
 export const DEFAULT_SPEECH_THRESHOLD = 0.6;
 export const DEFAULT_PAUSE_TOLERANCE_MS = 600;
-export const DEFAULT_BARGE_IN_THRESHOLD = 0.7;
+export const DEFAULT_BARGE_IN_THRESHOLD = 0.5;
 export const DEFAULT_PANEL_COLLAPSE_TIMEOUT_MS = 300_000;
 export const DEFAULT_STT_TIMEOUT_MS = 15_000;
 export const DEFAULT_TTS_TIMEOUT_MS = 55_000;
