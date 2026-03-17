@@ -1,11 +1,14 @@
 export interface TtsProviderConfig {
-  ttsProvider: string; // 'vllm-omni' | 'qwen3-tts' | 'chatterbox-turbo' | 'cosyvoice' | 'pocket-tts' | 'resemble'
+  ttsProvider: string; // 'vllm-omni' | 'qwen3-tts' | 'chatterbox-turbo' | 'cosyvoice' | 'pocket-tts' | 'luxtts' | 'resemble'
   vllmOmniUrl: string;
   vllmOmniRefAudio: string;
   vllmOmniRefText: string;
   qwen3TtsUrl: string;
   chatterboxTurboUrl: string;
   cosyVoiceTtsUrl: string;
+  luxTtsUrl: string;
+  luxTtsSpeed: number;
+  luxTtsTShift: number;
   pocketTtsUrl: string;
   resembleApiKey: string;
   resembleModel: string;
@@ -119,6 +122,33 @@ export async function synthesizeWithPocketTTS(
   });
 }
 
+export async function synthesizeWithLuxTTS(
+  text: string,
+  url: string,
+  signal?: AbortSignal,
+  opts?: { temperature?: number; voice?: string; speed?: number; tShift?: number }
+): Promise<Response> {
+  const formData = new URLSearchParams();
+  formData.append('text', text);
+  if (opts?.speed != null) formData.append('speed', String(opts.speed));
+
+  // Expressiveness overrides config t_shift: map 0-1 range to 0.2-1.0
+  const effectiveTShift = opts?.temperature != null
+    ? 0.2 + (opts.temperature * 0.8)
+    : opts?.tShift;
+  if (effectiveTShift != null) formData.append('t_shift', String(effectiveTShift));
+
+  if (opts?.voice) formData.append('voice', opts.voice);
+
+  const providerTimeout = AbortSignal.timeout(30_000);
+  return fetch(`${url}/tts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: formData.toString(),
+    signal: signal ? AbortSignal.any([signal, providerTimeout]) : providerTimeout,
+  });
+}
+
 export async function synthesizeWithResemble(
   text: string,
   apiKey: string,
@@ -222,6 +252,21 @@ export async function synthesize(
     response = await synthesizeWithCosyVoice(text, cosyVoiceTtsUrl, signal);
     if (!response.ok && ttsFallback) {
       console.warn('[TTS] cosyvoice failed, falling back to pocket-tts');
+      response = await synthesizeWithPocketTTS(text, pocketTtsUrl, signal);
+      if (!response.ok) {
+        console.warn('[TTS] pocket-tts failed, falling back to Resemble');
+        response = await callResemble(signal);
+      }
+    }
+  } else if (ttsProvider === 'luxtts') {
+    response = await synthesizeWithLuxTTS(text, config.luxTtsUrl, signal, {
+      speed: config.luxTtsSpeed,
+      tShift: config.luxTtsTShift,
+      voice: voiceId,
+      temperature: opts?.temperature,
+    });
+    if (!response.ok && ttsFallback) {
+      console.warn('[TTS] luxtts failed, falling back to pocket-tts');
       response = await synthesizeWithPocketTTS(text, pocketTtsUrl, signal);
       if (!response.ok) {
         console.warn('[TTS] pocket-tts failed, falling back to Resemble');
