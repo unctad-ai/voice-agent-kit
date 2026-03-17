@@ -521,16 +521,30 @@ export function useVoiceAgent({
         }
         break;
       case 'error':
-        setTransientLLMError();
+        if (voiceWs.lastErrorCode === 'stt_error') {
+          // STT is down — reset to IDLE so UI isn't stuck on "Processing"
+          stateRef.current = 'IDLE';
+          setState('IDLE');
+          processingRef.current = false;
+          setVoiceError('stt_failed');
+        } else {
+          setTransientLLMError();
+        }
         break;
     }
-  }, [voiceWs.status, resetPcmSchedule, setTransientLLMError]);
+  }, [voiceWs.status, voiceWs.lastErrorCode, resetPcmSchedule, setTransientLLMError]);
 
-  // Reactively push clientState when route or registries change mid-conversation
+  // Reactively push clientState when route or registries change mid-conversation.
+  // Debounce to avoid flooding session.update on page load (each field registration
+  // triggers a re-render that changes fields.length).
+  const clientStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!voiceWs.isConnected) return;
-    const state = buildClientState();
-    voiceWs.sendSessionUpdate(state);
+    if (clientStateTimerRef.current) clearTimeout(clientStateTimerRef.current);
+    clientStateTimerRef.current = setTimeout(() => {
+      voiceWs.sendSessionUpdate(buildClientState());
+    }, 300);
+    return () => { if (clientStateTimerRef.current) clearTimeout(clientStateTimerRef.current); };
   }, [location.pathname, uiActions?.length, formRegistry?.fields?.length, voiceWs.isConnected, buildClientState, voiceWs]);
 
   // Update transcript and messages from WebSocket conversation items
