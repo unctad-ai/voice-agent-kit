@@ -57,6 +57,21 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toMatch(/NEVER say a form is complete without calling getFormSchema/);
   });
 
+  it('rule 4 keeps <internal> tags secret from user', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toMatch(/Never repeat text inside <internal> tags/);
+  });
+
+  it('rule 5 forbids fabrication — only tool result facts', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toMatch(/only state facts from tool results/);
+  });
+
+  it('rule 6 requires expanding currency codes for TTS', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toMatch(/expand currency codes into spoken words/);
+  });
+
   it('FORMS rule 7 forbids premature completion claims', () => {
     const prompt = buildSystemPrompt(stubConfig);
     expect(prompt).toMatch(/NEVER describe the outcome of an action before it executes/);
