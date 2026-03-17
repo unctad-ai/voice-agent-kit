@@ -21,18 +21,24 @@ export async function synthesizeWithVllmOmni(
   text: string,
   url: string,
   signal?: AbortSignal,
-  opts?: { voice?: string }
+  opts?: { refAudio?: string; refText?: string }
 ): Promise<Response> {
   const providerTimeout = AbortSignal.timeout(50_000);
+  const body: Record<string, unknown> = {
+    input: text,
+    stream: true,
+    response_format: 'pcm',
+  };
+  if (opts?.refAudio) {
+    body.task_type = 'Base';
+    body.ref_audio = opts.refAudio;
+    body.ref_text = opts.refText || '';
+    body.x_vector_only_mode = true;
+  }
   return fetch(`${url}/v1/audio/speech`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      input: text,
-      voice: opts?.voice || 'vivian',
-      stream: true,
-      response_format: 'pcm',
-    }),
+    body: JSON.stringify(body),
     signal: signal ? AbortSignal.any([signal, providerTimeout]) : providerTimeout,
   });
 }
@@ -174,7 +180,8 @@ export async function synthesize(
   if (ttsProvider === 'vllm-omni') {
     config.rawPcm = true;
     response = await synthesizeWithVllmOmni(text, vllmOmniUrl, signal, {
-      voice: voiceId || 'vivian',
+      refAudio: vllmOmniRefAudio || undefined,
+      refText: vllmOmniRefText || undefined,
     });
     if (!response.ok && ttsFallback) {
       console.warn('[TTS] vllm-omni failed, falling back to pocket-tts');
