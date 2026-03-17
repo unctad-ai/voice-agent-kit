@@ -400,17 +400,18 @@ export class VoicePipeline {
     }
 
     // Working copy of messages for this turn's tool loop.
-    // Use CoreMessage[] directly — conversation stores { role, content } objects
-    // which are already CoreMessage-compatible. No UIMessage conversion needed.
-    const limit = 20;
+    // Keep tool call/result messages in history so the model remembers what it
+    // did in prior turns (e.g. which fields it filled, which tools it called).
+    // Without these, the model loses context and asks "what would you like to do?"
+    // after every action instead of continuing proactively.
+    const limit = 40; // Higher limit to accommodate tool messages (~3 msgs per tool call)
     const trimmed = this.session.conversation.length > limit
       ? this.session.conversation.slice(-limit)
       : this.session.conversation;
-    // Filter to only user/assistant messages with string content — strip any
-    // tool call/result messages that may leak in from the client conversation.
-    // streamText expects clean { role: 'user'|'assistant', content: string }.
+    // Accept user, assistant (text or tool-call content), and tool messages.
+    // Only filter out malformed entries with no role.
     const cleaned = trimmed.filter(
-      (m: any) => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string'
+      (m: any) => m.role && (m.role === 'user' || m.role === 'assistant' || m.role === 'tool')
     );
     const messages = cleaned as ModelMessage[];
 
@@ -544,6 +545,12 @@ export class VoicePipeline {
       // Add tool results and continue the loop
       messages.push(...toolResults);
     }
+
+    // Persist this turn's messages (including tool calls/results) back to
+    // session.conversation so the next turn has full context of what happened.
+    // The client sends text-only conversation via session.update, but the server
+    // enriches it with tool call/result messages during each turn.
+    this.session.conversation = messages;
 
     return fullText;
   }
