@@ -77,6 +77,12 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toMatch(/expand currency codes into spoken words/);
   });
 
+  it('FORMS rule 7 requires UI_ACTIONS check between sections before asking for next section', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toMatch(/check UI_ACTIONS before asking for the next section/);
+    expect(prompt).toMatch(/Never ask for fields from a section you have not yet navigated to/);
+  });
+
   it('FORMS rule 8 forbids premature completion claims', () => {
     const prompt = buildSystemPrompt(stubConfig);
     expect(prompt).toMatch(/NEVER describe the outcome of an action before it executes/);
