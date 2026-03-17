@@ -48,7 +48,7 @@ GOODBYE: When the user says goodbye or "that is all", respond with a warm farewe
 
 export function buildSystemPrompt(config: SiteConfig, clientState?: ClientState): string {
   // Identity layer — from config
-  let prompt = `You are ${config.copilotName}, a friendly voice assistant for ${config.siteTitle}. ${config.systemPromptIntro} Your name is ${config.copilotName}. /no_think\n\n`;
+  let prompt = `You are ${config.copilotName}, a friendly voice assistant for ${config.siteTitle}. ${config.systemPromptIntro} Your name is ${config.copilotName}.\n\n`;
 
   // Base rules layer — package-owned
   prompt += BASE_RULES;

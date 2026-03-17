@@ -40,9 +40,9 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('switch-tab');
   });
 
-  it('includes /no_think directive in identity line', () => {
+  it('does not include /no_think — thinking is stripped by sanitizeForTTS instead', () => {
     const prompt = buildSystemPrompt(stubConfig);
-    expect(prompt).toContain('/no_think');
+    expect(prompt).not.toContain('/no_think');
   });
 
   it('FORMS section uses numbered sub-rules', () => {
