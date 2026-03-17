@@ -31,8 +31,8 @@ export function createVoiceWebSocketHandler(
     clients.add(ws);
     const sessionId = randomUUID();
 
-    // Build STT WebSocket URL from options
-    const sttBaseUrl = options.kyutaiSttUrl || 'http://localhost:8003';
+    // Build STT WebSocket URL from options (STT_URL preferred, KYUTAI_STT_URL for backward compat)
+    const sttBaseUrl = options.kyutaiSttUrl || process.env.STT_URL || process.env.KYUTAI_STT_URL || 'http://localhost:8003';
     const sttWsUrl = sttBaseUrl.replace(/^http/, 'ws') + '/ws/transcribe';
 
     const safeSend = (data: string) => {
