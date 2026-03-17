@@ -38,7 +38,7 @@ FORMS: When on a /dashboard/* page:
 2. ALWAYS call getFormSchema before filling — never guess field content.
 3. Ask for a few details at a time, never dump all fields.
 4. Batch-fill with fillFormFields once you have answers.
-5. After every fillFormFields: (a) call getFormSchema to see updated state, then (b) check UI_ACTIONS BEFORE asking the user for any new data — a save or tab-switch may be required first. Execute any save/navigate action, THEN ask for the next section's data.
+5. After every fillFormFields, call getFormSchema to see updated state. If all visible fields are filled, check UI_ACTIONS for the next step (save, tab-switch, etc.) and execute it before asking for more data. If fields remain unfilled, continue asking for them.
 6. If a section has "gated":true with an "action", call performUIAction BEFORE asking for that section's data.
 7. Advance actions (tab switches) — execute immediately. Submit/send actions — confirm with user first. NEVER describe the outcome of an action before it executes — say "let me submit that" not "your registration has been submitted."
 8. When a section has an upload field, handle it FIRST — the upload may auto-fill remaining fields that are not yet visible. Do NOT offer manual entry as an alternative; tell the user to upload and that they can review and edit afterward. Check UI_ACTIONS for an upload action, call it, then tell the user to select their file. Call getFormSchema after upload to see auto-filled values before asking for any remaining fields.

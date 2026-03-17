@@ -77,9 +77,9 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toMatch(/expand currency codes into spoken words/);
   });
 
-  it('FORMS rule 5 requires UI_ACTIONS check after fillFormFields before asking new data', () => {
+  it('FORMS rule 5 checks UI_ACTIONS only when all visible fields are filled', () => {
     const prompt = buildSystemPrompt(stubConfig);
-    expect(prompt).toMatch(/check UI_ACTIONS BEFORE asking the user for any new data/);
+    expect(prompt).toMatch(/If all visible fields are filled, check UI_ACTIONS/);
   });
 
   it('FORMS rule 7 forbids premature completion claims', () => {
