@@ -25,7 +25,7 @@ export function attachVoicePipeline(
         'qwen3-tts': options.qwen3TtsUrl,
         'chatterbox-turbo': options.chatterboxTurboUrl,
         'cosyvoice': options.cosyVoiceTtsUrl,
-      } as Record<string, string | undefined>)[options.ttsProvider ?? ''] ?? options.qwen3TtsUrl,
+      } as Record<string, string | undefined>)[options.ttsProvider ?? ''],
     });
     app.use('/api/agent', router);
   }
