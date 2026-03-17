@@ -74,7 +74,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           }
         }
         const result = await executeUIAction(actionId, params);
-        if (!result) return actionId.split('.').pop() || actionId;
+        if (!result) return `Action "${actionId}" not found or did not execute. Check UI_ACTIONS for valid action IDs on this page.`;
         const firstSentence = result.split(/\.(?:\s|$)/)[0];
         return firstSentence || result;
       }
