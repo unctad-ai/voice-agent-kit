@@ -52,14 +52,14 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('3.');
   });
 
-  it('FORMS rule 1 requires UI_ACTIONS check after startApplication before getFormSchema', () => {
+  it('FORMS rule 4 calls performUIAction when getFormSchema returns no fillable fields or section is gated', () => {
     const prompt = buildSystemPrompt(stubConfig);
-    expect(prompt).toMatch(/After startApplication opens a form, check UI_ACTIONS FIRST/);
+    expect(prompt).toMatch(/getFormSchema returns no fillable fields.*call performUIAction/s);
   });
 
   it('FORMS includes critical "never say complete" guard rule', () => {
     const prompt = buildSystemPrompt(stubConfig);
-    expect(prompt).toMatch(/NEVER say a form is complete without calling getFormSchema/);
+    expect(prompt).toMatch(/Never say a form is complete without calling getFormSchema/);
   });
 
   it('rule 4 keeps <internal> tags secret from user', () => {
@@ -77,19 +77,25 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toMatch(/expand currency codes into spoken words/);
   });
 
-  it('FORMS rule 5 checks UI_ACTIONS only when all visible fields are filled', () => {
+  it('FORMS rule 3 checks UI_ACTIONS when no unfilled required fields remain', () => {
     const prompt = buildSystemPrompt(stubConfig);
-    expect(prompt).toMatch(/If all visible fields are filled, check UI_ACTIONS/);
+    expect(prompt).toMatch(/no unfilled required fields.*check UI_ACTIONS/s);
   });
 
-  it('FORMS rule 7 forbids premature completion claims', () => {
+  it('FORMS rule 5 requires tab param in paramsJson for tab switches', () => {
     const prompt = buildSystemPrompt(stubConfig);
-    expect(prompt).toMatch(/NEVER describe the outcome of an action before it executes/);
+    expect(prompt).toMatch(/Tab switches require a tab param/);
+    expect(prompt).toMatch(/target tab name in paramsJson/);
   });
 
-  it('FORMS rule 8 enforces upload-first and forbids offering manual entry', () => {
+  it('FORMS rule 5 forbids premature completion claims', () => {
     const prompt = buildSystemPrompt(stubConfig);
-    expect(prompt).toMatch(/Do NOT offer manual entry as an alternative/);
+    expect(prompt).toMatch(/Never describe an outcome before the action executes/);
+  });
+
+  it('FORMS rule 6 enforces upload-first and forbids offering manual entry', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toMatch(/Do not offer manual text entry as an alternative/);
   });
 
   it('SILENT rule comes after FORMS section', () => {
