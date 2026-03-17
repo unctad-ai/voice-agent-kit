@@ -79,7 +79,7 @@ export function createBuiltinTools(config: SiteConfig) {
 
   const serverTools = {
     searchServices: tool({
-      description: `Search ${config.siteTitle} services by keyword. Supports synonyms. When the search returns a single clear match, immediately follow up with viewService to show the page.`,
+      description: `Search ${config.siteTitle} services by keyword. Supports synonyms and fuzzy matching.`,
       inputSchema: z.object({ query: z.string().describe('Search query') }),
       execute: async ({ query }) => {
         const results = fuzzySearch(query, config.services, synonymMap);
