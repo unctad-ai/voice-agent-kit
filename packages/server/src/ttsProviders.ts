@@ -1,5 +1,8 @@
 export interface TtsProviderConfig {
-  ttsProvider: string; // 'qwen3-tts' | 'chatterbox-turbo' | 'cosyvoice' | 'pocket-tts' | 'resemble'
+  ttsProvider: string; // 'vllm-omni' | 'qwen3-tts' | 'chatterbox-turbo' | 'cosyvoice' | 'pocket-tts' | 'resemble'
+  vllmOmniUrl: string;
+  vllmOmniRefAudio: string;
+  vllmOmniRefText: string;
   qwen3TtsUrl: string;
   chatterboxTurboUrl: string;
   cosyVoiceTtsUrl: string;
@@ -10,6 +13,30 @@ export interface TtsProviderConfig {
   getActiveVoiceId?: () => string;
   /** When true, fall back to pocket-tts then Resemble if primary TTS fails. Default: false */
   ttsFallback: boolean;
+  /** True when the TTS provider returns raw PCM (no WAV header). Set automatically. */
+  rawPcm?: boolean;
+}
+
+export async function synthesizeWithVllmOmni(
+  text: string,
+  url: string,
+  signal?: AbortSignal,
+  opts?: { refAudio?: string; refText?: string }
+): Promise<Response> {
+  const providerTimeout = AbortSignal.timeout(50_000);
+  return fetch(`${url}/v1/audio/speech`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      input: text,
+      task_type: 'Base',
+      ref_audio: opts?.refAudio,
+      ref_text: opts?.refText,
+      stream: true,
+      response_format: 'pcm',
+    }),
+    signal: signal ? AbortSignal.any([signal, providerTimeout]) : providerTimeout,
+  });
 }
 
 export async function synthesizeWithQwen3TTS(
@@ -124,6 +151,9 @@ export async function synthesize(
 ): Promise<Response> {
   const {
     ttsProvider,
+    vllmOmniUrl,
+    vllmOmniRefAudio,
+    vllmOmniRefText,
     qwen3TtsUrl,
     chatterboxTurboUrl,
     cosyVoiceTtsUrl,
@@ -143,7 +173,22 @@ export async function synthesize(
 
   let response: Response;
 
-  if (ttsProvider === 'qwen3-tts') {
+  if (ttsProvider === 'vllm-omni') {
+    config.rawPcm = true;
+    response = await synthesizeWithVllmOmni(text, vllmOmniUrl, signal, {
+      refAudio: vllmOmniRefAudio,
+      refText: vllmOmniRefText,
+    });
+    if (!response.ok && ttsFallback) {
+      console.warn('[TTS] vllm-omni failed, falling back to pocket-tts');
+      config.rawPcm = false;
+      response = await synthesizeWithPocketTTS(text, pocketTtsUrl, signal);
+      if (!response.ok) {
+        console.warn('[TTS] pocket-tts failed, falling back to Resemble');
+        response = await callResemble(signal);
+      }
+    }
+  } else if (ttsProvider === 'qwen3-tts') {
     response = await synthesizeWithQwen3TTS(text, qwen3TtsUrl, signal, { temperature: opts?.temperature, voice: voiceId });
     // Retry once on 503 (GPU lock may be releasing via watchdog)
     if (response.status === 503 && !signal?.aborted) {

@@ -613,15 +613,16 @@ export class VoicePipeline {
 
         let chunk = Buffer.from(value);
 
-        // Strip WAV header from the first chunk
-        if (isFirstChunk) {
+        // Strip WAV header from the first chunk (not needed for raw PCM providers)
+        if (isFirstChunk && !ttsConfig.rawPcm) {
           isFirstChunk = false;
           if (chunk.length > WAV_HEADER_SIZE) {
             chunk = chunk.subarray(WAV_HEADER_SIZE);
           } else {
-            // First chunk is smaller than or equal to WAV header — skip entirely
             continue;
           }
+        } else if (isFirstChunk) {
+          isFirstChunk = false;
         }
 
         if (chunk.length > 0) {

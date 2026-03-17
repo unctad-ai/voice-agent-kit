@@ -8,6 +8,7 @@ import { parseEvent, createEvent, isAudioFrame } from './protocol.js';
 import { VoicePipeline } from './voicePipeline.js';
 import { SttStreamClient } from './sttStreamClient.js';
 import type { VoiceServerOptions } from './types.js';
+import type { TtsProviderConfig } from './ttsProviders.js';
 
 
 // Read kit version once at module load
@@ -64,8 +65,11 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
     });
 
     // Build TTS config from options
-    const ttsConfig = {
+    const ttsConfig: TtsProviderConfig = {
       ttsProvider: options.ttsProvider || 'qwen3-tts',
+      vllmOmniUrl: options.vllmOmniUrl || 'http://localhost:8091',
+      vllmOmniRefAudio: options.vllmOmniRefAudio || '',
+      vllmOmniRefText: options.vllmOmniRefText || '',
       qwen3TtsUrl: options.qwen3TtsUrl || 'http://localhost:8005',
       chatterboxTurboUrl: options.chatterboxTurboUrl || 'http://localhost:8004',
       cosyVoiceTtsUrl: options.cosyVoiceTtsUrl || 'http://localhost:8004',

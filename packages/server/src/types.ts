@@ -7,6 +7,9 @@ export interface VoiceServerOptions {
   sttProvider?: string;
   kyutaiSttUrl?: string;
   ttsProvider?: string;
+  vllmOmniUrl?: string;
+  vllmOmniRefAudio?: string;
+  vllmOmniRefText?: string;
   qwen3TtsUrl?: string;
   chatterboxTurboUrl?: string;
   cosyVoiceTtsUrl?: string;
