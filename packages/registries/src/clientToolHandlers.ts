@@ -13,6 +13,13 @@ function resolveServiceTitle(service: Record<string, unknown>): string {
   return (service.title as string) || (service.name as string) || (service.id as string);
 }
 
+/** Check if a form field value counts as "filled" (not empty/null/undefined). */
+function isFilled(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'string') return value !== '';
+  return true; // booleans, numbers, arrays are valid filled values
+}
+
 interface ClientToolDeps {
   navigate: (path: string) => void;
   executeUIAction: (
@@ -89,8 +96,16 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           value: f.value ?? null,
           ...(f.options?.length ? { opts: f.options } : {}),
         });
+        const allFilled = fields.every(f => isFilled(f.value));
+        const hint = allFilled
+          ? 'All visible fields are filled. Check UI_ACTIONS for the next step.'
+          : undefined;
+
         const hasGroups = fields.some((f) => f.group);
-        if (!hasGroups) return JSON.stringify(fields.map(fieldToSchema));
+        if (!hasGroups) {
+          if (hint) return JSON.stringify({ fields: fields.map(fieldToSchema), hint });
+          return JSON.stringify(fields.map(fieldToSchema));
+        }
         const sectionMap = new Map<string, FormField[]>();
         for (const f of fields) {
           const key = f.group || '_ungrouped';
@@ -98,12 +113,14 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           if (arr) arr.push(f);
           else sectionMap.set(key, [f]);
         }
-        return JSON.stringify({
+        const result: Record<string, unknown> = {
           sections: Array.from(sectionMap.entries()).map(([section, sectionFields]) => ({
             section: section === '_ungrouped' ? 'Other' : section,
             fields: sectionFields.map(fieldToSchema),
           })),
-        });
+        };
+        if (hint) result.hint = hint;
+        return JSON.stringify(result);
       }
       case 'fillFormFields': {
         const fieldEntries = args.fields as Array<{ fieldId: string; value: string }>;
