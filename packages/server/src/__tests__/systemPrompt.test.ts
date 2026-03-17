@@ -52,6 +52,11 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('3.');
   });
 
+  it('FORMS rule 1 requires UI_ACTIONS check after startApplication before getFormSchema', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toMatch(/After startApplication opens a form, check UI_ACTIONS FIRST/);
+  });
+
   it('FORMS includes critical "never say complete" guard rule', () => {
     const prompt = buildSystemPrompt(stubConfig);
     expect(prompt).toMatch(/NEVER say a form is complete without calling getFormSchema/);
@@ -72,12 +77,12 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toMatch(/expand currency codes into spoken words/);
   });
 
-  it('FORMS rule 7 forbids premature completion claims', () => {
+  it('FORMS rule 8 forbids premature completion claims', () => {
     const prompt = buildSystemPrompt(stubConfig);
     expect(prompt).toMatch(/NEVER describe the outcome of an action before it executes/);
   });
 
-  it('FORMS rule 8 enforces upload-first ordering', () => {
+  it('FORMS rule 9 enforces upload-first ordering', () => {
     const prompt = buildSystemPrompt(stubConfig);
     expect(prompt).toMatch(/handle uploads FIRST/);
   });
