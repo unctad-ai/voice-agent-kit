@@ -70,8 +70,8 @@ const ERROR_CONFIG: Record<
   },
   stt_failed: {
     icon: Mic,
-    title: "Didn't catch that",
-    severity: 'info',
+    title: 'Voice input unavailable — use text',
+    severity: 'warning',
   },
   tts_failed: {
     icon: AlertTriangle,

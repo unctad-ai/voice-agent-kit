@@ -107,6 +107,7 @@ export class VoiceWebSocketManager {
     this.ws.onclose = () => {
       this.state = WsState.CLOSED;
       this.ws = null;
+      this._emit('connection.lost', {});
       this._scheduleReconnect();
     };
 
@@ -147,6 +148,14 @@ export class VoiceWebSocketManager {
   sendEvent(type: string, payload?: Record<string, unknown>): void {
     if (this.state !== WsState.OPEN || !this.ws) return;
     this.ws.send(JSON.stringify({ type, ...payload }));
+  }
+
+  /** Dispatch a synthetic event to registered handlers. */
+  private _emit(type: string, payload: Record<string, unknown>): void {
+    const handlers = this.eventHandlers.get(type);
+    if (handlers) {
+      for (const handler of handlers) handler({ type, ...payload });
+    }
   }
 
   /**

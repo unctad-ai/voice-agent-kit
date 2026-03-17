@@ -49,6 +49,7 @@ export interface UseVoiceWebSocketOptions {
 
 export interface UseVoiceWebSocketReturn {
   status: VoiceWebSocketStatus;
+  lastErrorCode: string | null;
   messages: VoiceWebSocketMessage[];
   isConnected: boolean;
   connect: (conversation?: unknown[]) => void;
@@ -77,6 +78,7 @@ export function useVoiceWebSocket({
   onTimings,
 }: UseVoiceWebSocketOptions): UseVoiceWebSocketReturn {
   const [status, setStatus] = useState<VoiceWebSocketStatus>('idle');
+  const [lastErrorCode, setLastErrorCode] = useState<string | null>(null);
   const [messages, setMessages] = useState<VoiceWebSocketMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [sttResult, setSttResult] = useState<SttResult | null>(null);
@@ -106,6 +108,7 @@ export function useVoiceWebSocket({
 
       manager.onEvent('session.created', () => {
         setIsConnected(true);
+        setLastErrorCode(null);
       });
 
       manager.onEvent('status', (event: StatusEvent) => {
@@ -176,7 +179,13 @@ export function useVoiceWebSocket({
 
       manager.onEvent('error', (event: VoiceErrorEvent) => {
         console.error('[useVoiceWebSocket] Server error:', event.code, event.message);
+        setLastErrorCode(event.code);
         setStatus('error');
+      });
+
+      manager.onEvent('connection.lost', () => {
+        setIsConnected(false);
+        setStatus('idle');
       });
 
       manager.onEvent('timings', (event: TimingsEvent) => {
@@ -237,6 +246,7 @@ export function useVoiceWebSocket({
 
   return {
     status,
+    lastErrorCode,
     messages,
     isConnected,
     connect,

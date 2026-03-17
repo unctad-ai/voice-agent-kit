@@ -368,7 +368,7 @@ function ComposerBar({
   switchToTextRef?: React.RefObject<(() => void) | null>;
 }) {
   const { colors } = useSiteConfig();
-  const [mode, setMode] = useState<'voice' | 'text'>('voice');
+  const [mode, setMode] = useState<'voice' | 'text'>(disabled ? 'text' : 'voice');
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -376,6 +376,11 @@ function ComposerBar({
   useEffect(() => {
     if (switchToTextRef) (switchToTextRef as React.MutableRefObject<(() => void) | null>).current = () => setMode('text');
   }, [switchToTextRef]);
+
+  // When mic is disabled (e.g. STT down), force text mode
+  useEffect(() => {
+    if (disabled) setMode('text');
+  }, [disabled]);
 
   useEffect(() => {
     if (mode === 'text') {
@@ -388,46 +393,15 @@ function ComposerBar({
     if (!trimmed) return;
     onTextSubmit(trimmed);
     setText('');
-    setMode('voice');
+    if (!disabled) setMode('voice');
   };
 
   const handleCancel = () => {
     setText('');
+    if (disabled) return; // Can't switch back to voice when mic is disabled
     setMode('voice');
     onMicToggle();
   };
-
-  if (disabled) {
-    return (
-      <div
-        className="flex items-center gap-3 shrink-0"
-        style={{
-          height: 56,
-          padding: '10px 14px',
-          borderTop: '1px solid rgba(0,0,0,0.08)',
-        }}
-      >
-        <div
-          className="shrink-0 rounded-full flex items-center justify-center"
-          style={{
-            width: 36,
-            height: 36,
-            backgroundColor: 'rgba(0,0,0,0.04)',
-            color: 'rgba(0,0,0,0.2)',
-            opacity: 0.5,
-          }}
-        >
-          <Mic style={{ width: 18, height: 18 }} />
-        </div>
-        <span
-          className="italic"
-          style={{ fontSize: '13px', color: 'rgba(0,0,0,0.3)' }}
-        >
-          Service unavailable
-        </span>
-      </div>
-    );
-  }
 
   return (
     <div
@@ -598,22 +572,24 @@ function ComposerBar({
               )}
             </AnimatePresence>
 
-            <motion.button
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.92 }}
-              onClick={handleCancel}
-              className="shrink-0 rounded-full flex items-center justify-center cursor-pointer"
-              style={{
-                width: 44,
-                height: 44,
-                backgroundColor: 'rgba(0,0,0,0.05)',
-                color: 'rgba(0,0,0,0.4)',
-              }}
-              aria-label="Back to voice mode"
-              data-testid="voice-agent-voice-mode"
-            >
-              <Mic style={{ width: 18, height: 18 }} />
-            </motion.button>
+            {!disabled && (
+              <motion.button
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.92 }}
+                onClick={handleCancel}
+                className="shrink-0 rounded-full flex items-center justify-center cursor-pointer"
+                style={{
+                  width: 44,
+                  height: 44,
+                  backgroundColor: 'rgba(0,0,0,0.05)',
+                  color: 'rgba(0,0,0,0.4)',
+                }}
+                aria-label="Back to voice mode"
+                data-testid="voice-agent-voice-mode"
+              >
+                <Mic style={{ width: 18, height: 18 }} />
+              </motion.button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -744,7 +720,7 @@ function ExpandedContent({
       </div>
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ ...SPRING_MICRO, delay: 0.2 }} className="shrink-0">
-        <ComposerBar voiceState={voiceState} isListening={isListening} micPaused={micPaused} onTextSubmit={onTextSubmit} onMicToggle={onMicToggle} disabled={voiceError === 'network_error'} switchToTextRef={switchToTextRef} />
+        <ComposerBar voiceState={voiceState} isListening={isListening} micPaused={micPaused} onTextSubmit={onTextSubmit} onMicToggle={onMicToggle} disabled={voiceError === 'network_error' || voiceError === 'stt_failed'} switchToTextRef={switchToTextRef} />
       </motion.div>
     </div>
   );

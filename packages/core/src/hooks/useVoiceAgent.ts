@@ -9,6 +9,7 @@ import type { VoiceState, VoiceMessage } from '../types/voice';
 import type { VoiceErrorType } from '../types/errors';
 import type { VoiceSettings } from '../types/settings';
 import type { ClientState, TimingsEvent } from '../protocol/events';
+import { summarizeToolResult } from '../utils/summarizeToolResult';
 import {
   BARGE_IN,
   GUARD_DELAY_MS,
@@ -415,16 +416,12 @@ export function useVoiceAgent({
         await new Promise((r) => requestAnimationFrame(r));
       }
 
-      // Update the action badge with the result snippet
+      // Update the action badge with a human-readable result snippet
       if (badgeConfig && result) {
-        let resultSnippet: string = result;
-        if (resultSnippet.length > 40) {
-          const truncated = resultSnippet.slice(0, 40);
-          const lastSpace = truncated.lastIndexOf(' ');
-          resultSnippet =
-            (lastSpace > 15 ? truncated.slice(0, lastSpace) : truncated).trimEnd() + '\u2026';
-        }
-        const label = `${badgeConfig.label} \u00b7 ${resultSnippet}`;
+        const resultSnippet = summarizeToolResult(name, result);
+        const label = resultSnippet
+          ? `${badgeConfig.label} \u00b7 ${resultSnippet}`
+          : badgeConfig.label;
         setMessages((prev) => {
           let idx = -1;
           for (let i = prev.length - 1; i >= 0; i--) {
@@ -497,6 +494,16 @@ export function useVoiceAgent({
   // Track WebSocket status -> voice state mapping
   useEffect(() => {
     switch (voiceWs.status) {
+      case 'idle':
+        // WS dropped or reset — unstick from PROCESSING / AI_SPEAKING
+        if (stateRef.current === 'PROCESSING' || stateRef.current === 'AI_SPEAKING') {
+          stopAudio();
+          textPipelineRef.current = false;
+          stateRef.current = 'IDLE';
+          setState('IDLE');
+          processingRef.current = false;
+        }
+        break;
       case 'listening':
         // Server returned to listening (e.g. after Filtered/empty STT result).
         // Transition client back so it doesn't get stuck in PROCESSING.
@@ -528,11 +535,24 @@ export function useVoiceAgent({
           processingRef.current = false;
           setVoiceError('stt_failed');
         } else {
+          // Reset processing guard so text input isn't blocked
+          if (stateRef.current === 'PROCESSING') {
+            stateRef.current = 'IDLE';
+            setState('IDLE');
+            processingRef.current = false;
+          }
           setTransientLLMError();
         }
         break;
     }
-  }, [voiceWs.status, voiceWs.lastErrorCode, resetPcmSchedule, setTransientLLMError]);
+  }, [voiceWs.status, voiceWs.lastErrorCode, resetPcmSchedule, stopAudio, setTransientLLMError]);
+
+  // Clear stt_failed when the WS reconnects and the error code resets
+  useEffect(() => {
+    if (voiceWs.lastErrorCode === null) {
+      setVoiceError((prev) => (prev === 'stt_failed' ? null : prev));
+    }
+  }, [voiceWs.lastErrorCode]);
 
   // Reactively push clientState when route or registries change mid-conversation.
   // Debounce to avoid flooding session.update on page load (each field registration
