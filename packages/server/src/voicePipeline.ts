@@ -558,10 +558,10 @@ export class VoicePipeline {
       // Add tool results and continue the loop
       messages.push(...toolResults);
 
-      // Auto-refresh form schema after fillFormFields — progressive forms reveal
-      // new sections after each fill, and the LLM must see the updated state to
-      // guide the user to the next field. Without this, the LLM guesses what's
-      // visible instead of checking, leading to wrong field assumptions.
+      // Auto-refresh form schema after fillFormFields or performUIAction on
+      // dashboard pages. Progressive forms reveal new sections after fills, and
+      // gated sections become available after performUIAction. The LLM must see
+      // the updated state to guide the user correctly.
       const didFillForm = toolCalls.some((tc) => tc.toolName === 'fillFormFields');
       const didUIAction = toolCalls.some((tc) => tc.toolName === 'performUIAction');
       const isFormPage = this.session.clientState?.route?.startsWith('/dashboard');
@@ -581,7 +581,7 @@ export class VoicePipeline {
         const schemaResult = await this.waitForClientToolResult(schemaCallId, signal);
         const schemaJson = JSON.stringify(schemaResult);
         console.log(
-          '[voice-pipeline] Auto getFormSchema after fillFormFields:',
+          '[voice-pipeline] Auto getFormSchema after form action:',
           schemaJson.slice(0, 200)
         );
         console.log('[voice-pipeline] Auto schema full length:', schemaJson.length, 'chars');

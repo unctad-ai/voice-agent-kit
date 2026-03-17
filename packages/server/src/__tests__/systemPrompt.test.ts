@@ -52,6 +52,11 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('3.');
   });
 
+  it('FORMS includes critical "never say complete" guard rule', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toMatch(/NEVER say a form is complete without calling getFormSchema/);
+  });
+
   it('SILENT rule comes after FORMS section', () => {
     const prompt = buildSystemPrompt(stubConfig);
     const formsIndex = prompt.indexOf('FORMS:');

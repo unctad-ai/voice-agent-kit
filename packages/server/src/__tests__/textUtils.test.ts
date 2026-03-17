@@ -53,6 +53,6 @@ describe('sanitizeForTTS', () => {
     const input = 'Done. <internal>\nCheck UI_ACTIONS\nfor next step.\n</internal> Great.';
     const result = sanitizeForTTS(input);
     expect(result).not.toContain('UI_ACTIONS');
-    expect(result).toContain('Great');
+    expect(result).toBe('Done. Great.');
   });
 });

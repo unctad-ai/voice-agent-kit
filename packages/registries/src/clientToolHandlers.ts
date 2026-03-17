@@ -137,6 +137,8 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           })),
         ];
         const result: Record<string, unknown> = { sections };
+        // Gated-section hint takes priority: if gated sections exist, the form
+        // cannot truly be "all filled" — the gated fields aren't even visible yet.
         if (gatedSections.length > 0) {
           const actions = gatedSections.map(s => `${s.action} (opens ${s.section})`).join(', ');
           result.hint = `FIRST call performUIAction for: ${actions}. Then call getFormSchema again.`;
