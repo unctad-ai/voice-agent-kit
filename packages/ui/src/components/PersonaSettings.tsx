@@ -83,7 +83,7 @@ function PersonaSettingsInner() {
             activeVoiceId={data?.activeVoiceId ?? ''}
             onUpload={(f, n) => uploadVoice(f, n, adminPassword)}
             onDelete={(id) => deleteVoice(id, adminPassword)}
-            onSelect={setActiveVoice}
+            onSelect={(id) => setActiveVoice(id, adminPassword)}
             onPreview={previewVoice}
             primaryColor={config.colors.primary}
           />
