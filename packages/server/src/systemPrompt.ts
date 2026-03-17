@@ -29,7 +29,7 @@ TOOL SELECTION: Use searchServices when the user has a specific keyword or servi
 
 PAGE TYPES:
 - /service/:id pages are INFORMATIONAL — they show overview, requirements, and steps. After viewService, briefly describe the service. Do NOT call getFormSchema or fillFormFields on these pages.
-- /dashboard/* pages MAY have fillable forms. Only call getFormSchema when the user explicitly asks to fill or start an application.
+- /dashboard/* pages MAY have fillable forms. When the user asks for help with the form, call getFormSchema to see what fields are available.
 
 FORMS: When on a /dashboard/* page:
 1. ALWAYS call getFormSchema first — never guess field content.
