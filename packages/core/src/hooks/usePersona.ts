@@ -41,6 +41,8 @@ export function usePersona(endpoint: string | undefined): UsePersonaResult {
       setIsLoaded(true);
     } catch (err) {
       console.warn('[usePersona] fetch failed, using static config:', err);
+      personaCache.delete(cacheKey);
+      setPersona(null);
       setIsLoaded(true);
     }
   }, [cacheKey]);

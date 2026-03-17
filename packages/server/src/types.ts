@@ -21,6 +21,8 @@ export interface VoiceServerOptions {
   resembleModel?: string;
   resembleVoiceUuid?: string;
   personaDir?: string;
+  /** Callback to get the active voice ID from persona store. Set automatically by attachVoicePipeline. */
+  getActiveVoiceId?: () => string;
   /** When true, fall back to alternate TTS providers if primary fails. Default: false */
   ttsFallback?: boolean;
 }

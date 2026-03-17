@@ -80,6 +80,7 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
       resembleApiKey: options.resembleApiKey || '',
       resembleModel: options.resembleModel || '',
       resembleVoiceUuid: options.resembleVoiceUuid || '',
+      getActiveVoiceId: options.getActiveVoiceId,
       ttsFallback: options.ttsFallback ?? false,
     };
 

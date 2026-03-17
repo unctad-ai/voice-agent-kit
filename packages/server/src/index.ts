@@ -2,6 +2,7 @@ import type { Server as HttpServer } from 'http';
 import type { Express } from 'express';
 import { createVoiceWebSocketHandler } from './createVoiceWebSocketHandler.js';
 import { createPersonaRoutes } from './createPersonaRoutes.js';
+import { PersonaStore } from './personaStore.js';
 
 export type { VoiceServerOptions } from './types.js';
 import type { VoiceServerOptions } from './types.js';
@@ -15,17 +16,27 @@ export function attachVoicePipeline(
   options: VoiceServerOptions,
   app?: Express,
 ): void {
-  createVoiceWebSocketHandler(server, options);
+  // Create persona store first so WebSocket handler can read activeVoiceId
+  let personaStore: PersonaStore | undefined;
+  if (options.personaDir) {
+    personaStore = new PersonaStore(options.personaDir);
+  }
 
-  if (options.personaDir && app) {
+  createVoiceWebSocketHandler(server, {
+    ...options,
+    getActiveVoiceId: personaStore ? () => personaStore!.getActiveVoiceId() : undefined,
+  });
+
+  if (personaStore && app) {
     const { router } = createPersonaRoutes({
-      personaDir: options.personaDir,
+      personaDir: options.personaDir!,
       ttsUpstreamUrl: ({
-        'luxtts': options.luxTtsUrl,
-        'qwen3-tts': options.qwen3TtsUrl,
-        'chatterbox-turbo': options.chatterboxTurboUrl,
-        'cosyvoice': options.cosyVoiceTtsUrl,
-      } as Record<string, string | undefined>)[options.ttsProvider ?? ''],
+        'luxtts': options.luxTtsUrl ?? process.env.LUXTTS_URL,
+        'qwen3-tts': options.qwen3TtsUrl ?? process.env.QWEN3_TTS_URL,
+        'chatterbox-turbo': options.chatterboxTurboUrl ?? process.env.CHATTERBOX_TURBO_URL,
+        'cosyvoice': options.cosyVoiceTtsUrl ?? process.env.COSYVOICE_TTS_URL,
+      } as Record<string, string | undefined>)[options.ttsProvider ?? process.env.TTS_PROVIDER ?? ''],
+      store: personaStore,
     });
     app.use('/api/agent', router);
   }

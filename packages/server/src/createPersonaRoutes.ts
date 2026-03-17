@@ -8,12 +8,33 @@ import { PersonaStore } from './personaStore.js';
 export interface PersonaRoutesOptions {
   personaDir: string;
   ttsUpstreamUrl?: string;
+  /** Reuse an existing PersonaStore instead of creating a new one. */
+  store?: PersonaStore;
 }
 
 export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Router; store: PersonaStore } {
   const router = Router();
-  const store = new PersonaStore(options.personaDir);
+  const store = options.store ?? new PersonaStore(options.personaDir);
   const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
+
+  // Sync local voice list with TTS server on startup — remove stale entries
+  if (options.ttsUpstreamUrl) {
+    const url = options.ttsUpstreamUrl;
+    fetch(`${url}/voices`).then(r => r.json()).then(async (res: { voices: string[] }) => {
+      const remote = new Set(res.voices);
+      const data = store.get();
+      const stale = data.voices.filter(v => !remote.has(v.id));
+      for (const v of stale) {
+        console.log(`[Persona] removing stale voice: ${v.id} (not on TTS server)`);
+        const wavPath = path.join(store.getVoicesDir(), v.filename);
+        if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+        await store.removeVoice(v.id);
+      }
+      if (stale.length) console.log(`[Persona] synced voices with TTS server (removed ${stale.length} stale)`);
+    }).catch(err => {
+      console.warn('[Persona] TTS voice sync failed:', err.message);
+    });
+  }
 
   // GET /persona — avatar inlined as data URI to avoid auth issues with <img src>
   router.get('/persona', (_req, res) => {
