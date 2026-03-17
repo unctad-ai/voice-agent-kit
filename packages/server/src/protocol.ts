@@ -5,6 +5,13 @@ export interface SessionUpdateEvent {
   conversation: unknown[];
   system?: string;
   voice?: string;
+  clientState?: {
+    route?: string;
+    currentService?: { id: string; title: string; category: string } | null;
+    categories?: Array<{ category: string; count: number }>;
+    uiActions?: Array<{ id: string; description: string }>;
+    formStatus?: { fieldCount: number; groups: string[] } | null;
+  };
 }
 
 export interface InputAudioCommitEvent {

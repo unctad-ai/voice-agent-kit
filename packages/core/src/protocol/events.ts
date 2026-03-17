@@ -5,11 +5,20 @@
 
 // ---- Client -> Server Events ------------------------------------------------
 
+export interface ClientState {
+  route?: string;
+  currentService?: { id: string; title: string; category: string } | null;
+  categories?: Array<{ category: string; count: number }>;
+  uiActions?: Array<{ id: string; description: string }>;
+  formStatus?: { fieldCount: number; groups: string[] } | null;
+}
+
 export interface SessionUpdateEvent {
   type: 'session.update';
   conversation: unknown[];
   system?: string;
   voice?: string;
+  clientState?: ClientState;
 }
 
 export interface InputAudioCommitEvent {

@@ -8,7 +8,7 @@ import { useSiteConfig } from '../contexts/SiteConfigContext';
 import type { VoiceState, VoiceMessage } from '../types/voice';
 import type { VoiceErrorType } from '../types/errors';
 import type { VoiceSettings } from '../types/settings';
-import type { TimingsEvent } from '../protocol/events';
+import type { ClientState, TimingsEvent } from '../protocol/events';
 import {
   BARGE_IN,
   GUARD_DELAY_MS,
@@ -264,6 +264,35 @@ export function useVoiceAgent({
     config,
   });
 
+  // --- Build clientState for server context ---
+  const buildClientState = useCallback((): ClientState => {
+    const route = location.pathname;
+
+    // Find current service from route
+    let currentService: ClientState['currentService'] = null;
+    if (config.services) {
+      const svc = config.services.find(s =>
+        route.includes(s.id)
+      );
+      if (svc) currentService = { id: svc.id, title: svc.title, category: svc.category };
+    }
+
+    // Get UI actions (id + description only, no params)
+    const uiActionsList = uiActions.map(a => ({ id: a.id, description: a.description }));
+
+    // Get form status (metadata only, not field values)
+    const fields = formRegistry.fields;
+    const groups = [...new Set(fields.map(f => f.group).filter((g): g is string => Boolean(g)))];
+    const formStatus = fields.length > 0 ? { fieldCount: fields.length, groups } : null;
+
+    // Categories from config
+    const categories = config.categories
+      ? config.categories.map(c => ({ category: c.title, count: c.services.length }))
+      : undefined;
+
+    return { route, currentService, uiActions: uiActionsList, formStatus, categories };
+  }, [location.pathname, config.services, config.categories, uiActions, formRegistry.fields]);
+
   const CLIENT_TOOLS = new Set([
     'navigateTo',
     'viewService',
@@ -333,9 +362,16 @@ export function useVoiceAgent({
   // --- WebSocket voice pipeline ---
   const wsUrl = useRef(buildWebSocketUrl()).current;
 
+  const clientStateRef = useRef<ClientState>(buildClientState());
+  // Keep ref in sync — used by commitAudio to send fresh state
+  useEffect(() => {
+    clientStateRef.current = buildClientState();
+  }, [buildClientState]);
+
   const voiceWs = useVoiceWebSocket({
     url: wsUrl,
     siteConfig: config,
+    clientState: clientStateRef.current,
     voiceSettings: {
       ttsEnabled: settings.ttsEnabled,
       expressiveness: settings.expressiveness,
@@ -490,6 +526,13 @@ export function useVoiceAgent({
     }
   }, [voiceWs.status, resetPcmSchedule, setTransientLLMError]);
 
+  // Reactively push clientState when route or registries change mid-conversation
+  useEffect(() => {
+    if (!voiceWs.isConnected) return;
+    const state = buildClientState();
+    voiceWs.sendSessionUpdate(state);
+  }, [location.pathname, uiActions.length, formRegistry.fields.length, voiceWs.isConnected, buildClientState, voiceWs]);
+
   // Update transcript and messages from WebSocket conversation items
   useEffect(() => {
     const wsMessages = voiceWs.messages;
@@ -625,13 +668,15 @@ export function useVoiceAgent({
         stopAudio();
       }
 
+      // Send fresh clientState before committing so the server has current page context
+      voiceWs.sendSessionUpdate(buildClientState());
       // Commit the audio buffer to the server — triggers STT + LLM + TTS pipeline
       voiceWs.commitAudio();
       setState('PROCESSING');
       setCurrentTranscript('');
       processingRef.current = true;
     },
-    [voiceWs, stopAudio, resumeFromBargeIn],
+    [voiceWs, stopAudio, resumeFromBargeIn, buildClientState],
   );
 
   const handleSpeechEndRef = useRef(handleSpeechEnd);

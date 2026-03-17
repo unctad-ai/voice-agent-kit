@@ -1,4 +1,4 @@
-import { parseServerEvent, type ServerEvent } from '../protocol/events';
+import { parseServerEvent, type ServerEvent, type ClientState } from '../protocol/events';
 
 /** WebSocket connection state machine — mirrors server-side WsState. */
 enum WsState { CONNECTING, OPEN, CLOSING, CLOSED }
@@ -23,6 +23,7 @@ export class VoiceWebSocketManager {
   private lastSessionData: {
     conversation: unknown[];
     config: unknown;
+    clientState?: ClientState;
     voice_settings?: unknown;
     language?: string;
   } | null = null;
@@ -38,6 +39,7 @@ export class VoiceWebSocketManager {
   connect(sessionData: {
     conversation: unknown[];
     config: unknown;
+    clientState?: ClientState;
     voice_settings?: unknown;
     language?: string;
   }): void {
@@ -68,6 +70,7 @@ export class VoiceWebSocketManager {
         this.sendEvent('session.update', {
           conversation: this.lastSessionData.conversation,
           config: this.lastSessionData.config,
+          clientState: this.lastSessionData.clientState,
           voice_settings: this.lastSessionData.voice_settings,
           language: this.lastSessionData.language,
         });

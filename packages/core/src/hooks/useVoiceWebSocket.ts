@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { VoiceWebSocketManager } from '../services/voiceWebSocket';
 import type {
   ServerEvent,
+  ClientState,
   ConversationItemCreatedEvent,
   ResponseTextDeltaEvent,
   ResponseTextDoneEvent,
@@ -37,6 +38,7 @@ export interface SttResult {
 export interface UseVoiceWebSocketOptions {
   url: string;
   siteConfig: unknown;
+  clientState?: ClientState;
   voiceSettings?: unknown;
   language?: string;
   onToolCall?: (name: string, args: unknown) => Promise<unknown>;
@@ -55,6 +57,7 @@ export interface UseVoiceWebSocketReturn {
   commitAudio: () => void;
   cancelResponse: () => void;
   clearAudio: () => void;
+  sendSessionUpdate: (clientState: ClientState) => void;
   sttResult: SttResult | null;
 }
 
@@ -65,6 +68,7 @@ export interface UseVoiceWebSocketReturn {
 export function useVoiceWebSocket({
   url,
   siteConfig,
+  clientState: clientStateProp,
   voiceSettings,
   language,
   onToolCall,
@@ -188,11 +192,12 @@ export function useVoiceWebSocket({
       manager.connect({
         conversation,
         config: siteConfig,
+        clientState: clientStateProp,
         voice_settings: voiceSettings,
         language,
       });
     },
-    [url, siteConfig, voiceSettings, language],
+    [url, siteConfig, clientStateProp, voiceSettings, language],
   );
 
   const disconnect = useCallback(() => {
@@ -218,6 +223,10 @@ export function useVoiceWebSocket({
     managerRef.current?.sendEvent('input_audio_buffer.clear');
   }, []);
 
+  const sendSessionUpdate = useCallback((cs: ClientState) => {
+    managerRef.current?.sendEvent('session.update', { clientState: cs });
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -236,6 +245,7 @@ export function useVoiceWebSocket({
     commitAudio,
     cancelResponse,
     clearAudio,
+    sendSessionUpdate,
     sttResult,
   };
 }
