@@ -18,11 +18,17 @@ try {
   kitVersion = JSON.parse(readFileSync(pkgPath, 'utf-8')).version;
 } catch { /* fallback to 'unknown' */ }
 
-export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceServerOptions): void {
+export function createVoiceWebSocketHandler(
+  server: HttpServer,
+  options: VoiceServerOptions,
+): { broadcast: (event: Record<string, unknown>) => void } {
   const wss = new WebSocketServer({ server, path: '/api/voice' });
   console.log(`[voice-agent-kit] v${kitVersion} — WebSocket handler at /api/voice`);
 
+  const clients = new Set<WebSocket>();
+
   wss.on('connection', (ws) => {
+    clients.add(ws);
     const sessionId = randomUUID();
 
     // Build STT WebSocket URL from options
@@ -177,10 +183,12 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
     });
 
     ws.on('error', (err) => {
+      clients.delete(ws);
       console.error(`[WS] Connection error for session ${sessionId}:`, err);
     });
 
     ws.on('close', () => {
+      clients.delete(ws);
       pipeline.cancel();
       sttClient.close();
       if (captureAudio && capturedFrames.length > 0) {
@@ -207,4 +215,15 @@ export function createVoiceWebSocketHandler(server: HttpServer, options: VoiceSe
       console.log(`[WS] Session ${sessionId} closed`);
     });
   });
+
+  function broadcast(event: Record<string, unknown>) {
+    const msg = JSON.stringify(event);
+    for (const ws of clients) {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(msg);
+      }
+    }
+  }
+
+  return { broadcast };
 }

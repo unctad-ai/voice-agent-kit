@@ -1,8 +1,29 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import type { SiteConfig } from '@unctad-ai/voice-agent-core';
 
 export interface StoredPersona {
   copilotName: string;
+  avatarFilename: string;
+  activeVoiceId: string;
+  voices: { id: string; name: string; filename: string; cachedAt: string }[];
+  // Shared settings (optional — fallback to siteConfig)
+  copilotColor?: string;
+  siteTitle?: string;
+  greetingMessage?: string;
+  farewellMessage?: string;
+  systemPromptIntro?: string;
+  language?: string;
+}
+
+export interface FullConfig {
+  copilotName: string;
+  copilotColor: string;
+  siteTitle: string;
+  greetingMessage: string;
+  farewellMessage: string;
+  systemPromptIntro: string;
+  language: string;
   avatarFilename: string;
   activeVoiceId: string;
   voices: { id: string; name: string; filename: string; cachedAt: string }[];
@@ -20,7 +41,7 @@ export class PersonaStore {
   private filePath: string;
   private writeQueue: Promise<void> = Promise.resolve();
 
-  constructor(private personaDir: string) {
+  constructor(private personaDir: string, private siteConfig?: SiteConfig) {
     fs.mkdirSync(path.join(personaDir, 'voices'), { recursive: true });
     this.filePath = path.join(personaDir, 'persona.json');
     this.data = this.load();
@@ -46,9 +67,37 @@ export class PersonaStore {
     return { ...this.data };
   }
 
-  async update(partial: Partial<Pick<StoredPersona, 'copilotName' | 'activeVoiceId'>>): Promise<StoredPersona> {
+  getFullConfig(): FullConfig {
+    const sc = this.siteConfig;
+    return {
+      copilotName: this.data.copilotName ?? sc?.copilotName ?? '',
+      copilotColor: this.data.copilotColor ?? sc?.colors?.primary ?? '#1B5E20',
+      siteTitle: this.data.siteTitle ?? sc?.siteTitle ?? '',
+      greetingMessage: this.data.greetingMessage ?? sc?.greetingMessage ?? '',
+      farewellMessage: this.data.farewellMessage ?? sc?.farewellMessage ?? '',
+      systemPromptIntro: this.data.systemPromptIntro ?? sc?.systemPromptIntro ?? '',
+      language: this.data.language ?? sc?.language ?? 'en',
+      avatarFilename: this.data.avatarFilename,
+      activeVoiceId: this.data.activeVoiceId,
+      voices: this.data.voices ?? [],
+    };
+  }
+
+  async update(
+    partial: Partial<Pick<StoredPersona,
+      'copilotName' | 'activeVoiceId' |
+      'copilotColor' | 'siteTitle' | 'greetingMessage' |
+      'farewellMessage' | 'systemPromptIntro' | 'language'
+    >>,
+  ): Promise<StoredPersona> {
     if (partial.copilotName !== undefined) this.data.copilotName = partial.copilotName;
     if (partial.activeVoiceId !== undefined) this.data.activeVoiceId = partial.activeVoiceId;
+    if (partial.copilotColor !== undefined) this.data.copilotColor = partial.copilotColor;
+    if (partial.siteTitle !== undefined) this.data.siteTitle = partial.siteTitle;
+    if (partial.greetingMessage !== undefined) this.data.greetingMessage = partial.greetingMessage;
+    if (partial.farewellMessage !== undefined) this.data.farewellMessage = partial.farewellMessage;
+    if (partial.systemPromptIntro !== undefined) this.data.systemPromptIntro = partial.systemPromptIntro;
+    if (partial.language !== undefined) this.data.language = partial.language;
     await this.save();
     return this.get();
   }

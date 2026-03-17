@@ -25,4 +25,6 @@ export interface VoiceServerOptions {
   getActiveVoiceId?: () => string;
   /** When true, fall back to alternate TTS providers if primary fails. Default: false */
   ttsFallback?: boolean;
+  /** Password for shared settings admin UI. Default: 'admin'. */
+  adminPassword?: string;
 }

@@ -1,6 +1,7 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';
 import { PersonaStore } from './personaStore.js';
@@ -10,12 +11,33 @@ export interface PersonaRoutesOptions {
   ttsUpstreamUrl?: string;
   /** Reuse an existing PersonaStore instead of creating a new one. */
   store?: PersonaStore;
+  /** Admin password for shared settings mutations. Default: 'admin'. */
+  adminPassword?: string;
+  /** Broadcast an event to all connected WebSocket clients. */
+  broadcast?: (event: Record<string, unknown>) => void;
 }
 
 export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Router; store: PersonaStore } {
   const router = Router();
   const store = options.store ?? new PersonaStore(options.personaDir);
   const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } });
+
+  const password = options.adminPassword ?? 'admin';
+
+  function requireAdmin(req: Request, res: Response): boolean {
+    const provided = req.headers['x-admin-password'] as string | undefined;
+    if (!provided) {
+      res.status(401).json({ error: 'Admin password required' });
+      return false;
+    }
+    const a = Buffer.from(provided);
+    const b = Buffer.from(password);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      res.status(401).json({ error: 'Invalid admin password' });
+      return false;
+    }
+    return true;
+  }
 
   // Sync local voice list with TTS server on startup — remove stale entries
   if (options.ttsUpstreamUrl) {
@@ -36,15 +58,10 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
     });
   }
 
-  // GET /persona — avatar inlined as data URI to avoid auth issues with <img src>
-  router.get('/persona', (_req, res) => {
-    const data = store.get();
-    res.json({
-      copilotName: data.copilotName,
-      avatarUrl: getAvatarDataUri(),
-      activeVoiceId: data.activeVoiceId,
-      voices: data.voices.map(v => ({ id: v.id, name: v.name, filename: v.filename })),
-    });
+  // GET /config — merged config with avatar inlined as data URI
+  router.get('/config', (_req, res) => {
+    const config = store.getFullConfig();
+    res.json({ ...config, avatarUrl: getAvatarDataUri() });
   });
 
   // Helper: read avatar as data URI
@@ -57,25 +74,34 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
     return '';
   }
 
-  // PUT /persona
-  router.put('/persona', async (req, res) => {
+  // PUT /config (admin-gated)
+  router.put('/config', async (req, res) => {
+    if (!requireAdmin(req, res)) return;
     try {
-      const { copilotName, activeVoiceId } = req.body;
-      const updated = await store.update({ copilotName, activeVoiceId });
-      res.json({
-        copilotName: updated.copilotName,
-        avatarUrl: getAvatarDataUri(),
-        activeVoiceId: updated.activeVoiceId,
-        voices: updated.voices.map(v => ({ id: v.id, name: v.name, filename: v.filename })),
+      const { copilotName, activeVoiceId, copilotColor, siteTitle,
+              greetingMessage, farewellMessage, systemPromptIntro, language } = req.body;
+      await store.update({
+        ...(copilotName !== undefined && { copilotName }),
+        ...(activeVoiceId !== undefined && { activeVoiceId }),
+        ...(copilotColor !== undefined && { copilotColor }),
+        ...(siteTitle !== undefined && { siteTitle }),
+        ...(greetingMessage !== undefined && { greetingMessage }),
+        ...(farewellMessage !== undefined && { farewellMessage }),
+        ...(systemPromptIntro !== undefined && { systemPromptIntro }),
+        ...(language !== undefined && { language }),
       });
+      const config = store.getFullConfig();
+      options.broadcast?.({ type: 'config.updated', config });
+      res.json({ ...config, avatarUrl: getAvatarDataUri() });
     } catch (err) {
-      res.status(500).json({ error: 'Failed to update persona' });
+      res.status(500).json({ error: 'Failed to update config' });
     }
   });
 
-  // POST /avatar (2MB limit)
+  // POST /avatar (2MB limit, admin-gated)
   const avatarUpload = multer({ limits: { fileSize: 2 * 1024 * 1024 } });
   router.post('/avatar', avatarUpload.single('image'), async (req, res) => {
+    if (!requireAdmin(req, res)) return;
     try {
       if (!req.file) {
         res.status(400).json({ error: 'No image file provided' });
@@ -119,8 +145,9 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
     });
   });
 
-  // POST /voices
+  // POST /voices (admin-gated)
   router.post('/voices', upload.single('audio'), async (req, res) => {
+    if (!requireAdmin(req, res)) return;
     try {
       if (!req.file) {
         res.status(400).json({ error: 'No audio file provided' });
@@ -180,8 +207,9 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
     }
   });
 
-  // DELETE /voices/:id
+  // DELETE /voices/:id (admin-gated)
   router.delete('/voices/:id', async (req, res) => {
+    if (!requireAdmin(req, res)) return;
     try {
       const { id } = req.params;
       const data = store.get();

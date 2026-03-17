@@ -1,5 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePersonaContext, useSiteConfig } from '@unctad-ai/voice-agent-core';
+
+const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'fr', label: 'French' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'sw', label: 'Swahili' },
+  { value: 'pt', label: 'Portuguese' },
+  { value: 'ar', label: 'Arabic' },
+  { value: 'zh', label: 'Chinese' },
+  { value: 'hi', label: 'Hindi' },
+  { value: 'dz', label: 'Dzongkha' },
+];
 
 export function PersonaSettings() {
   const config = useSiteConfig();
@@ -12,7 +24,45 @@ function PersonaSettingsInner() {
   const config = useSiteConfig();
   const persona = usePersonaContext();
   if (!persona) return null;
-  const { persona: data, isLoaded, updateName, uploadAvatar, uploadVoice, deleteVoice, setActiveVoice, previewVoice } = persona;
+  const { persona: data, isLoaded, updateName, uploadAvatar, uploadVoice, deleteVoice, setActiveVoice, previewVoice, updateConfig } = persona;
+
+  // Admin auth state
+  const [adminPassword, setAdminPassword] = useState<string | null>(
+    () => sessionStorage.getItem('voice-admin-pw')
+  );
+  const [authError, setAuthError] = useState('');
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const isAdmin = adminPassword !== null;
+
+  const handleAdminLogin = useCallback(async (pw: string) => {
+    try {
+      await updateConfig({}, pw);
+      sessionStorage.setItem('voice-admin-pw', pw);
+      setAdminPassword(pw);
+      setAuthError('');
+      setShowPasswordInput(false);
+      setPasswordInput('');
+    } catch {
+      setAuthError('Invalid password');
+    }
+  }, [updateConfig]);
+
+  const handleAdminLogout = useCallback(() => {
+    sessionStorage.removeItem('voice-admin-pw');
+    setAdminPassword(null);
+    setShowPasswordInput(false);
+    setPasswordInput('');
+  }, []);
+
+  const handleSharedSave = useCallback(async (fields: Record<string, string>) => {
+    if (!adminPassword) return;
+    try {
+      await updateConfig(fields, adminPassword);
+    } catch (err) {
+      console.error('Settings save failed:', err);
+    }
+  }, [adminPassword, updateConfig]);
 
   if (!isLoaded) {
     return (
@@ -24,25 +74,219 @@ function PersonaSettingsInner() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: 'inherit' }}>
-      <AvatarSection avatarUrl={config.avatarUrl} name={config.copilotName} onUpload={uploadAvatar} />
-      <NameSection name={config.copilotName} onSave={updateName} primaryColor={config.colors.primary} />
-      <VoiceSection
-        voices={data?.voices ?? []}
-        activeVoiceId={data?.activeVoiceId ?? ''}
-        onUpload={uploadVoice}
-        onDelete={deleteVoice}
-        onSelect={setActiveVoice}
-        onPreview={previewVoice}
-        primaryColor={config.colors.primary}
+      {isAdmin ? (
+        <>
+          <AvatarSection avatarUrl={config.avatarUrl} name={config.copilotName} onUpload={(f) => uploadAvatar(f, adminPassword)} />
+          <NameSection name={config.copilotName} onSave={(n) => updateConfig({ copilotName: n }, adminPassword)} primaryColor={config.colors.primary} />
+          <VoiceSection
+            voices={data?.voices ?? []}
+            activeVoiceId={data?.activeVoiceId ?? ''}
+            onUpload={(f, n) => uploadVoice(f, n, adminPassword)}
+            onDelete={(id) => deleteVoice(id, adminPassword)}
+            onSelect={setActiveVoice}
+            onPreview={previewVoice}
+            primaryColor={config.colors.primary}
+          />
+
+          {/* Shared settings */}
+          <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>Copilot settings</span>
+
+            <SettingRow label="Color">
+              <input type="color"
+                value={data?.copilotColor || config.colors.primary || '#1B5E20'}
+                onChange={e => handleSharedSave({ copilotColor: e.target.value })}
+                style={{ width: 32, height: 26, border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', padding: 0 }}
+              />
+            </SettingRow>
+
+            <TextSettingRow
+              label="Site title"
+              value={data?.siteTitle || ''}
+              onSave={v => handleSharedSave({ siteTitle: v })}
+            />
+
+            <TextAreaSettingRow
+              label="Greeting"
+              value={data?.greetingMessage || ''}
+              onSave={v => handleSharedSave({ greetingMessage: v })}
+            />
+
+            <TextAreaSettingRow
+              label="Farewell"
+              value={data?.farewellMessage || ''}
+              onSave={v => handleSharedSave({ farewellMessage: v })}
+            />
+
+            <TextAreaSettingRow
+              label="System prompt intro"
+              value={data?.systemPromptIntro || ''}
+              onSave={v => handleSharedSave({ systemPromptIntro: v })}
+              rows={4}
+            />
+
+            <SettingRow label="Default language">
+              <select
+                value={data?.language || 'en'}
+                onChange={e => handleSharedSave({ language: e.target.value })}
+                style={{
+                  fontSize: 12, borderRadius: 6, border: '1px solid #e5e7eb',
+                  padding: '4px 8px', outline: 'none', fontFamily: 'inherit',
+                  backgroundColor: '#fff',
+                }}
+              >
+                {LANGUAGE_OPTIONS.map(l => (
+                  <option key={l.value} value={l.value}>{l.label}</option>
+                ))}
+              </select>
+            </SettingRow>
+          </div>
+
+          {/* Logout */}
+          <button
+            onClick={handleAdminLogout}
+            style={{
+              fontSize: 11, color: '#9ca3af', background: 'none', border: 'none',
+              cursor: 'pointer', textAlign: 'left', padding: '4px 0',
+              fontFamily: 'inherit',
+            }}
+          >
+            Lock admin settings
+          </button>
+        </>
+      ) : (
+        <>
+          {/* Read-only view */}
+          <AvatarSection avatarUrl={config.avatarUrl} name={config.copilotName} disabled />
+          <div style={{ fontSize: 13, color: '#6b7280', padding: '4px 0' }}>
+            <span style={{ fontWeight: 500, color: '#111827' }}>Name:</span> {config.copilotName}
+          </div>
+          <VoiceSection
+            voices={data?.voices ?? []}
+            activeVoiceId={data?.activeVoiceId ?? ''}
+            onUpload={(f, n) => uploadVoice(f, n)}
+            onDelete={(id) => deleteVoice(id)}
+            onSelect={setActiveVoice}
+            onPreview={previewVoice}
+            primaryColor={config.colors.primary}
+            disabled
+          />
+
+          {/* Admin login */}
+          <div style={{ paddingTop: 4 }}>
+            {!showPasswordInput ? (
+              <button
+                onClick={() => setShowPasswordInput(true)}
+                style={{
+                  fontSize: 11, color: '#9ca3af', background: 'none', border: 'none',
+                  cursor: 'pointer', fontFamily: 'inherit', padding: '4px 0',
+                }}
+              >
+                Admin settings...
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="password"
+                  placeholder="Admin password"
+                  value={passwordInput}
+                  onChange={e => { setPasswordInput(e.target.value); setAuthError(''); }}
+                  onKeyDown={e => e.key === 'Enter' && handleAdminLogin(passwordInput)}
+                  autoFocus
+                  style={{
+                    fontSize: 12, padding: '4px 8px', borderRadius: 6,
+                    border: `1px solid ${authError ? '#ef4444' : '#e5e7eb'}`,
+                    outline: 'none', fontFamily: 'inherit', width: 120,
+                  }}
+                />
+                <button
+                  onClick={() => handleAdminLogin(passwordInput)}
+                  style={{
+                    fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 6,
+                    border: 'none', backgroundColor: '#1f2937', color: '#fff',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  OK
+                </button>
+                <button
+                  onClick={() => { setShowPasswordInput(false); setPasswordInput(''); setAuthError(''); }}
+                  style={{
+                    fontSize: 11, color: '#9ca3af', background: 'none', border: 'none',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Cancel
+                </button>
+                {authError && <span style={{ fontSize: 11, color: '#ef4444' }}>{authError}</span>}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SettingRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 12, color: '#6b7280', minWidth: 90 }}>{label}</span>
+      <div style={{ flex: 1 }}>{children}</div>
+    </div>
+  );
+}
+
+function TextSettingRow({ label, value, onSave }: { label: string; value: string; onSave: (v: string) => void }) {
+  const [local, setLocal] = useState(value);
+  useEffect(() => { setLocal(value); }, [value]);
+
+  return (
+    <SettingRow label={label}>
+      <input
+        type="text"
+        value={local}
+        onChange={e => setLocal(e.target.value)}
+        onBlur={() => { if (local !== value) onSave(local); }}
+        style={{
+          width: '100%', fontSize: 12, padding: '4px 8px', borderRadius: 6,
+          border: '1px solid #e5e7eb', outline: 'none', fontFamily: 'inherit',
+          boxSizing: 'border-box',
+        }}
+      />
+    </SettingRow>
+  );
+}
+
+function TextAreaSettingRow({ label, value, onSave, rows = 2 }: {
+  label: string; value: string; onSave: (v: string) => void; rows?: number;
+}) {
+  const [local, setLocal] = useState(value);
+  useEffect(() => { setLocal(value); }, [value]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <span style={{ fontSize: 12, color: '#6b7280' }}>{label}</span>
+      <textarea
+        value={local}
+        onChange={e => setLocal(e.target.value)}
+        onBlur={() => { if (local !== value) onSave(local); }}
+        rows={rows}
+        style={{
+          width: '100%', fontSize: 12, padding: '6px 8px', borderRadius: 6,
+          border: '1px solid #e5e7eb', outline: 'none', fontFamily: 'inherit',
+          resize: 'vertical', boxSizing: 'border-box',
+        }}
       />
     </div>
   );
 }
 
-function AvatarSection({ avatarUrl, name, onUpload }: {
+function AvatarSection({ avatarUrl, name, onUpload, disabled }: {
   avatarUrl?: string;
   name: string;
-  onUpload: (file: File) => Promise<void>;
+  onUpload?: (file: File) => Promise<void>;
+  disabled?: boolean;
 }) {
   const [uploading, setUploading] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -52,7 +296,7 @@ function AvatarSection({ avatarUrl, name, onUpload }: {
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !onUpload) return;
     setUploading(true);
     try { await onUpload(file); setImgError(false); }
     catch (err) { console.error('Avatar upload failed:', err); }
@@ -60,12 +304,13 @@ function AvatarSection({ avatarUrl, name, onUpload }: {
   };
 
   const showImage = avatarUrl && !imgError;
+  const canEdit = !disabled && onUpload;
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 4, paddingBottom: 4 }}>
       <div
-        onClick={() => !uploading && inputRef.current?.click()}
-        onMouseEnter={() => setHovered(true)}
+        onClick={() => canEdit && !uploading && inputRef.current?.click()}
+        onMouseEnter={() => canEdit && setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
           position: 'relative',
@@ -75,7 +320,7 @@ function AvatarSection({ avatarUrl, name, onUpload }: {
           overflow: 'hidden',
           backgroundColor: '#e5e7eb',
           flexShrink: 0,
-          cursor: uploading ? 'wait' : 'pointer',
+          cursor: !canEdit ? 'default' : uploading ? 'wait' : 'pointer',
         }}
       >
         {showImage ? (
@@ -98,7 +343,7 @@ function AvatarSection({ avatarUrl, name, onUpload }: {
           }}>{initial}</div>
         )}
         {/* hover overlay */}
-        {hovered && !uploading && (
+        {canEdit && hovered && !uploading && (
           <div style={{
             position: 'absolute',
             inset: 0,
@@ -116,10 +361,10 @@ function AvatarSection({ avatarUrl, name, onUpload }: {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>Avatar</div>
         <div style={{ fontSize: 11, color: '#6b7280' }}>
-          {uploading ? 'Uploading...' : 'Click to change'}
+          {disabled ? '' : uploading ? 'Uploading...' : 'Click to change'}
         </div>
       </div>
-      <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFile} style={{ display: 'none' }} />
+      {canEdit && <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFile} style={{ display: 'none' }} />}
     </div>
   );
 }
@@ -201,7 +446,7 @@ function NameSection({ name, onSave, primaryColor }: {
   );
 }
 
-function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onPreview, primaryColor }: {
+function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onPreview, primaryColor, disabled }: {
   voices: { id: string; name: string }[];
   activeVoiceId: string;
   onUpload: (file: File, name: string) => Promise<any>;
@@ -209,6 +454,7 @@ function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onP
   onSelect: (id: string) => Promise<void>;
   onPreview: (id: string, text: string) => Promise<ArrayBuffer>;
   primaryColor: string;
+  disabled?: boolean;
 }) {
   const [uploading, setUploading] = useState(false);
   const [uploadName, setUploadName] = useState('');
@@ -273,28 +519,30 @@ function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onP
           isPreviewing={previewing === v.id}
           onSelect={() => onSelect(v.id)}
           onPreview={() => handlePreview(v.id)}
-          onDelete={() => onDelete(v.id)}
+          onDelete={disabled ? undefined : () => onDelete(v.id)}
           primaryColor={primaryColor}
         />
       ))}
 
-      {showUpload ? (
-        <UploadForm
-          uploadName={uploadName}
-          uploading={uploading}
-          onNameChange={setUploadName}
-          onUpload={handleUpload}
-          onCancel={() => { setShowUpload(false); fileRef.current = null; }}
-          primaryColor={primaryColor}
-        />
-      ) : (
-        <UploadButton
-          disabled={voices.length >= 10}
-          onClick={() => inputRef.current?.click()}
-        />
+      {!disabled && (
+        showUpload ? (
+          <UploadForm
+            uploadName={uploadName}
+            uploading={uploading}
+            onNameChange={setUploadName}
+            onUpload={handleUpload}
+            onCancel={() => { setShowUpload(false); fileRef.current = null; }}
+            primaryColor={primaryColor}
+          />
+        ) : (
+          <UploadButton
+            disabled={voices.length >= 10}
+            onClick={() => inputRef.current?.click()}
+          />
+        )
       )}
 
-      <input ref={inputRef} type="file" accept="audio/wav" onChange={handleFileSelect} style={{ display: 'none' }} />
+      {!disabled && <input ref={inputRef} type="file" accept="audio/wav" onChange={handleFileSelect} style={{ display: 'none' }} />}
     </div>
   );
 }
@@ -305,7 +553,7 @@ function VoiceRow({ voice, isActive, isPreviewing, onSelect, onPreview, onDelete
   isPreviewing: boolean;
   onSelect: () => void;
   onPreview: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
   primaryColor: string;
 }) {
   const [previewHovered, setPreviewHovered] = useState(false);
@@ -351,22 +599,24 @@ function VoiceRow({ voice, isActive, isPreviewing, onSelect, onPreview, onDelete
       >
         {isPreviewing ? 'Playing...' : 'Preview'}
       </button>
-      <button
-        onClick={onDelete}
-        onMouseEnter={() => setDeleteHovered(true)}
-        onMouseLeave={() => setDeleteHovered(false)}
-        style={{
-          fontSize: 11,
-          color: deleteHovered ? '#b91c1c' : '#ef4444',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          transition: 'color 0.15s',
-        }}
-      >
-        Delete
-      </button>
+      {onDelete && (
+        <button
+          onClick={onDelete}
+          onMouseEnter={() => setDeleteHovered(true)}
+          onMouseLeave={() => setDeleteHovered(false)}
+          style={{
+            fontSize: 11,
+            color: deleteHovered ? '#b91c1c' : '#ef4444',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'color 0.15s',
+          }}
+        >
+          Delete
+        </button>
+      )}
     </div>
   );
 }
