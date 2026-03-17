@@ -40,6 +40,11 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('switch-tab');
   });
 
+  it('includes /no_think directive in identity line', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toContain('/no_think');
+  });
+
   it('returns prompt without dynamic section when no clientState', () => {
     const prompt = buildSystemPrompt(stubConfig);
     expect(prompt).not.toContain('Current page:');
