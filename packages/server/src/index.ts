@@ -19,10 +19,10 @@ export function attachVoicePipeline(
   // Create persona store first so WebSocket handler can read activeVoiceId
   let personaStore: PersonaStore | undefined;
   if (options.personaDir) {
-    personaStore = new PersonaStore(options.personaDir);
+    personaStore = new PersonaStore(options.personaDir, options.config);
   }
 
-  createVoiceWebSocketHandler(server, {
+  const { broadcast } = createVoiceWebSocketHandler(server, {
     ...options,
     getActiveVoiceId: personaStore ? () => personaStore!.getActiveVoiceId() : undefined,
   });
@@ -37,6 +37,8 @@ export function attachVoicePipeline(
         'cosyvoice': options.cosyVoiceTtsUrl ?? process.env.COSYVOICE_TTS_URL,
       } as Record<string, string | undefined>)[options.ttsProvider ?? process.env.TTS_PROVIDER ?? ''],
       store: personaStore,
+      adminPassword: options.adminPassword,
+      broadcast,
     });
     app.use('/api/agent', router);
   }
