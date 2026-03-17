@@ -22,10 +22,19 @@ export function SiteConfigProvider({
   const mergedConfig = useMemo<SiteConfig>(() => {
     const base = { ...config, personaEndpoint };
     if (personaResult.persona) {
+      const p = personaResult.persona;
       return {
         ...base,
-        copilotName: personaResult.persona.copilotName ?? config.copilotName,
-        avatarUrl: personaResult.persona.avatarUrl ?? config.avatarUrl,
+        copilotName: p.copilotName ?? config.copilotName,
+        avatarUrl: p.avatarUrl ?? config.avatarUrl,
+        siteTitle: p.siteTitle ?? config.siteTitle,
+        greetingMessage: p.greetingMessage ?? config.greetingMessage,
+        farewellMessage: p.farewellMessage ?? config.farewellMessage,
+        systemPromptIntro: p.systemPromptIntro ?? config.systemPromptIntro,
+        language: p.language ?? config.language,
+        colors: p.copilotColor
+          ? { ...config.colors, primary: p.copilotColor }
+          : config.colors,
       };
     }
     if (personaLoading) {

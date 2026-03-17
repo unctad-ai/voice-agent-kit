@@ -5,11 +5,11 @@ export interface UsePersonaResult {
   persona: PersonaData | null;
   isLoaded: boolean;
   refresh: () => Promise<void>;
-  updateName: (name: string) => Promise<void>;
+  updateName: (name: string, adminPassword?: string) => Promise<void>;
   uploadAvatar: (file: File, adminPassword?: string) => Promise<void>;
   uploadVoice: (file: File, name: string, adminPassword?: string) => Promise<VoiceEntry>;
   deleteVoice: (id: string, adminPassword?: string) => Promise<void>;
-  setActiveVoice: (id: string) => Promise<void>;
+  setActiveVoice: (id: string, adminPassword?: string) => Promise<void>;
   previewVoice: (voiceId: string, text: string) => Promise<ArrayBuffer>;
   updateConfig: (fields: Partial<Omit<PersonaData, 'avatarUrl' | 'voices'>>, adminPassword?: string) => Promise<void>;
 }
@@ -69,9 +69,9 @@ export function usePersona(
     return unsub;
   }, [wsMessages, cacheKey]);
 
-  const updateName = useCallback(async (name: string) => {
+  const updateName = useCallback(async (name: string, adminPassword?: string) => {
     if (!apiRef.current) return;
-    const updated = await apiRef.current.updateConfig({ copilotName: name });
+    const updated = await apiRef.current.updateConfig({ copilotName: name }, adminPassword);
     personaCache.set(cacheKey, updated);
     setPersona(updated);
   }, [cacheKey]);
@@ -95,9 +95,9 @@ export function usePersona(
     await refresh();
   }, [refresh]);
 
-  const setActiveVoice = useCallback(async (id: string) => {
+  const setActiveVoice = useCallback(async (id: string, adminPassword?: string) => {
     if (!apiRef.current) return;
-    const updated = await apiRef.current.updateConfig({ activeVoiceId: id });
+    const updated = await apiRef.current.updateConfig({ activeVoiceId: id }, adminPassword);
     personaCache.set(cacheKey, updated);
     setPersona(updated);
   }, [cacheKey]);

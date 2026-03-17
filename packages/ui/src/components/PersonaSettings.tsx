@@ -92,13 +92,11 @@ function PersonaSettingsInner() {
           <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>Copilot settings</span>
 
-            <SettingRow label="Color">
-              <input type="color"
-                value={data?.copilotColor || config.colors.primary || '#1B5E20'}
-                onChange={e => handleSharedSave({ copilotColor: e.target.value })}
-                style={{ width: 32, height: 26, border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', padding: 0 }}
-              />
-            </SettingRow>
+            <ColorSettingRow
+              label="Color"
+              value={data?.copilotColor || config.colors.primary || '#1B5E20'}
+              onSave={v => handleSharedSave({ copilotColor: v })}
+            />
 
             <TextSettingRow
               label="Site title"
@@ -234,6 +232,22 @@ function SettingRow({ label, children }: { label: string; children: React.ReactN
       <span style={{ fontSize: 12, color: '#6b7280', minWidth: 90 }}>{label}</span>
       <div style={{ flex: 1 }}>{children}</div>
     </div>
+  );
+}
+
+function ColorSettingRow({ label, value, onSave }: { label: string; value: string; onSave: (v: string) => void }) {
+  const [local, setLocal] = useState(value);
+  useEffect(() => { setLocal(value); }, [value]);
+
+  return (
+    <SettingRow label={label}>
+      <input type="color"
+        value={local}
+        onChange={e => setLocal(e.target.value)}
+        onBlur={() => { if (local !== value) onSave(local); }}
+        style={{ width: 32, height: 26, border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', padding: 0 }}
+      />
+    </SettingRow>
   );
 }
 
