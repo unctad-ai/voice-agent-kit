@@ -101,18 +101,20 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           value: f.value ?? null,
           ...(f.options?.length ? { opts: f.options } : {}),
         });
-        const realFields = fields.filter(f => !f.gatedAction);
-        const allFilled = realFields.length > 0 && realFields.every(f => isFilled(f.value));
+        const allFilled = fields.length > 0 && fields.every(f => isFilled(f.value));
         const hint = allFilled
           ? 'All visible fields are filled. [INTERNAL: check UI_ACTIONS for the next tab or submit action.]'
           : undefined;
 
-        // Build gated section placeholders
-        const gatedSections = gatedFields.map(f => ({
-          section: f.group || f.label,
-          gated: true,
-          action: f.gatedAction,
-        }));
+        // Build gated section placeholders — deduplicate by action ID
+        const seenActions = new Set<string>();
+        const gatedSections: Array<{ section: string; gated: true; action: string }> = [];
+        for (const f of gatedFields) {
+          const action = f.gatedAction!;
+          if (seenActions.has(action)) continue;
+          seenActions.add(action);
+          gatedSections.push({ section: f.group || f.label, gated: true, action });
+        }
 
         const hasGroups = fields.some((f) => f.group);
         if (!hasGroups && gatedSections.length === 0) {
@@ -144,6 +146,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
         const allFields = getFormFields();
         for (const entry of fieldEntries) {
           const fieldDef = allFields.find((f) => f.id === entry.fieldId);
+          if (fieldDef?.gatedAction) { errors.push(`"${entry.fieldId}" is gated — call ${fieldDef.gatedAction} first`); continue; }
           const coerced =
             fieldDef?.type === 'checkbox'
               ? typeof entry.value === 'boolean'
