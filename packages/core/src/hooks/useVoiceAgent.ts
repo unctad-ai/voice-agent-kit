@@ -278,20 +278,20 @@ export function useVoiceAgent({
     }
 
     // Get UI actions (id + description only, no params)
-    const uiActionsList = uiActions.map(a => ({ id: a.id, description: a.description }));
+    const uiActionsList = (uiActions ?? []).map(a => ({ id: a.id, description: a.description }));
 
     // Get form status (metadata only, not field values)
-    const fields = formRegistry.fields;
+    const fields = formRegistry?.fields ?? [];
     const groups = [...new Set(fields.map(f => f.group).filter((g): g is string => Boolean(g)))];
     const formStatus = fields.length > 0 ? { fieldCount: fields.length, groups } : null;
 
     // Categories from config
     const categories = config.categories
-      ? config.categories.map(c => ({ category: c.title, count: c.services.length }))
+      ? config.categories.map(c => ({ category: c.title, count: c.services?.length ?? 0 }))
       : undefined;
 
     return { route, currentService, uiActions: uiActionsList, formStatus, categories };
-  }, [location.pathname, config.services, config.categories, uiActions, formRegistry.fields]);
+  }, [location.pathname, config.services, config.categories, uiActions, formRegistry?.fields]);
 
   const CLIENT_TOOLS = new Set([
     'navigateTo',
@@ -531,7 +531,7 @@ export function useVoiceAgent({
     if (!voiceWs.isConnected) return;
     const state = buildClientState();
     voiceWs.sendSessionUpdate(state);
-  }, [location.pathname, uiActions.length, formRegistry.fields.length, voiceWs.isConnected, buildClientState, voiceWs]);
+  }, [location.pathname, uiActions?.length, formRegistry?.fields?.length, voiceWs.isConnected, buildClientState, voiceWs]);
 
   // Update transcript and messages from WebSocket conversation items
   useEffect(() => {
