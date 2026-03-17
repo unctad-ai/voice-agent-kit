@@ -67,7 +67,7 @@ When the LLM chains client tools (e.g. `fillFormFields` → `getFormSchema`), ea
 
 ### TTS/STT Provider Defaults
 
-- Default TTS: `qwen3-tts` (not resemble). URLs default to `localhost` — production overrides via env vars (`QWEN3_TTS_URL`, `KYUTAI_STT_URL`, etc.)
+- Default TTS: `qwen3-tts` (not resemble). URLs default to `localhost` — production overrides via env vars (`QWEN3_TTS_URL`, `STT_URL`, etc.)
 - Never hardcode GPU server IPs in code. Use full URLs in `.env` files.
 - Fallback chains: qwen3-tts → pocket-tts → resemble; kyutai → groq whisper
 
@@ -81,7 +81,7 @@ Projects using the kit (Swkenya, Swbhutan, Swsouthafrica, Swlesotho) need:
 **Required server `.env`:**
 ```
 GROQ_API_KEY=...
-KYUTAI_STT_URL=http://...     # Full URL, no GPU_HOST abstraction
+STT_URL=http://...            # Full URL, no GPU_HOST abstraction
 QWEN3_TTS_URL=http://...
 CLIENT_API_KEY=...
 ```

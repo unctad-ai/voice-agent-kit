@@ -5,7 +5,7 @@ export interface VoiceServerOptions {
   groqApiKey: string;
   groqModel?: string;
   sttProvider?: string;
-  kyutaiSttUrl?: string;
+  sttUrl?: string;
   ttsProvider?: string;
   vllmOmniUrl?: string;
   vllmOmniRefAudio?: string;
