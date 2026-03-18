@@ -5,6 +5,7 @@ import { readFileSync } from 'fs';
 import { createVoiceWebSocketHandler } from './createVoiceWebSocketHandler.js';
 import { createPersonaRoutes } from './createPersonaRoutes.js';
 import { createFeedbackRoutes } from './feedbackRoutes.js';
+import { createTraceRoutes } from './traceRoutes.js';
 import { PersonaStore } from './personaStore.js';
 
 // Read kit version from the server package.json at module load
@@ -59,6 +60,9 @@ export function attachVoicePipeline(
   if (app) {
     const { router: feedbackRouter } = createFeedbackRoutes(dataDir, KIT_VERSION);
     app.use('/api/feedback', feedbackRouter);
+
+    const { router: traceRouter } = createTraceRoutes(dataDir);
+    app.use('/api/traces', traceRouter);
   }
 }
 
@@ -72,3 +76,5 @@ export type { ClientState } from './systemPrompt.js';
 export type { PersonaRoutesOptions } from './createPersonaRoutes.js';
 export { createSessionLogger } from './logger.js';
 export type { SessionLogger } from './logger.js';
+export { createTraceRoutes } from './traceRoutes.js';
+export type { TraceEntry } from './logger.js';
