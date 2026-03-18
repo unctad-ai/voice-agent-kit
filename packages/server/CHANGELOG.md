@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 5.0.3
+
+### Patch Changes
+
+- 80c1137: CI auto-redeploys all Coolify voice-agent apps after npm publish.
+  - @unctad-ai/voice-agent-core@5.0.3
+
 ## 5.0.2
 
 ### Patch Changes
