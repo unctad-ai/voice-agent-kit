@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 5.0.6
+
+### Patch Changes
+
+- 5319369: TTS graceful degradation: detect missing TTS URL at startup, signal via session.created and health check, skip TTS in pipeline, client shows muted avatar.
+  - @unctad-ai/voice-agent-core@5.0.6
+
 ## 5.0.5
 
 ### Patch Changes
