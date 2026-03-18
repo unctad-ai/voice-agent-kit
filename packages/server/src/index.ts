@@ -1,7 +1,9 @@
 import type { Server as HttpServer } from 'http';
 import type { Express } from 'express';
+import path from 'path';
 import { createVoiceWebSocketHandler } from './createVoiceWebSocketHandler.js';
 import { createPersonaRoutes } from './createPersonaRoutes.js';
+import { createFeedbackRoutes } from './feedbackRoutes.js';
 import { PersonaStore } from './personaStore.js';
 
 export type { VoiceServerOptions } from './types.js';
@@ -42,9 +44,17 @@ export function attachVoicePipeline(
     });
     app.use('/api/agent', router);
   }
+
+  if (app) {
+    const dataDir = options.personaDir ? path.dirname(options.personaDir) : path.join(process.cwd(), 'data');
+    const { router: feedbackRouter } = createFeedbackRoutes(dataDir);
+    app.use('/api/feedback', feedbackRouter);
+  }
 }
 
 export { createPersonaRoutes } from './createPersonaRoutes.js';
+export { createFeedbackRoutes } from './feedbackRoutes.js';
+export type { FeedbackEntry } from './feedbackRoutes.js';
 export { buildSystemPrompt } from './systemPrompt.js';
 export { createBuiltinTools } from './builtinTools.js';
 export { buildSynonymMap, fuzzySearch } from './builtinTools.js';
