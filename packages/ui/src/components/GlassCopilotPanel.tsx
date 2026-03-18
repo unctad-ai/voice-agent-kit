@@ -82,7 +82,7 @@ interface GlassCopilotPanelProps {
 // ---------------------------------------------------------------------------
 // FAB — shown when panel is hidden
 // ---------------------------------------------------------------------------
-function CopilotFAB({ onClick, portraitSrc }: { onClick: () => void; portraitSrc?: string }) {
+function CopilotFAB({ onClick, portraitSrc, isOffline = false }: { onClick: () => void; portraitSrc?: string; isOffline?: boolean }) {
   const { colors } = useSiteConfig();
   return (
     <motion.button
@@ -101,7 +101,7 @@ function CopilotFAB({ onClick, portraitSrc }: { onClick: () => void; portraitSrc
       aria-label="Open voice assistant"
       data-testid="voice-agent-fab"
     >
-      <div className="agent-fab-border" style={{ width: 54, height: 54, '--agent-primary': colors.primary } as React.CSSProperties}>
+      <div className="agent-fab-border" style={{ width: 54, height: 54, '--agent-primary': isOffline ? '#9ca3af' : colors.primary, animation: isOffline ? 'none' : undefined } as React.CSSProperties}>
         <div className="agent-fab-border-inner">
           {portraitSrc ? (
             <img
@@ -145,6 +145,7 @@ function CollapsedBar({
   onClose,
   onRetry,
   isRetrying = false,
+  retryCountdown,
   voiceError,
   micPaused = false,
   onMicToggle,
@@ -160,6 +161,7 @@ function CollapsedBar({
   onClose: () => void;
   onRetry?: () => void;
   isRetrying?: boolean;
+  retryCountdown?: number | null;
   voiceError?: VoiceErrorType;
   micPaused?: boolean;
   onMicToggle?: () => void;
@@ -228,8 +230,8 @@ function CollapsedBar({
         >
           {isOffline ? (
             <span className="inline-flex items-center gap-1">
-              Offline
-              {onRetry && (
+              {retryCountdown ? `Retrying in ${retryCountdown}s` : 'Offline'}
+              {onRetry && !retryCountdown && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -515,6 +517,7 @@ function ComposerBar({
                 type="text"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
+                disabled={disabled}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSubmit();
                   if (e.key === 'Escape') handleCancel();
@@ -533,7 +536,7 @@ function ComposerBar({
                     pill.style.boxShadow = 'none';
                   }
                 }}
-                placeholder="Ask about services..."
+                placeholder={disabled ? 'Reconnecting...' : 'Ask about services...'}
                 aria-label="Type your question"
                 data-testid="voice-agent-input"
                 className="w-full"
@@ -544,6 +547,8 @@ function ComposerBar({
                   border: 'none',
                   outline: 'none',
                   padding: 0,
+                  opacity: disabled ? 0.5 : 1,
+                  cursor: disabled ? 'not-allowed' : undefined,
                 }}
               />
             </div>
@@ -604,7 +609,7 @@ function ExpandedContent({
   orbState, getAmplitude, analyser, voiceState, messages, isTyping,
   toolResult, voiceError, dismissError, onCollapse, onClose, onTextSubmit,
   onMicToggle, micPaused = false, onToolDismiss, onInteraction, onRetry,
-  isRetrying = false, lastTimings, showPipelineMetrics, pipelineMetricsAutoHideMs,
+  isRetrying = false, retryCountdown, lastTimings, showPipelineMetrics, pipelineMetricsAutoHideMs,
   showSettings, onSettingsToggle, ttsEnabled = true, copilotName, portraitSrc,
   onStartMic, onSwitchToKeyboard, switchToTextRef,
 }: {
@@ -613,7 +618,7 @@ function ExpandedContent({
   toolResult: VoiceToolResult | null; voiceError: VoiceErrorType; dismissError: () => void;
   onCollapse: () => void; onClose: () => void; onTextSubmit: (text: string) => void;
   onMicToggle: () => void; micPaused?: boolean; onToolDismiss: () => void;
-  onInteraction: () => void; onRetry?: () => void; isRetrying?: boolean;
+  onInteraction: () => void; onRetry?: () => void; isRetrying?: boolean; retryCountdown?: number | null;
   lastTimings?: PipelineTimings | null; showPipelineMetrics?: boolean;
   pipelineMetricsAutoHideMs?: number; showSettings: boolean; onSettingsToggle: () => void;
   ttsEnabled?: boolean; copilotName: string; portraitSrc?: string;
@@ -703,7 +708,7 @@ function ExpandedContent({
                 <motion.span animate={isRetrying ? { rotate: 360 } : { rotate: 0 }} transition={isRetrying ? { duration: 0.8, repeat: Infinity, ease: 'linear' } : { duration: 0.3 }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <RotateCw style={{ width: 14, height: 14 }} />
                 </motion.span>
-                {isRetrying ? 'Checking...' : 'Retry connection'}
+                {isRetrying ? 'Checking...' : retryCountdown ? `Retrying in ${retryCountdown}s...` : 'Retry connection'}
               </motion.button>
             </div>
           )}
@@ -798,22 +803,60 @@ function WiredPanelInner({
   const autoStartedRef = useRef(false);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelledRef = useRef(false);
+  const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
+  const backoffDelayRef = useRef(3000);
+  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const RETRY_INITIAL_MS = 3000;
+  const RETRY_MAX_MS = 30000;
+
+  const clearCountdown = useCallback(() => {
+    if (countdownTimerRef.current) { clearInterval(countdownTimerRef.current); countdownTimerRef.current = null; }
+    setRetryCountdown(null);
+  }, []);
+
+  const runHealthCheckRef = useRef<() => void>(() => {});
+
+  const scheduleRetry = useCallback((delayMs: number) => {
+    if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+    clearCountdown();
+    const seconds = Math.ceil(delayMs / 1000);
+    setRetryCountdown(seconds);
+    let remaining = seconds;
+    countdownTimerRef.current = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) { clearCountdown(); return; }
+      setRetryCountdown(remaining);
+    }, 1000);
+    pollTimerRef.current = setTimeout(() => runHealthCheckRef.current(), delayMs);
+    backoffDelayRef.current = Math.min(delayMs * 2, RETRY_MAX_MS);
+  }, [clearCountdown]);
 
   const runHealthCheck = useCallback(() => {
+    clearCountdown();
     checkBackendHealth().then(({ available }) => {
       if (cancelledRef.current) return;
       setBackendDown(!available);
       if (available) {
+        backoffDelayRef.current = RETRY_INITIAL_MS;
         dismissError();
         if (!autoStartedRef.current && settings.autoListen) { autoStartedRef.current = true; startRef.current(); }
       } else {
-        if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-        pollTimerRef.current = setTimeout(runHealthCheck, RECOVERY_POLL_MS);
+        scheduleRetry(backoffDelayRef.current);
       }
     });
-  }, [dismissError, settings.autoListen]);
+  }, [dismissError, settings.autoListen, scheduleRetry, clearCountdown]);
 
-  useEffect(() => { cancelledRef.current = false; runHealthCheck(); return () => { cancelledRef.current = true; if (pollTimerRef.current) clearTimeout(pollTimerRef.current); }; }, [runHealthCheck]);
+  useEffect(() => { runHealthCheckRef.current = runHealthCheck; }, [runHealthCheck]);
+
+  useEffect(() => {
+    cancelledRef.current = false; runHealthCheck();
+    return () => {
+      cancelledRef.current = true;
+      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+      if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
+    };
+  }, [runHealthCheck]);
 
   const onStateChangeRef = useRef(onStateChange);
   useEffect(() => { onStateChangeRef.current = onStateChange; });
@@ -863,13 +906,22 @@ function WiredPanelInner({
 
   const [isRetrying, setIsRetrying] = useState(false);
   const handleRetryClick = useCallback(() => {
-    if (isRetrying) return; setIsRetrying(true);
+    if (isRetrying) return;
+    setIsRetrying(true);
+    backoffDelayRef.current = RETRY_INITIAL_MS;
+    clearCountdown();
     checkBackendHealth().then(({ available }) => {
-      if (cancelledRef.current) return; setIsRetrying(false); setBackendDown(!available);
-      if (available) { dismissError(); if (!autoStartedRef.current && settings.autoListen) { autoStartedRef.current = true; startRef.current(); } }
-      if (!available) { if (pollTimerRef.current) clearTimeout(pollTimerRef.current); pollTimerRef.current = setTimeout(runHealthCheck, RECOVERY_POLL_MS); }
+      if (cancelledRef.current) return;
+      setIsRetrying(false);
+      setBackendDown(!available);
+      if (available) {
+        dismissError();
+        if (!autoStartedRef.current && settings.autoListen) { autoStartedRef.current = true; startRef.current(); }
+      } else {
+        scheduleRetry(backoffDelayRef.current);
+      }
     }).catch(() => setIsRetrying(false));
-  }, [isRetrying, runHealthCheck, dismissError, settings.autoListen]);
+  }, [isRetrying, clearCountdown, scheduleRetry, dismissError, settings.autoListen]);
 
   // Auto-expand panel when first message arrives (voice-first: skip empty state)
   const onExpandRef = useRef(onExpand);
@@ -887,12 +939,12 @@ function WiredPanelInner({
   const toggleSettings = useCallback(() => setShowSettings((p) => !p), []);
 
   if (panelState === 'collapsed') {
-    return <CollapsedBar orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} onExpand={onExpand} onClose={onClose} onRetry={handleRetryClick} isRetrying={isRetrying} voiceError={effectiveError} micPaused={micPaused} onMicToggle={handleMicToggle} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} />;
+    return <CollapsedBar orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} onExpand={onExpand} onClose={onClose} onRetry={handleRetryClick} isRetrying={isRetrying} retryCountdown={retryCountdown} voiceError={effectiveError} micPaused={micPaused} onMicToggle={handleMicToggle} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} />;
   }
 
   return (
     <div className="relative h-full">
-      <ExpandedContent orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} messages={messages} isTyping={isTyping} toolResult={toolResult} voiceError={effectiveError} dismissError={dismissError} onCollapse={onCollapse} onClose={onClose} onTextSubmit={handleTextSubmit} onMicToggle={handleMicToggle} micPaused={micPaused} onToolDismiss={() => setToolResult(null)} onInteraction={bumpActivity} onRetry={handleRetryClick} isRetrying={isRetrying} lastTimings={lastTimings} showPipelineMetrics={settings.showPipelineMetrics} pipelineMetricsAutoHideMs={settings.pipelineMetricsAutoHideMs} showSettings={showSettings} onSettingsToggle={toggleSettings} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} onStartMic={handleMicToggle} onSwitchToKeyboard={handleSwitchToKeyboard} switchToTextRef={switchToTextRef} />
+      <ExpandedContent orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} messages={messages} isTyping={isTyping} toolResult={toolResult} voiceError={effectiveError} dismissError={dismissError} onCollapse={onCollapse} onClose={onClose} onTextSubmit={handleTextSubmit} onMicToggle={handleMicToggle} micPaused={micPaused} onToolDismiss={() => setToolResult(null)} onInteraction={bumpActivity} onRetry={handleRetryClick} isRetrying={isRetrying} retryCountdown={retryCountdown} lastTimings={lastTimings} showPipelineMetrics={settings.showPipelineMetrics} pipelineMetricsAutoHideMs={settings.pipelineMetricsAutoHideMs} showSettings={showSettings} onSettingsToggle={toggleSettings} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} onStartMic={handleMicToggle} onSwitchToKeyboard={handleSwitchToKeyboard} switchToTextRef={switchToTextRef} />
       <AnimatePresence>
         {showSettings && (<Suspense fallback={null}><VoiceSettingsView onBack={toggleSettings} onVolumeChange={applyVolume} /></Suspense>)}
       </AnimatePresence>
@@ -926,6 +978,20 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
   }, [onCloseProp, isControlled]);
   const handleCollapse = useCallback(() => { setInternalState('collapsed'); }, []);
   const handleExpand = useCallback(() => { setInternalState('expanded'); }, []);
+
+  const [fabOffline, setFabOffline] = useState(false);
+  useEffect(() => {
+    if (isOpen) return; // WiredPanelInner handles health when panel is visible
+    let cancelled = false;
+    const check = () => {
+      checkBackendHealth().then(({ available }) => {
+        if (!cancelled) setFabOffline(!available);
+      });
+    };
+    check();
+    const timer = setInterval(check, RECOVERY_POLL_MS);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [isOpen]);
 
   const isVisible = panelState !== 'hidden';
   const isExpanded = panelState === 'expanded';
@@ -963,7 +1029,7 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
       <AnimatePresence>
         {!isVisible && (
           <motion.div ref={fabRef} key="copilot-fab" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.25, ease: 'easeOut' }} className="fixed" style={{ bottom: PANEL_BOTTOM, right: PANEL_RIGHT, zIndex: PANEL_Z_INDEX }}>
-            <CopilotFAB onClick={handleOpen} portraitSrc={resolvedPortrait} />
+            <CopilotFAB onClick={handleOpen} portraitSrc={resolvedPortrait} isOffline={fabOffline} />
           </motion.div>
         )}
 

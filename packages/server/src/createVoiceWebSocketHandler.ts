@@ -74,7 +74,7 @@ export function createVoiceWebSocketHandler(
 
     // Build TTS config from options
     const ttsConfig: TtsProviderConfig = {
-      ttsProvider: options.ttsProvider || 'qwen3-tts',
+      ttsProvider: options.ttsProvider || process.env.TTS_PROVIDER || 'luxtts',
       vllmOmniUrl: options.vllmOmniUrl || 'http://localhost:8091',
       vllmOmniRefAudio: options.vllmOmniRefAudio || '',
       vllmOmniRefText: options.vllmOmniRefText || '',
