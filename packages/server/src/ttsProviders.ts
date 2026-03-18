@@ -206,6 +206,20 @@ export async function synthesize(
     return synthesizeWithResemble(text, resembleApiKey, resembleModel, resembleVoiceUuid, s);
   }
 
+  // Map provider to its URL for early validation
+  const providerUrls: Record<string, string> = {
+    'vllm-omni': vllmOmniUrl,
+    'qwen3-tts': qwen3TtsUrl,
+    'chatterbox-turbo': chatterboxTurboUrl,
+    'cosyvoice': cosyVoiceTtsUrl,
+    'luxtts': config.luxTtsUrl,
+    'pocket-tts': pocketTtsUrl,
+  };
+  const providerUrl = providerUrls[ttsProvider];
+  if (providerUrl != null && !providerUrl) {
+    throw new Error(`TTS provider "${ttsProvider}" has no URL configured. Set the corresponding env var (e.g. LUXTTS_URL, QWEN3_TTS_URL).`);
+  }
+
   let response: Response;
 
   if (ttsProvider === 'vllm-omni') {
