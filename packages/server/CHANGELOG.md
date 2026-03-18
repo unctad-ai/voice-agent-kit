@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 5.0.1
+
+### Patch Changes
+
+- b0659f2: Offline UX improvements: gray FAB ring when backend offline, disabled text input with "Reconnecting..." placeholder, auto-retry with exponential backoff and countdown. Text input auto-focuses on keyboard switch and stays in text mode after submit. Default TTS provider changed to luxtts.
+  - @unctad-ai/voice-agent-core@5.0.1
+
 ## 5.0.0
 
 ### Major Changes
