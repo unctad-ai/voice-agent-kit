@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 5.0.5
+
+### Patch Changes
+
+- 12bead1: CI: use Coolify force deploy (without cache) for auto-redeployment after npm publish.
+  - @unctad-ai/voice-agent-core@5.0.5
+
 ## 5.0.4
 
 ### Patch Changes
