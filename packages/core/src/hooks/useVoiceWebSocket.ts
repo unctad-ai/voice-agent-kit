@@ -217,6 +217,7 @@ export function useVoiceWebSocket({
     managerRef.current?.close();
     managerRef.current = null;
     setIsConnected(false);
+    setTtsAvailable(true);
     setStatus('idle');
   }, []);
 

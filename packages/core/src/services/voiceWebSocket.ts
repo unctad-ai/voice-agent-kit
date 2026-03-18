@@ -234,20 +234,21 @@ export async function checkPipelineHealth(
         resolve({ connected: false });
       }, 5000);
 
+      let resolved = false;
+      const fail = () => { if (!resolved) { resolved = true; clearTimeout(timer); resolve({ connected: false }); } };
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(String(event.data));
-          if (data.type === 'session.created') {
+          if (data.type === 'session.created' && !resolved) {
+            resolved = true;
             clearTimeout(timer);
             ws.close();
             resolve({ connected: true, ttsAvailable: data.tts_available ?? true });
           }
         } catch { /* ignore non-JSON frames */ }
       };
-      ws.onerror = () => {
-        clearTimeout(timer);
-        resolve({ connected: false });
-      };
+      ws.onerror = fail;
+      ws.onclose = fail;
     } catch {
       resolve({ connected: false });
     }

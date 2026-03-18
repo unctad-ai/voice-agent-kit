@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTenVAD } from './useTenVAD';
 import { useNavigate, useLocation, useParams } from 'react-router';
 import { useUIActionRegistry, useFormFieldRegistry, createClientToolHandler } from '@unctad-ai/voice-agent-registries';
@@ -907,6 +907,11 @@ export function useVoiceAgent({
     }
   }, [voiceWs.status, state]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const effectiveSettings = useMemo(
+    () => ({ ...settings, ttsEnabled: settings.ttsEnabled && voiceWs.ttsAvailable }),
+    [settings, voiceWs.ttsAvailable],
+  );
+
   return {
     state,
     start,
@@ -924,9 +929,6 @@ export function useVoiceAgent({
     analyser,
     sendTextMessage,
     lastTimings,
-    settings: {
-      ...settings,
-      ttsEnabled: settings.ttsEnabled && voiceWs.ttsAvailable,
-    },
+    settings: effectiveSettings,
   };
 }
