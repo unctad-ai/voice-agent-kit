@@ -121,12 +121,16 @@ logger.info('stt:done', '"hello"', 1200);        // [a1b2c3d4:1] stt:done "hello
 logger.error('tts:error', err);                  // [a1b2c3d4:1] tts:error <err>
 ```
 
+**Scoping:** One logger per WebSocket connection (new tab, new user, page refresh → new sid). Concurrent sessions get distinct prefixes. Filter with `grep 'a1b2c3d4'` for a single user's full journey.
+
 **Rules:**
-- Pass `logger` to `VoicePipeline` via `options.logger` — never raw `console.log` with manual prefixes
+- Pass `logger` to `VoicePipeline` via `options.logger`, to `SttStreamClient` as 3rd arg, to `synthesize()` via `opts.logger`
+- Use `info()` / `warn()` / `error()` — never raw `console.log/warn/error` with manual prefixes
 - Stage names: `component:event` — `stt:done`, `llm:start`, `tts:done`, `turn:start`, `session:closed`
 - Tool results: `summarizeToolResult()` caps at 500 chars; `getFormSchema` gets section/field summary
 - Tool inputs: `summarizeToolInput()` shows field=value for fills, action IDs for UI actions
 - No per-frame/per-message WS logging — session lifecycle + pipeline stages only
+- Exported from package index: `createSessionLogger`, `SessionLogger` (for testing/custom handlers)
 
 ## Development Rules
 
