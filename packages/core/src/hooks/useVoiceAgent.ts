@@ -881,9 +881,8 @@ export function useVoiceAgent({
         await new Promise((r) => setTimeout(r, 500));
       }
 
-      // Send user text as a session update with the text in the conversation
-      voiceWs.sendAudio(new Float32Array(0)); // no-op, but needed to trigger
-      voiceWs.commitAudio();
+      // Send text directly — bypasses STT, goes straight to LLM → TTS
+      voiceWs.submitText(text);
 
       // The response will come through the WebSocket event handlers
       // and update state/messages via the effects above.

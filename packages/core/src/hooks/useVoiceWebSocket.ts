@@ -59,6 +59,7 @@ export interface UseVoiceWebSocketReturn {
   cancelResponse: () => void;
   clearAudio: () => void;
   sendSessionUpdate: (clientState: ClientState) => void;
+  submitText: (text: string) => void;
   sttResult: SttResult | null;
 }
 
@@ -236,6 +237,10 @@ export function useVoiceWebSocket({
     managerRef.current?.sendEvent('session.update', { clientState: cs });
   }, []);
 
+  const submitText = useCallback((text: string) => {
+    managerRef.current?.sendEvent('text.submit', { text });
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -256,6 +261,7 @@ export function useVoiceWebSocket({
     cancelResponse,
     clearAudio,
     sendSessionUpdate,
+    submitText,
     sttResult,
   };
 }
