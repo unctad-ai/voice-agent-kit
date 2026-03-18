@@ -101,7 +101,7 @@ describe('buildSystemPrompt', () => {
   it('SILENT rule comes after FORMS section', () => {
     const prompt = buildSystemPrompt(stubConfig);
     const formsIndex = prompt.indexOf('FORMS:');
-    const silentIndex = prompt.indexOf('[SILENT]');
+    const silentIndex = prompt.indexOf('SILENT: Say exactly [SILENT]');
     expect(formsIndex).toBeLessThan(silentIndex);
   });
 
