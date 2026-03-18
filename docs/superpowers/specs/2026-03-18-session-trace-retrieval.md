@@ -15,9 +15,9 @@ Same pattern as feedback — JSON files in `{dataDir}/traces/{sessionId}.json`. 
   "sessionId": "full-uuid",
   "startedAt": 1773845013157,
   "entries": [
-    { "turn": 1, "stage": "turn:start", "detail": "route=/dashboard", "ms": null, "ts": 1773845013200 },
-    { "turn": 1, "stage": "stt:done", "detail": "\"hello\"", "ms": 133, "ts": 1773845013333 },
-    { "turn": 1, "stage": "llm:done", "detail": "\"How can I help?\"", "ms": 868, "ts": 1773845014201 }
+    { "turn": 1, "stage": "turn:start", "detail": "route=/dashboard", "ms": null, "ts": 1773845013200, "level": "info" },
+    { "turn": 1, "stage": "stt:done", "detail": "\"hello\"", "ms": 133, "ts": 1773845013333, "level": "info" },
+    { "turn": 1, "stage": "llm:done", "detail": "\"How can I help?\"", "ms": 868, "ts": 1773845014201, "level": "info" }
   ]
 }
 ```
@@ -25,36 +25,41 @@ Same pattern as feedback — JSON files in `{dataDir}/traces/{sessionId}.json`. 
 ## API
 
 - `GET /api/traces/:sessionId` — returns the full trace JSON, 404 if not found
-- `GET /api/traces` — lists recent sessions with metadata (sessionId, startedAt, entryCount), paginated via `?limit=20`
+- `GET /api/traces` — lists recent sessions with metadata (sessionId, startedAt, entryCount), sorted by recency, paginated via `?limit=20`. Reads filenames only (no file content) — the timestamp is encoded in the file's mtime.
 
 ## Changes
 
 ### `packages/server/src/logger.ts`
 
 - Add an internal `entries: TraceEntry[]` array to the logger object
-- Each `info()`, `warn()`, `error()` call pushes a structured `{ turn, stage, detail, ms, ts, level }` entry alongside the existing `console.log/warn/error`
-- Add `flush(dir: string): Promise<void>` — writes the entries array to `{dir}/{sessionId}.json`
+- `info(stage, detail, ms)` pushes `{ turn, stage, detail, ms, ts, level: 'info' }` alongside `console.log`
+- `warn(stage, ...args)` pushes `{ turn, stage, detail: args.map(String).join(' '), ms: null, ts, level: 'warn' }` alongside `console.warn`
+- `error(stage, ...args)` pushes `{ turn, stage, detail: args.map(String).join(' '), ms: null, ts, level: 'error' }` alongside `console.error`
+- Add `flush(dir: string): Promise<void>` — writes `{ sessionId, startedAt, entries }` to `{dir}/{sessionId}.json`. Errors are caught and logged to stderr (never throws — must not break WS close).
 - Add `getEntries()` accessor for testing
 - Export `TraceEntry` type
 
 ### `packages/server/src/createVoiceWebSocketHandler.ts`
 
-- Accept `tracesDir` in the handler options
-- On WebSocket close (where `session:closed` is logged), call `logger.flush(tracesDir)` to persist the trace
+- Accept `dataDir` in the handler options (consistent with other route handlers)
+- On WebSocket close (where `session:closed` is logged), call `logger.flush(path.join(dataDir, 'traces'))` to persist the trace
+- In-memory entries are lost if the process crashes before close — acceptable trade-off for simplicity
 
 ### `packages/server/src/traceRoutes.ts` (new)
 
 - `createTraceRoutes(dataDir: string)` — returns an Express router
-- `GET /` — reads `{dataDir}/traces/` directory, returns array of `{ sessionId, startedAt, entryCount }` sorted by recency, with `?limit` query param (default 20)
+- `GET /` — reads `{dataDir}/traces/` directory, returns array of `{ sessionId, startedAt, entryCount }` from filenames + stat mtime, with `?limit` query param (default 20)
 - `GET /:sessionId` — reads and returns the JSON file, 404 if missing
 
 ### `packages/server/src/index.ts`
 
 - Import and mount trace routes at `/api/traces`
-- Pass `tracesDir` path to `createVoiceWebSocketHandler` options
+- Pass `dataDir` to `createVoiceWebSocketHandler` options
+- Export `createTraceRoutes` and `TraceEntry` type
 
 ## Constraints
 
 - No changes to existing stdout log output — the buffer is additive
 - Traces persist indefinitely (same as feedback files)
 - No authentication on trace endpoints (same as feedback)
+- List endpoint reads filenames/stats only, not file contents — scales to thousands of sessions
