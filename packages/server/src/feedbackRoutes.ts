@@ -12,6 +12,7 @@ export interface FeedbackEntry {
   timings?: Record<string, number>;
   route?: string;
   copilotName?: string;
+  kitVersion?: string;
   userAgent?: string;
   timestamp: number;
 }

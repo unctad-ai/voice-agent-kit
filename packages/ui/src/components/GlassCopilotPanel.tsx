@@ -1044,6 +1044,7 @@ function WiredPanelInner({
           timings: lastTimings ?? undefined,
           route: window.location.pathname,
           copilotName: config.copilotName,
+          kitVersion: __KIT_VERSION__,
         }),
       });
       setFeedbackSentTurn(target.turnNumber);
