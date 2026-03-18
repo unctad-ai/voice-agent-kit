@@ -929,6 +929,7 @@ export function useVoiceAgent({
     analyser,
     sendTextMessage,
     lastTimings,
+    sessionId: voiceWs.sessionId,
     settings: effectiveSettings,
   };
 }

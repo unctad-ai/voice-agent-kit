@@ -62,6 +62,7 @@ export interface UseVoiceWebSocketReturn {
   sendSessionUpdate: (clientState: ClientState) => void;
   submitText: (text: string) => void;
   sttResult: SttResult | null;
+  sessionId: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +86,7 @@ export function useVoiceWebSocket({
   const [isConnected, setIsConnected] = useState(false);
   const [ttsAvailable, setTtsAvailable] = useState(true);
   const [sttResult, setSttResult] = useState<SttResult | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
   const managerRef = useRef<VoiceWebSocketManager | null>(null);
   const pendingTextRef = useRef('');
@@ -109,10 +111,11 @@ export function useVoiceWebSocket({
 
       // --- Event handlers ---
 
-      manager.onEvent('session.created', (event: { tts_available?: boolean }) => {
+      manager.onEvent('session.created', (event: { session_id?: string; tts_available?: boolean }) => {
         setIsConnected(true);
         setLastErrorCode(null);
         setTtsAvailable(event.tts_available ?? true);
+        setSessionId(event.session_id ?? null);
       });
 
       manager.onEvent('status', (event: StatusEvent) => {
@@ -218,6 +221,7 @@ export function useVoiceWebSocket({
     managerRef.current = null;
     setIsConnected(false);
     setTtsAvailable(true);
+    setSessionId(null);
     setStatus('idle');
   }, []);
 
@@ -268,5 +272,6 @@ export function useVoiceWebSocket({
     sendSessionUpdate,
     submitText,
     sttResult,
+    sessionId,
   };
 }
