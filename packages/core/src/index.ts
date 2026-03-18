@@ -15,3 +15,6 @@ export * from './protocol/events';
 export { PersonaApi } from './services/personaApi';
 export type { PersonaData, VoiceEntry } from './services/personaApi';
 export type { UsePersonaResult } from './hooks/usePersona';
+export { useVoiceRecorder } from './hooks/useVoiceRecorder';
+export type { UseVoiceRecorderReturn, RecorderState } from './hooks/useVoiceRecorder';
+export type { QualityWarning } from './hooks/wavEncoder';

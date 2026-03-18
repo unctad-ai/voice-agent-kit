@@ -179,8 +179,8 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
         const dataSize = buf.readUInt32LE(40);
         if (sampleRate > 0 && bitsPerSample > 0 && channels > 0) {
           const durationSec = dataSize / (sampleRate * channels * (bitsPerSample / 8));
-          if (durationSec > 30) {
-            res.status(400).json({ error: `Voice sample too long (${Math.round(durationSec)}s). Maximum is 30 seconds.` });
+          if (durationSec > 45) {
+            res.status(400).json({ error: `Voice sample too long (${Math.round(durationSec)}s). Maximum is 45 seconds.` });
             return;
           }
         }
