@@ -477,25 +477,32 @@ export default function VoiceTranscript({
                       <motion.button
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        whileHover={{ opacity: 1 }}
                         disabled={isSent}
                         onClick={() => {
                           const userMsg = visible.slice(0, idx).reverse().find(m => m.role === 'user');
                           onReport(turnNumber, msg.text, userMsg?.text);
                         }}
+                        className="voice-feedback-pill"
                         style={{
                           marginTop: 2,
                           fontSize: 10,
-                          padding: '1px 7px',
+                          padding: '2px 4px',
                           borderRadius: 8,
-                          border: `1px solid ${isSent ? '#16a34a' : '#d97706'}`,
-                          background: isSent ? 'rgba(22,163,74,0.08)' : 'rgba(245,158,11,0.08)',
-                          color: isSent ? '#16a34a' : '#92400e',
+                          border: 'none',
+                          background: 'transparent',
+                          color: isSent ? '#16a34a' : 'rgba(0,0,0,0.2)',
                           cursor: isSent ? 'default' : 'pointer',
-                          opacity: isSent ? 0.8 : 0.4,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 0,
+                          overflow: 'hidden',
+                          transition: 'color 0.15s, gap 0.2s',
                         }}
                       >
-                        {isSent ? '\u2713 Sent' : <><Flag size={8} strokeWidth={2.5} style={{ display: 'inline', verticalAlign: '-1px', marginRight: 2 }} /> Report</>}
+                        {isSent
+                          ? <><Flag size={9} strokeWidth={2} /> <span style={{ marginLeft: 3 }}>Sent</span></>
+                          : <><Flag size={9} strokeWidth={2} /><span className="voice-feedback-label" style={{ maxWidth: 0, opacity: 0, overflow: 'hidden', whiteSpace: 'nowrap', transition: 'max-width 0.2s, opacity 0.15s, margin 0.2s', marginLeft: 0 }}>Feedback</span></>
+                        }
                       </motion.button>
                     );
                   })()}
