@@ -144,7 +144,10 @@ export function createBuiltinTools(config: SiteConfig) {
       description: 'Execute a UI action on the current page such as clicking a button, switching a tab, or toggling a view.',
       inputSchema: z.object({
         actionId: z.string().describe('The action id from UI_ACTIONS context'),
-        paramsJson: z.string().optional().describe('JSON params required for tab switches — e.g. {"tab":"form"}. Check the params field in UI_ACTIONS for required parameter names and allowed values.'),
+        paramsJson: z.preprocess(
+          (v) => (typeof v === 'object' && v !== null ? JSON.stringify(v) : v),
+          z.string().optional(),
+        ).describe('JSON params required for tab switches — e.g. {"tab":"form"}. Check the params field in UI_ACTIONS for required parameter names and allowed values.'),
       }),
     }),
     getFormSchema: tool({
