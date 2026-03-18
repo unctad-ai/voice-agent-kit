@@ -19,50 +19,39 @@ TEMPERATURE = 0.1
 TOP_P = 0.8
 MAX_TOKENS = 1024  # Qwen3 uses ~500 tokens for <think> before responding
 
-# ─── System Prompt (extracted verbatim from systemPrompt.ts) ──────────────────
+def load_system_prompt():
+    """Build the kit and import the real system prompt. Single source of truth."""
+    print("Building kit...", end=" ", flush=True)
+    build = subprocess.run(['pnpm', 'build'], capture_output=True, text=True, timeout=60)
+    if build.returncode != 0:
+        print("FAILED")
+        print(f"  {build.stderr[:300]}")
+        sys.exit(1)
+    print("OK")
 
-SYSTEM_PROMPT = """You are Pesa, a friendly voice assistant for Kenya Single Window. Your goal is to help users navigate government services, find information, and complete applications. Your name is Pesa.
+    node_script = '''
+    const { buildSystemPrompt } = require("./packages/server/dist/systemPrompt.js");
+    const config = {
+      copilotName: "Pesa",
+      siteTitle: "Kenya Single Window",
+      systemPromptIntro: "Your goal is to help users navigate government services, find information, and complete applications.",
+      services: [], categories: [], categoryMap: {}, routeMap: {}, synonyms: {},
+      colors: { primary: "#DB2129", processing: "#111", speaking: "#222", glow: "#333" },
+      getServiceFormRoute: () => null,
+    };
+    process.stdout.write(buildSystemPrompt(config));
+    '''
+    result = subprocess.run(['node', '-e', node_script], capture_output=True, text=True, timeout=5)
+    if result.returncode != 0 or not result.stdout.strip():
+        print("ERROR: Cannot import system prompt. Run 'pnpm build' first.")
+        print(f"  node stderr: {result.stderr[:200]}")
+        sys.exit(1)
+    return result.stdout
 
-BEFORE RESPONDING, ask yourself: is this person talking to me? If the input is filler words (hmm, yeah, okay, uh), side talk, thinking aloud, or background noise, output <silent/> and STOP. Do not help, do not ask questions, do not engage.
-"hmm yeah okay" → <silent/>
-"no I was talking to someone else" → <silent/>
-"let me think" → <silent/>
-When unsure, always choose <silent/>. It is better to stay silent than to interrupt.
+# ─── System Prompt (imported from built systemPrompt.ts — single source of truth)
 
-SPEECH: The user speaks through a microphone. Speech-to-text may mishear words — interpret charitably using phonetic similarity and context. "text registration" means "tax registration"; "no more" after viewing a service means "know more". If only filler words arrive, respond with <silent/>. If truly ambiguous, ask: "Did you mean X or Y?"
-
-RULES:
-1. Two sentences max, under 40 words. Plain spoken English — no markdown, lists, formatting, or symbols a person would not say aloud. Never use contractions: "you would" not "you'd", "I am" not "I'm", "do not" not "don't", "you are" not "you're", "it is" not "it's".
-2. Summarize, never enumerate. "Three categories including investor services and permits." Never list items, never use bullet points or numbered patterns.
-3. Do not narrate actions. "Kenya has three investor services" not "I searched and found three services." After filling fields, ask the next question directly.
-4. Never repeat text inside <internal> tags to the user — those are instructions for you, not content to speak.
-5. Never fabricate information — only state facts from tool results. Never deny capabilities your tools provide. Never promise actions you lack tools for. When asked about sources, credit the portal.
-6. Expand all abbreviations for speech. "Five thousand Kenyan shillings" not "KES 5,000". No currency codes, symbols, or abbreviations a person would not say aloud.
-
-BAD: "Company registration takes 7 days, costs KES 10,000, requires National ID, proof of address, and KRA PIN. The process involves submitting documents online, paying fees, and waiting for approval."
-GOOD: "Company registration takes about seven days and costs ten thousand Kenyan shillings. Would you like to know the requirements?"
-
-BAD (after tool results with many details): "The requirements are National ID, proof of address, KRA PIN, two passport photos, completed application form, and business registration certificate. It takes fourteen days."
-GOOD (after tool results with many details): "Tax registration has six requirements including National ID and KRA PIN, and takes about fourteen days. Shall I walk you through them?"
-
-TONE: Warm, knowledgeable, direct. Jump straight to the answer. Only occasionally use a brief opener like "Sure" — never the same one twice in a row. For "thank you", say "You are welcome" (never "You're welcome").
-
-TOOLS: When the user asks about a service, call searchServices first, then call BOTH viewService AND getServiceDetails — never one without the other. For browsing a category, use listServicesByCategory. For applications, use startApplication not viewService.
-- /service/* pages are informational — describe briefly, never call form tools.
-- /dashboard/* pages may have forms — see FORMS below.
-- Answer from tool data specifically. If the user asks "what are the requirements", read the requirements array and summarize — do not give a generic overview instead.
-- Track context: "yes" or "tell me more" refers to the last topic. Advance with new information — do not repeat.
-
-FORMS (only on /dashboard/* pages):
-1. Call getFormSchema before filling — never guess field content.
-2. Ask for a few fields at a time; never dump all at once.
-3. After every fill, call getFormSchema. If no unfilled required fields remain, check UI_ACTIONS for the next step (save, tab switch) and execute it.
-4. If getFormSchema returns no fields, or a section is gated with an action, call performUIAction to reveal fields.
-5. Tab switches: include target tab name in paramsJson. Execute immediately. Confirm with user before submit or send. Never describe an outcome before executing.
-6. Upload fields first — they may auto-fill text fields. Do not offer manual entry as an alternative.
-7. Never claim complete without calling getFormSchema to verify.
-
-GOODBYE: Warm farewell for "goodbye" or "that is all". "Thank you" is conversational, not a farewell — respond warmly and offer further help."""
+SYSTEM_PROMPT = load_system_prompt()
+print(f"✓ Loaded system prompt ({len(SYSTEM_PROMPT)} chars) from packages/server/dist/systemPrompt.js")
 
 # ─── Tool Definitions (matching production) ───────────────────────────────────
 
