@@ -35,7 +35,7 @@ export const UNINTERRUPTIBLE_WINDOW_MS = 3000;
 // Pipeline Behavior
 // ---------------------------------------------------------------------------
 
-export const SILENT_MARKER = '[SILENT]';
+export const SILENT_MARKER = '<silent/>';
 
 export const MIC_TOGGLE_DEBOUNCE_MS = 300;
 export const GUARD_DELAY_MS = 200;

@@ -464,7 +464,7 @@ export function useVoiceAgent({
     onPlaybackDone: () => {
       // response.audio.done: server finished sending all audio chunks.
       //
-      // If PROCESSING (LLM returned [SILENT] or empty — no audio was played),
+      // If PROCESSING (LLM returned <silent/> or empty — no audio was played),
       // transition immediately since there is nothing to wait for.
       if (stateRef.current === 'PROCESSING') {
         const nextState = textPipelineRef.current ? 'IDLE' : 'LISTENING';
@@ -590,9 +590,9 @@ export function useVoiceAgent({
       // Silent rejection
       if (cleaned?.includes(SILENT_MARKER)) {
         console.debug('[VoiceAgent] LLM returned SILENT marker, skipping');
-        // Remove the assistant [SILENT] message AND the user message that triggered it
+        // Remove the assistant <silent/> message AND the user message that triggered it
         setMessages((prev) => {
-          // First remove the last message (assistant [SILENT])
+          // First remove the last message (assistant <silent/>)
           const withoutAssistant = prev.length > 0 ? prev.slice(0, -1) : prev;
           // Then find and remove the last user message that triggered this turn
           let lastUserIdx = -1;
