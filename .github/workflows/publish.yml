@@ -30,15 +30,11 @@ jobs:
           COOLIFY_URL: ${{ secrets.COOLIFY_URL }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
         run: |
-          echo "Waiting 30s for npm CDN propagation..."
-          sleep 30
           UUIDS=$(curl -sf "$COOLIFY_URL/api/v1/applications" \
             -H "Authorization: Bearer $COOLIFY_TOKEN" \
             | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>JSON.parse(d).filter(a=>a.name?.endsWith('-voice-agent')).forEach(a=>console.log(a.uuid)))")
           for UUID in $UUIDS; do
-            curl -sf -X POST "$COOLIFY_URL/api/v1/deploy" \
-              -H "Authorization: Bearer $COOLIFY_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "{\"uuid\": \"$UUID\", \"force_rebuild\": true}" > /dev/null 2>&1 \
+            curl -sf -X GET "$COOLIFY_URL/api/v1/deploy?uuid=$UUID&force=true" \
+              -H "Authorization: Bearer $COOLIFY_TOKEN" > /dev/null 2>&1 \
               && echo "Deployed $UUID" || echo "Failed $UUID"
           done
