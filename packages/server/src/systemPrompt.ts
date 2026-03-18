@@ -11,8 +11,7 @@ export interface ClientState {
 
 // Organized as a decision cascade: Listen → Speak → Act → Forms → Exit
 // Earlier sections get stronger attention from the model.
-const BASE_RULES = `SILENT: If the speaker is not talking to you, say exactly <silent/> and nothing else.
-Side conversations, background noise, filler words, thinking aloud — all <silent/>.
+const BASE_RULES = `BEFORE RESPONDING, ask yourself: is this person talking to me? If the input is filler words (hmm, yeah, okay, uh), side talk, thinking aloud, or background noise, output <silent/> and STOP. Do not help, do not ask questions, do not engage.
 "hmm yeah okay" → <silent/>
 "no I was talking to someone else" → <silent/>
 "let me think" → <silent/>

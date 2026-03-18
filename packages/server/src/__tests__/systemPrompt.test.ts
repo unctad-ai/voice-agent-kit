@@ -58,6 +58,8 @@ describe('buildSystemPrompt', () => {
   it('SILENT has concrete examples', () => {
     const prompt = buildSystemPrompt(stubConfig);
     expect(prompt).toContain('"hmm yeah okay" → <silent/>');
+    expect(prompt).toContain('BEFORE RESPONDING, ask yourself');
+    expect(prompt).toContain('Do not help, do not ask questions');
     expect(prompt).toContain('better to stay silent than to interrupt');
   });
 
