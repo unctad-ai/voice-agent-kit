@@ -814,7 +814,7 @@ function WiredPanelInner({
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cancelledRef = useRef(false);
   const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
-  const backoffDelayRef = useRef(3000);
+  const backoffDelayRef = useRef(RETRY_INITIAL_MS);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const dismissErrorRef = useRef(dismissError);
