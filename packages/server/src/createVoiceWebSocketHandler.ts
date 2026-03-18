@@ -9,6 +9,7 @@ import { VoicePipeline } from './voicePipeline.js';
 import { SttStreamClient } from './sttStreamClient.js';
 import type { VoiceServerOptions } from './types.js';
 import type { TtsProviderConfig } from './ttsProviders.js';
+import { createSessionLogger } from './logger.js';
 
 
 // Read kit version once at module load
@@ -30,6 +31,7 @@ export function createVoiceWebSocketHandler(
   wss.on('connection', (ws) => {
     clients.add(ws);
     const sessionId = randomUUID();
+    const logger = createSessionLogger(sessionId);
 
     // Build STT WebSocket URL from options
     const sttBaseUrl = options.sttUrl || process.env.STT_URL || 'http://localhost:8003';
@@ -59,13 +61,13 @@ export function createVoiceWebSocketHandler(
         pipeline.resolveSttDone(text, vadProbs, durationMs);
       },
       onConnected: () => {
-        console.log(`[WS] STT connected for session ${sessionId}`);
+        logger.info('stt:connected');
       },
       onDisconnected: () => {
-        console.log(`[WS] STT disconnected for session ${sessionId}`);
+        logger.info('stt:disconnected');
       },
       onError: (err) => {
-        console.error(`[WS] STT error for session ${sessionId}:`, err.message);
+        logger.error('stt:error', err.message);
         safeSend(createEvent('error', { code: 'stt_error', message: err.message }));
       },
     });
@@ -91,6 +93,7 @@ export function createVoiceWebSocketHandler(
     };
 
     pipeline = new VoicePipeline({
+      logger,
       sttClient,
       ttsConfig,
       groqApiKey: options.groqApiKey,
@@ -105,40 +108,24 @@ export function createVoiceWebSocketHandler(
 
     safeSend(createEvent('session.created', { session_id: sessionId }));
 
-    let msgCount = 0;
-    let audioFrameCount = 0;
-
     // Audio capture for diagnostics (enabled via CAPTURE_AUDIO=1)
     const captureAudio = process.env.CAPTURE_AUDIO === '1';
     const capturedFrames: Buffer[] = [];
 
     ws.on('message', (data, isBinary) => {
-      msgCount++;
-      if (msgCount <= 3 || msgCount % 100 === 0) {
-        console.log(`[WS] msg #${msgCount} isBinary=${isBinary} size=${Buffer.isBuffer(data) ? data.length : (data as any).byteLength || 0}`);
-      }
       if (isBinary) {
         const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer);
         if (isAudioFrame(buf)) {
-          audioFrameCount++;
-          // Always forward audio to STT — it needs continuous audio to produce
-          // results on flush. Turn boundary is enforced client-side (useVoiceAgent
-          // stops sending audio during PROCESSING/AI_SPEAKING states).
-          // Copy to aligned buffer — ws may deliver Buffers with non-4-byte-aligned byteOffset
           const aligned = buf.byteOffset % 4 === 0 ? buf : Buffer.from(buf);
           const pcm = new Float32Array(aligned.buffer, aligned.byteOffset, aligned.byteLength / 4);
           sttClient.sendAudio(pcm);
           if (captureAudio) capturedFrames.push(Buffer.from(aligned));
-          if (audioFrameCount <= 3 || audioFrameCount % 50 === 0) {
-            console.log(`[WS] audio frame #${audioFrameCount} samples=${pcm.length} sttConnected=${sttClient.isConnected}`);
-          }
         }
         return;
       }
 
       const event = parseEvent(data.toString());
       if (!event) return;
-      console.log(`[WS] event: ${event.type}`);
 
       switch (event.type) {
         case 'session.update':
@@ -151,7 +138,7 @@ export function createVoiceWebSocketHandler(
           pipeline.startTurn()
             .catch((err) => {
               if (err?.message !== 'cancelled') {
-                console.error('[WS] startTurn error:', err);
+                logger.error('startTurn:error', err);
                 safeSend(createEvent('error', { code: 'pipeline_error', message: err?.message || 'Unknown error' }));
                 safeSend(createEvent('status', { status: 'listening' }));
               }
@@ -170,7 +157,7 @@ export function createVoiceWebSocketHandler(
             pipeline.startTextTurn(event.text)
               .catch((err) => {
                 if (err?.message !== 'cancelled') {
-                  console.error('[WS] startTextTurn error:', err);
+                  logger.error('startTextTurn:error', err);
                   safeSend(createEvent('error', { code: 'pipeline_error', message: err?.message || 'Unknown error' }));
                   safeSend(createEvent('status', { status: 'listening' }));
                 }
@@ -185,7 +172,7 @@ export function createVoiceWebSocketHandler(
 
     ws.on('error', (err) => {
       clients.delete(ws);
-      console.error(`[WS] Connection error for session ${sessionId}:`, err);
+      logger.error('ws:error', err);
     });
 
     ws.on('close', () => {
@@ -210,10 +197,10 @@ export function createVoiceWebSocketHandler(
           wavHeader.writeUInt16LE(32, 34); wavHeader.write('data', 36);
           wavHeader.writeUInt32LE(dataSize, 40);
           writeFileSync(`/tmp/audio-capture/${sessionId}.wav`, Buffer.concat([wavHeader, raw]));
-          console.log(`[WS] Captured ${capturedFrames.length} frames → /tmp/audio-capture/${sessionId}.wav`);
-        } catch (e) { console.error('[WS] Audio capture write failed:', e); }
+          logger.info('audio:captured', `${capturedFrames.length} frames → /tmp/audio-capture/${sessionId}.wav`);
+        } catch (e) { logger.error('audio:capture-failed', e); }
       }
-      console.log(`[WS] Session ${sessionId} closed`);
+      logger.info('session:closed');
     });
   });
 

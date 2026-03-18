@@ -14,11 +14,12 @@ import { createBuiltinTools } from './builtinTools.js';
 import { createEvent } from './protocol.js';
 import { sanitizeForTTS } from './textUtils.js';
 import { AsyncQueue } from './asyncQueue.js';
+import type { SessionLogger } from './logger.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface VoicePipelineOptions {
-  sessionId: string;
+  logger: SessionLogger;
   sttClient: SttStreamClient;
   ttsConfig: TtsProviderConfig;
   groqApiKey: string;
@@ -119,7 +120,7 @@ export class VoicePipeline {
   private options: VoicePipelineOptions;
   private session: SessionState = { conversation: [] };
   private abortController: AbortController | null = null;
-  private sid: string; // short session id for log prefix
+  private logger: SessionLogger;
 
   // STT done queue (replaces fragile sttDoneResolve pattern)
   private sttQueue = new AsyncQueue<SttDoneResult>();
@@ -130,12 +131,7 @@ export class VoicePipeline {
 
   constructor(options: VoicePipelineOptions) {
     this.options = options;
-    this.sid = options.sessionId.slice(0, 8);
-  }
-
-  /** Session-scoped log: all lines prefixed with [sid:turn] for grep-ability. */
-  private log(stage: string, detail = '', ms?: number): void {
-    console.log(`[${this.sid}:${this.turnId}] ${stage} ${detail}${ms != null ? ` (${ms}ms)` : ''}`);
+    this.logger = options.logger;
   }
 
   // ─── Public API ──────────────────────────────────────────────────────────
@@ -224,7 +220,7 @@ export class VoicePipeline {
     this.abortController = new AbortController();
     const { signal } = this.abortController;
 
-    this.log('turn:start', `route=${this.session.clientState?.route ?? '?'}`);
+    this.logger.info('turn:start', `route=${this.session.clientState?.route ?? '?'}`);
 
     try {
       send(createEvent('status', { status: 'processing' }));
@@ -233,7 +229,7 @@ export class VoicePipeline {
       const sttStart = Date.now();
       const sttResult = await this.waitForSttDone(signal);
       const sttMs = Date.now() - sttStart;
-      this.log('stt:done', `"${sttResult.text}"`, sttMs);
+      this.logger.info('stt:done', `"${sttResult.text}"`, sttMs);
       send(createEvent('stt.result', { transcript: sttResult.text }));
 
       const text = sttResult.text.trim();
@@ -248,7 +244,7 @@ export class VoicePipeline {
           noSpeechProb > NO_SPEECH_PROB_THRESHOLD ||
           avgLogprob < AVG_LOGPROB_THRESHOLD
         ) {
-          this.log('stt:filtered', `"${text.slice(0, 50)}" noSpeech=${noSpeechProb.toFixed(3)} avgLog=${avgLogprob.toFixed(3)}`);
+          this.logger.info('stt:filtered', `"${text.slice(0, 50)}" noSpeech=${noSpeechProb.toFixed(3)} avgLog=${avgLogprob.toFixed(3)}`);
           send(createEvent('status', { status: 'listening' }));
           return;
         }
@@ -267,7 +263,7 @@ export class VoicePipeline {
 
       // LLM — with timeout
       const model = groqModel || 'qwen/qwen3-32b';
-      this.log('llm:start', `model=${model} msgs=${this.session.conversation.length}`);
+      this.logger.info('llm:start', `model=${model} msgs=${this.session.conversation.length}`);
       const llmStart = Date.now();
 
       let assistantText: string;
@@ -275,12 +271,12 @@ export class VoicePipeline {
         assistantText = await this.runLlmLoop(siteConfig, groqApiKey, model, signal);
       } catch (err) {
         if (signal.aborted) throw err;
-        this.log('llm:timeout', `${err instanceof Error ? err.message : String(err)}`, Date.now() - llmStart);
+        this.logger.info('llm:timeout', `${err instanceof Error ? err.message : String(err)}`, Date.now() - llmStart);
         assistantText = LLM_FALLBACK_TEXT;
       }
 
       const llmMs = Date.now() - llmStart;
-      this.log('llm:done', `"${assistantText}"`, llmMs);
+      this.logger.info('llm:done', `"${assistantText}"`, llmMs);
 
       // Send text response
       send(createEvent('response.text.done', { text: assistantText }));
@@ -293,7 +289,7 @@ export class VoicePipeline {
         send(createEvent('response.audio.done', {}));
         send(createEvent('timings', { stt_ms: sttMs, llm_ms: llmMs, tts_ms: 0, total_ms: Date.now() - turnStart }));
         send(createEvent('status', { status: 'listening' }));
-        this.log('turn:done', 'silent', Date.now() - turnStart);
+        this.logger.info('turn:done', 'silent', Date.now() - turnStart);
         return;
       }
 
@@ -302,24 +298,24 @@ export class VoicePipeline {
       try {
         await this.streamTtsAudio(ttsText, ttsConfig, signal, sendBinary);
         ttsMs = Date.now() - ttsStart;
-        this.log('tts:done', `provider=${ttsConfig.ttsProvider} chars=${ttsText.length}`, ttsMs);
+        this.logger.info('tts:done', `provider=${ttsConfig.ttsProvider} chars=${ttsText.length}`, ttsMs);
       } catch (err) {
         if (signal.aborted) throw err;
         ttsMs = Date.now() - ttsStart;
-        this.log('tts:error', `${err instanceof Error ? err.message : String(err)}`, ttsMs);
+        this.logger.info('tts:error', `${err instanceof Error ? err.message : String(err)}`, ttsMs);
       }
 
       send(createEvent('response.audio.done', {}));
       send(createEvent('timings', { stt_ms: sttMs, llm_ms: llmMs, tts_ms: ttsMs, total_ms: Date.now() - turnStart }));
       send(createEvent('status', { status: 'listening' }));
-      this.log('turn:done', '', Date.now() - turnStart);
+      this.logger.info('turn:done', '', Date.now() - turnStart);
     } catch (err) {
       if (signal.aborted) {
-        this.log('turn:cancelled');
+        this.logger.info('turn:cancelled');
         return;
       }
       const message = err instanceof Error ? err.message : String(err);
-      this.log('turn:error', message);
+      this.logger.info('turn:error', message);
       if (err instanceof Error && err.stack) console.error(err.stack);
       send(createEvent('error', { code: 'pipeline_error', message }));
       send(createEvent('status', { status: 'listening' }));
@@ -349,7 +345,7 @@ export class VoicePipeline {
     this.abortController = new AbortController();
     const { signal } = this.abortController;
 
-    this.log('text-turn:start', `"${text}"`);
+    this.logger.info('text-turn:start', `"${text}"`);
 
     try {
       send(createEvent('status', { status: 'processing' }));
@@ -361,7 +357,7 @@ export class VoicePipeline {
       }));
 
       const model = groqModel || 'qwen/qwen3-32b';
-      this.log('llm:start', `model=${model} msgs=${this.session.conversation.length}`);
+      this.logger.info('llm:start', `model=${model} msgs=${this.session.conversation.length}`);
       const llmStart = Date.now();
 
       let assistantText: string;
@@ -372,7 +368,7 @@ export class VoicePipeline {
         throw err;
       }
       const llmMs = Date.now() - llmStart;
-      this.log('llm:done', `"${assistantText}"`, llmMs);
+      this.logger.info('llm:done', `"${assistantText}"`, llmMs);
 
       if (assistantText.trim() && !assistantText.includes('<silent')) {
         this.session.conversation.push({ role: 'assistant', content: assistantText });
@@ -385,7 +381,7 @@ export class VoicePipeline {
         const ttsStart = Date.now();
         await this.streamTtsAudio(assistantText, ttsConfig, signal, sendBinary);
         const ttsMs = Date.now() - ttsStart;
-        this.log('tts:done', `provider=${ttsConfig.ttsProvider} chars=${assistantText.length}`, ttsMs);
+        this.logger.info('tts:done', `provider=${ttsConfig.ttsProvider} chars=${assistantText.length}`, ttsMs);
 
         send(createEvent('response.audio.done', {}));
         send(createEvent('timings', { stt_ms: 0, llm_ms: llmMs, tts_ms: ttsMs, total_ms: Date.now() - turnStart }));
@@ -398,7 +394,7 @@ export class VoicePipeline {
     } catch (err) {
       if (signal.aborted) return;
       const message = err instanceof Error ? err.message : String(err);
-      this.log('text-turn:error', message);
+      this.logger.info('text-turn:error', message);
       send(createEvent('error', { code: 'pipeline_error', message }));
       send(createEvent('status', { status: 'listening' }));
     } finally {
@@ -514,11 +510,11 @@ export class VoicePipeline {
         if (signal.aborted) throw new Error('cancelled');
         // AI_NoOutputGeneratedError: model returned empty — treat as empty response
         if (err?.name === 'AI_NoOutputGeneratedError' || err?.message?.includes('No output generated')) {
-          console.log(`[${this.sid}:${this.turnId}] llm:empty — no output generated`);
+          this.logger.info('llm:empty', 'no output generated');
           fullText += roundText;
           break;
         }
-        console.error(`[${this.sid}:${this.turnId}] llm:stream-error`, err);
+        this.logger.error('llm:stream-error', err);
         throw err;
       }
 
@@ -531,10 +527,7 @@ export class VoicePipeline {
         break;
       }
 
-      console.log(
-        `[${this.sid}:${this.turnId}] tools (round ${round + 1}):`,
-        toolCalls.map((tc) => `${tc.toolName}(${summarizeToolInput(tc.toolName, tc.input)})`).join(', ')
-      );
+      this.logger.info('tools', `round=${round + 1} ${toolCalls.map((tc) => `${tc.toolName}(${summarizeToolInput(tc.toolName, tc.input)})`).join(', ')}`);
 
       // Build the assistant message manually — response.messages may include
       // provider-specific parts (e.g. reasoning) that fail ModelMessage validation.
@@ -570,10 +563,7 @@ export class VoicePipeline {
           if (toolDef && typeof toolDef.execute === 'function') {
             try {
               toolResult = await toolDef.execute(tc.input);
-              console.log(
-                `[${this.sid}:${this.turnId}] server-tool ${tc.toolName}:`,
-                summarizeToolResult(tc.toolName, toolResult)
-              );
+              this.logger.info('server-tool', `${tc.toolName}: ${summarizeToolResult(tc.toolName, toolResult)}`);
             } catch (err) {
               toolResult = { error: err instanceof Error ? err.message : String(err) };
             }
@@ -591,10 +581,7 @@ export class VoicePipeline {
           );
 
           toolResult = await this.waitForClientToolResult(tc.toolCallId, signal);
-          console.log(
-            `[${this.sid}:${this.turnId}] client-tool ${tc.toolName}:`,
-            summarizeToolResult(tc.toolName, toolResult)
-          );
+          this.logger.info('client-tool', `${tc.toolName}: ${summarizeToolResult(tc.toolName, toolResult)}`);
         }
 
         toolResults.push({
@@ -634,7 +621,7 @@ export class VoicePipeline {
           })
         );
         const schemaResult = await this.waitForClientToolResult(schemaCallId, signal);
-        console.log(`[${this.sid}:${this.turnId}] auto-schema:`, summarizeSchema(schemaResult));
+        this.logger.info('auto-schema', summarizeSchema(schemaResult));
 
         // Inject as if the LLM called getFormSchema itself
         messages.push({
