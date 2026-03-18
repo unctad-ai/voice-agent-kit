@@ -32,8 +32,11 @@ export function attachVoicePipeline(
     personaStore = new PersonaStore(options.personaDir, options.config);
   }
 
+  const dataDir = options.personaDir ? path.dirname(options.personaDir) : path.join(process.cwd(), 'data');
+
   const { broadcast } = createVoiceWebSocketHandler(server, {
     ...options,
+    dataDir,
     getActiveVoiceId: personaStore ? () => personaStore!.getActiveVoiceId() : undefined,
   });
 
@@ -54,7 +57,6 @@ export function attachVoicePipeline(
   }
 
   if (app) {
-    const dataDir = options.personaDir ? path.dirname(options.personaDir) : path.join(process.cwd(), 'data');
     const { router: feedbackRouter } = createFeedbackRoutes(dataDir, KIT_VERSION);
     app.use('/api/feedback', feedbackRouter);
   }

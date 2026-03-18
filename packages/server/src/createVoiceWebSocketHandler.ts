@@ -219,6 +219,10 @@ export function createVoiceWebSocketHandler(
         } catch (e) { logger.error('audio:capture-failed', e); }
       }
       logger.info('session:closed');
+      // Flush session trace to disk
+      if (options.dataDir) {
+        logger.flush(join(options.dataDir, 'traces'));
+      }
     });
   });
 

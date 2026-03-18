@@ -29,4 +29,6 @@ export interface VoiceServerOptions {
   sttHallucinationFilter?: boolean;
   /** Password for shared settings admin UI. Default: 'admin'. */
   adminPassword?: string;
+  /** Directory for persistent data (traces, feedback). Derived from personaDir if not set. */
+  dataDir?: string;
 }
