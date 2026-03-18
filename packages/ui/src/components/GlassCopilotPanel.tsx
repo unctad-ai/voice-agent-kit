@@ -386,7 +386,9 @@ function ComposerBar({
 
   useEffect(() => {
     if (mode === 'text') {
-      requestAnimationFrame(() => inputRef.current?.focus());
+      // Delay focus to after AnimatePresence mount animation
+      const timer = setTimeout(() => inputRef.current?.focus(), 200);
+      return () => clearTimeout(timer);
     }
   }, [mode]);
 
@@ -395,7 +397,8 @@ function ComposerBar({
     if (!trimmed) return;
     onTextSubmit(trimmed);
     setText('');
-    if (!disabled) setMode('voice');
+    // Stay in text mode — user switches back to voice via mic button
+    requestAnimationFrame(() => inputRef.current?.focus());
   };
 
   const handleCancel = () => {
