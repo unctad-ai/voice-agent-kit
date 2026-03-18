@@ -110,6 +110,24 @@ When a kit package imports a module at runtime, that module **must** be in `depe
 - **Prefer `dependencies`** for packages the kit fully controls (e.g. `groq-sdk`, `sharp`, `multer`). Use `peerDependencies` only when the consumer needs to control the version (e.g. `react`, `express`, `ai`)
 - **The scaffold (`voice-agent-action`) should not compensate** for missing kit deps — if the scaffold needs to hardcode a dep, that's a signal the kit's package.json is wrong
 
+## Server Logging
+
+`packages/server/src/logger.ts` — session-scoped logger, one per WebSocket connection. Every line auto-prefixed with `[sid:turn]` for end-to-end tracing.
+
+```typescript
+const logger = createSessionLogger(sessionId);  // created in WS handler
+logger.setTurn(1);                               // called at each turn start
+logger.info('stt:done', '"hello"', 1200);        // [a1b2c3d4:1] stt:done "hello" (1200ms)
+logger.error('tts:error', err);                  // [a1b2c3d4:1] tts:error <err>
+```
+
+**Rules:**
+- Pass `logger` to `VoicePipeline` via `options.logger` — never raw `console.log` with manual prefixes
+- Stage names: `component:event` — `stt:done`, `llm:start`, `tts:done`, `turn:start`, `session:closed`
+- Tool results: `summarizeToolResult()` caps at 500 chars; `getFormSchema` gets section/field summary
+- Tool inputs: `summarizeToolInput()` shows field=value for fills, action IDs for UI actions
+- No per-frame/per-message WS logging — session lifecycle + pipeline stages only
+
 ## Development Rules
 
 - `useChat` (from `@ai-sdk/react`) drives the client-server protocol — not CopilotKit

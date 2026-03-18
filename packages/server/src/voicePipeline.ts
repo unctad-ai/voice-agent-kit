@@ -214,7 +214,7 @@ export class VoicePipeline {
     // 4c. Drain stale STT results from previous turns
     this.sttQueue.drain();
 
-    ++this.turnId;
+    this.logger.setTurn(++this.turnId);
     const turnStart = Date.now();
 
     this.abortController = new AbortController();
@@ -316,7 +316,7 @@ export class VoicePipeline {
       }
       const message = err instanceof Error ? err.message : String(err);
       this.logger.info('turn:error', message);
-      if (err instanceof Error && err.stack) console.error(err.stack);
+      if (err instanceof Error && err.stack) this.logger.error('turn:stack', err.stack);
       send(createEvent('error', { code: 'pipeline_error', message }));
       send(createEvent('status', { status: 'listening' }));
     } finally {
@@ -339,7 +339,7 @@ export class VoicePipeline {
     if (this.abortController) this.cancel();
     this.sttQueue.drain();
 
-    ++this.turnId;
+    this.logger.setTurn(++this.turnId);
     const turnStart = Date.now();
 
     this.abortController = new AbortController();
