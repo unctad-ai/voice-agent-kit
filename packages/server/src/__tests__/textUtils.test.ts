@@ -44,6 +44,16 @@ describe('sanitizeForTTS', () => {
     expect(sanitizeForTTS(input)).toBe('Answer here');
   });
 
+  it('converts em dashes to commas for TTS pauses', () => {
+    expect(sanitizeForTTS('three services \u2014 like permits')).toBe('three services , like permits');
+  });
+  it('keeps hyphens as hyphens for compound words', () => {
+    expect(sanitizeForTTS('well\u2010known fact')).toBe('well-known fact');
+  });
+  it('preserves ellipsis as TTS hesitation pause', () => {
+    expect(sanitizeForTTS('well... let me check')).toBe('well... let me check');
+  });
+
   it('strips <internal> tags and content from TTS output', () => {
     const input = 'Action completed. <internal>Check UI_ACTIONS for valid action IDs.</internal>';
     expect(sanitizeForTTS(input)).toBe('Action completed.');
