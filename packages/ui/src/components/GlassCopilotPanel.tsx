@@ -669,7 +669,7 @@ function ComposerBar({
                   if (e.key === 'Enter') handleFeedbackSubmit();
                   if (e.key === 'Escape') handleFeedbackCancel();
                 }}
-                placeholder="What went wrong?"
+                placeholder="How could this be better?"
                 className="w-full"
                 style={{
                   fontSize: '14px', color: '#1a1a1a', background: 'transparent',

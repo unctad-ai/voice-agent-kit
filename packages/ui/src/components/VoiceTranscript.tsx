@@ -400,6 +400,11 @@ export default function VoiceTranscript({
               const { msg } = item;
               const isLast = idx === arr.length - 1;
               const isAI = msg.role === 'assistant';
+              // Skip label when previous item was also from the same role (assistant or action)
+              const prevItem = idx > 0 ? arr[idx - 1] : null;
+              const prevIsAI = prevItem?.type === 'action' || (prevItem?.type === 'message' && prevItem.msg.role === 'assistant');
+              const prevIsUser = prevItem?.type === 'message' && prevItem.msg.role === 'user';
+              const showLabel = isAI ? !prevIsAI : !prevIsUser;
 
               const cleaned = cleanForDisplay(msg.text);
               const displayText =
@@ -414,6 +419,7 @@ export default function VoiceTranscript({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.2, ease: 'easeOut' }}
+                  className={isAI ? 'voice-msg-group' : undefined}
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -421,6 +427,7 @@ export default function VoiceTranscript({
                     marginTop: idx === 0 ? 0 : 12,
                   }}
                 >
+                  {showLabel && (
                   <p
                     className="uppercase tracking-wider"
                     style={{
@@ -433,6 +440,7 @@ export default function VoiceTranscript({
                   >
                     {isAI ? assistantLabel : 'You'}
                   </p>
+                  )}
                   <div
                     style={{
                       ...(isAI
@@ -474,9 +482,7 @@ export default function VoiceTranscript({
                     const turnNumber = visible.slice(0, idx + 1).filter(m => m.role === 'assistant').length;
                     const isSent = feedbackSentTurn === turnNumber;
                     return (
-                      <motion.button
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
+                      <button
                         disabled={isSent}
                         onClick={() => {
                           const userMsg = visible.slice(0, idx).reverse().find(m => m.role === 'user');
@@ -485,25 +491,23 @@ export default function VoiceTranscript({
                         className="voice-feedback-pill"
                         style={{
                           marginTop: 2,
-                          fontSize: 10,
-                          padding: '2px 4px',
+                          fontSize: 11,
+                          padding: '2px 8px',
                           borderRadius: 8,
-                          border: 'none',
+                          border: isSent ? '1px solid rgba(22,163,74,0.3)' : '1px solid rgba(0,0,0,0.12)',
                           background: 'transparent',
-                          color: isSent ? '#16a34a' : 'rgba(0,0,0,0.2)',
+                          color: isSent ? '#16a34a' : 'rgba(0,0,0,0.30)',
                           cursor: isSent ? 'default' : 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 0,
-                          overflow: 'hidden',
-                          transition: 'color 0.15s, gap 0.2s',
+                          gap: 3,
+                          opacity: isSent ? 1 : 0,
+                          transition: 'opacity 0.15s, color 0.15s',
                         }}
                       >
-                        {isSent
-                          ? <><Flag size={9} strokeWidth={2} /> <span style={{ marginLeft: 3 }}>Sent</span></>
-                          : <><Flag size={9} strokeWidth={2} /><span className="voice-feedback-label" style={{ maxWidth: 0, opacity: 0, overflow: 'hidden', whiteSpace: 'nowrap', transition: 'max-width 0.2s, opacity 0.15s, margin 0.2s', marginLeft: 0 }}>Feedback</span></>
-                        }
-                      </motion.button>
+                        <Flag size={10} strokeWidth={2} />
+                        {isSent ? 'Sent' : 'Feedback'}
+                      </button>
                     );
                   })()}
                 </motion.div>

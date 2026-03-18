@@ -34,8 +34,8 @@ const AGENT_FAB_CSS = `
 @media (prefers-reduced-motion: reduce) {
   .agent-fab-border { animation: none; }
 }
-.voice-feedback-pill:hover { color: rgba(0,0,0,0.45) !important; }
-.voice-feedback-pill:hover .voice-feedback-label { max-width: 60px !important; opacity: 1 !important; margin-left: 3px !important; }`;
+.voice-msg-group:hover .voice-feedback-pill { opacity: 1 !important; }
+.voice-feedback-pill:hover { color: rgba(0,0,0,0.5) !important; border-color: rgba(0,0,0,0.2) !important; }`;
 
 let injected = false;
 export function injectAgentFabCSS() {
