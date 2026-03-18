@@ -989,6 +989,7 @@ function WiredPanelInner({
 
   const [micPaused, setMicPaused] = useState(false);
   const [activity, setActivity] = useState(0);
+  const [showSettings, setShowSettings] = useState(false);
   const hasConversationRef = useRef(false);
   hasConversationRef.current = messages.length > 0;
   const onCollapseRef = useRef(onCollapse);
@@ -1005,18 +1006,18 @@ function WiredPanelInner({
   useEffect(() => { if (panelState === 'hidden') stopRef.current(true); }, [panelState]);
 
   useEffect(() => {
-    if (panelState === 'hidden' || micPaused) return;
+    if (panelState === 'hidden' || micPaused || showSettings) return;
     if (state === 'PROCESSING' || state === 'AI_SPEAKING') return;
     const timer = setTimeout(() => { stopRef.current(); if (hasConversationRef.current) { setMicPaused(true); } else { onCollapseRef.current(); } }, settings.idleTimeoutMs);
     return () => clearTimeout(timer);
-  }, [state, panelState, micPaused, activity, settings.idleTimeoutMs]);
+  }, [state, panelState, micPaused, showSettings, activity, settings.idleTimeoutMs]);
 
   useEffect(() => {
-    if (!micPaused || panelState !== 'expanded') return;
+    if (!micPaused || panelState !== 'expanded' || showSettings) return;
     if (settings.panelCollapseTimeoutMs === 0) return;
     const timer = setTimeout(() => { onCollapseRef.current(); }, settings.panelCollapseTimeoutMs);
     return () => clearTimeout(timer);
-  }, [micPaused, panelState, activity, settings.panelCollapseTimeoutMs]);
+  }, [micPaused, panelState, showSettings, activity, settings.panelCollapseTimeoutMs]);
 
   const handleTextSubmit = useCallback((text: string) => { setMicPaused(false); bumpActivity(); sendTextMessage(text); }, [sendTextMessage, bumpActivity]);
 
@@ -1087,8 +1088,23 @@ function WiredPanelInner({
   const switchToTextRef = useRef<(() => void) | null>(null);
   const handleSwitchToKeyboard = useCallback(() => { switchToTextRef.current?.(); }, []);
 
-  const [showSettings, setShowSettings] = useState(false);
   const toggleSettings = useCallback(() => setShowSettings((p) => !p), []);
+
+  // Pause listening when settings panel is open, resume when closed
+  const wasListeningBeforeSettingsRef = useRef(false);
+  useEffect(() => {
+    if (showSettings) {
+      if (state === 'LISTENING' || state === 'USER_SPEAKING') {
+        wasListeningBeforeSettingsRef.current = true;
+        stopRef.current();
+      } else {
+        wasListeningBeforeSettingsRef.current = false;
+      }
+    } else if (wasListeningBeforeSettingsRef.current) {
+      wasListeningBeforeSettingsRef.current = false;
+      startRef.current();
+    }
+  }, [showSettings]);
 
   if (panelState === 'collapsed') {
     return <CollapsedBar orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} onExpand={onExpand} onClose={onClose} onRetry={handleRetryClick} isRetrying={isRetrying} retryCountdown={retryCountdown} voiceError={effectiveError} micPaused={micPaused} onMicToggle={handleMicToggle} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} />;
