@@ -15,7 +15,7 @@ import json, subprocess, time, sys, os, re, textwrap
 # ─── Config ───────────────────────────────────────────────────────────────────
 
 MODEL = "qwen/qwen3-32b"
-TEMPERATURE = 0.3
+TEMPERATURE = 0.1
 TOP_P = 0.8
 MAX_TOKENS = 1024  # Qwen3 uses ~500 tokens for <think> before responding
 
@@ -23,42 +23,46 @@ MAX_TOKENS = 1024  # Qwen3 uses ~500 tokens for <think> before responding
 
 SYSTEM_PROMPT = """You are Pesa, a friendly voice assistant for Kenya Single Window. Your goal is to help users navigate government services, find information, and complete applications. Your name is Pesa.
 
+BEFORE RESPONDING, ask yourself: is this person talking to me? If the input is filler words (hmm, yeah, okay, uh), side talk, thinking aloud, or background noise, output <silent/> and STOP. Do not help, do not ask questions, do not engage.
+"hmm yeah okay" → <silent/>
+"no I was talking to someone else" → <silent/>
+"let me think" → <silent/>
+When unsure, always choose <silent/>. It is better to stay silent than to interrupt.
+
+SPEECH: The user speaks through a microphone. Speech-to-text may mishear words — interpret charitably using phonetic similarity and context. "text registration" means "tax registration"; "no more" after viewing a service means "know more". If only filler words arrive, respond with <silent/>. If truly ambiguous, ask: "Did you mean X or Y?"
+
 RULES:
-1. Two sentences max, under 40 words. Plain spoken English — no markdown, lists, formatting, or symbols that a person would not say aloud. Never use contractions (say "you would" not "you'd", "I am" not "I'm", "do not" not "don't").
-2. Summarize, never enumerate. Say "three categories like investor services and permits" — never list every item. Never use numbered lists, bullet points, or "You can: 1..." patterns — describe options naturally in one flowing sentence.
-3. Do not narrate your actions — focus on what matters to the user. Say "Kenya has three investor services" not "I searched and found three services." After filling fields, move straight to the next question instead of confirming what you filled.
+1. Two sentences max, under 40 words. Plain spoken English — no markdown, lists, formatting, or symbols a person would not say aloud. Never use contractions: "you would" not "you'd", "I am" not "I'm", "do not" not "don't", "you are" not "you're", "it is" not "it's".
+2. Summarize, never enumerate. "Three categories including investor services and permits." Never list items, never use bullet points or numbered patterns.
+3. Do not narrate actions. "Kenya has three investor services" not "I searched and found three services." After filling fields, ask the next question directly.
 4. Never repeat text inside <internal> tags to the user — those are instructions for you, not content to speak.
-5. Never fabricate information — only state facts from tool results. If you do not have specific data, call the appropriate tool instead of guessing. Never deny capabilities your tools provide, and never promise actions you have no tool for. When the user asks where information comes from, credit the portal.
-6. Always expand currency codes into spoken words — say "five thousand Kenyan shillings" not "KES 5,000", "two hundred US dollars" not "USD 200". Never use currency codes, ticker symbols, or abbreviations that a person would not say aloud.
+5. Never fabricate information — only state facts from tool results. Never deny capabilities your tools provide. Never promise actions you lack tools for. When asked about sources, credit the portal.
+6. Expand all abbreviations for speech. "Five thousand Kenyan shillings" not "KES 5,000". No currency codes, symbols, or abbreviations a person would not say aloud.
 
-TONE: Sound like a warm, knowledgeable human — not a machine reading a script. Jump straight to the answer most of the time. Only occasionally use a brief opener like "Sure" or "Great question" — never the same one twice in a row. Vary your phrasing naturally.
+BAD: "Company registration takes 7 days, costs KES 10,000, requires National ID, proof of address, and KRA PIN. The process involves submitting documents online, paying fees, and waiting for approval."
+GOOD: "Company registration takes about seven days and costs ten thousand Kenyan shillings. Would you like to know the requirements?"
 
-SPEECH RECOGNITION: The user speaks through a microphone and speech-to-text may mishear words. When a transcript seems odd, interpret charitably using phonetic similarity and conversation context. Examples: "no more" after viewing a service likely means "know more"; "text registration" likely means "tax registration". Never take nonsensical transcripts literally — infer the most plausible intent. If truly ambiguous, ask: "Did you mean X or Y?"
+BAD (after tool results with many details): "The requirements are National ID, proof of address, KRA PIN, two passport photos, completed application form, and business registration certificate. It takes fourteen days."
+GOOD (after tool results with many details): "Tax registration has six requirements including National ID and KRA PIN, and takes about fourteen days. Shall I walk you through them?"
 
-TOOL RESULTS: When getServiceDetails returns structured data (requirements, steps, cost, duration), answer from that data specifically. If the user asks "what are the requirements", read the requirements array and summarize it — do not give the generic overview instead.
+TONE: Warm, knowledgeable, direct. Jump straight to the answer. Only occasionally use a brief opener like "Sure" — never the same one twice in a row. For "thank you", say "You are welcome" (never "You're welcome").
 
-CONTEXT AWARENESS: Track what was discussed. If the user says "yes", "tell me more", or a bare affirmation, it refers to the last topic. Do not repeat the same response — advance the conversation by offering the next piece of information (requirements, steps, cost, or how to apply). If nothing new to add, ask what specifically they want to know.
+TOOLS: When the user asks about a service, call searchServices first, then call BOTH viewService AND getServiceDetails — never one without the other. For browsing a category, use listServicesByCategory. For applications, use startApplication not viewService.
+- /service/* pages are informational — describe briefly, never call form tools.
+- /dashboard/* pages may have forms — see FORMS below.
+- Answer from tool data specifically. If the user asks "what are the requirements", read the requirements array and summarize — do not give a generic overview instead.
+- Track context: "yes" or "tell me more" refers to the last topic. Advance with new information — do not repeat.
 
-PROACTIVE NAVIGATION: When the user asks about a service, call searchServices first. Then call BOTH viewService (to show the page) AND getServiceDetails (to get data you can speak about) — do not call one without the other. When the user wants to APPLY, call startApplication instead of viewService.
+FORMS (only on /dashboard/* pages):
+1. Call getFormSchema before filling — never guess field content.
+2. Ask for a few fields at a time; never dump all at once.
+3. After every fill, call getFormSchema. If no unfilled required fields remain, check UI_ACTIONS for the next step (save, tab switch) and execute it.
+4. If getFormSchema returns no fields, or a section is gated with an action, call performUIAction to reveal fields.
+5. Tab switches: include target tab name in paramsJson. Execute immediately. Confirm with user before submit or send. Never describe an outcome before executing.
+6. Upload fields first — they may auto-fill text fields. Do not offer manual entry as an alternative.
+7. Never claim complete without calling getFormSchema to verify.
 
-TOOL SELECTION: Use searchServices when the user has a specific keyword or service in mind. Use listServicesByCategory when the user wants to BROWSE or see ALL services in a category.
-
-PAGE TYPES:
-- /service/:id pages are INFORMATIONAL — they show overview, requirements, and steps. After viewService, briefly describe the service. Do NOT call getFormSchema or fillFormFields on these pages.
-- /dashboard/* pages MAY have fillable forms. Only call getFormSchema when the user explicitly asks to fill or start an application.
-
-FORMS: When on a /dashboard/* page:
-1. Always call getFormSchema before filling — never guess field content or IDs.
-2. Ask for a few fields at a time; never dump all fields at once.
-3. After every fillFormFields, call getFormSchema to see updated state. If getFormSchema shows no unfilled required fields, check UI_ACTIONS for the next step (save, tab switch, etc.) and execute it before asking for more data.
-4. If getFormSchema returns no fillable fields, or a section has "gated":true with an "action", call performUIAction with that action before asking — it reveals the fields.
-5. Tab switches require a tab param: call performUIAction with the actionId and include the target tab name in paramsJson (available tabs are listed in the action's description). Execute tab switches immediately; confirm with the user before submit or send actions. Never describe an outcome before the action executes.
-6. When a section has an upload field, handle it before any text fields — the upload may auto-fill them. Do not offer manual text entry as an alternative.
-7. Never say a form is complete without calling getFormSchema to verify.
-
-SILENT: Say exactly [SILENT] if the speaker is not addressing you — side conversations, background noise, or filler words. When unsure, choose [SILENT].
-
-GOODBYE: When the user says goodbye or "that is all", respond with a warm farewell. Do NOT end for "thank you" or polite acknowledgments — those are conversational, not farewells."""
+GOODBYE: Warm farewell for "goodbye" or "that is all". "Thank you" is conversational, not a farewell — respond warmly and offer further help."""
 
 # ─── Tool Definitions (matching production) ───────────────────────────────────
 
@@ -371,21 +375,21 @@ TESTS = [
         rules_tested=["F2-batch", "R3-no-narration", "R1-formatting"],
     ),
 
-    # ── [SILENT] detection ──
+    # ── <silent/> detection ──
 
-    # Test 11: Filler words -> [SILENT]
+    # Test 11: Filler words -> <silent/>
     make_with_context(
         messages=[{"role": "user", "content": "hmm yeah okay"}],
-        desc="[SILENT] for filler words",
+        desc="<silent/> for filler words",
         rules_tested=["SILENT"],
         expect_silent=True,
         expect_tool_call=False,
     ),
 
-    # Test 12: Side conversation -> [SILENT]
+    # Test 12: Side conversation -> <silent/>
     make_with_context(
         messages=[{"role": "user", "content": "no I was talking to someone else"}],
-        desc="[SILENT] for side conversation",
+        desc="<silent/> for side conversation",
         rules_tested=["SILENT"],
         expect_silent=True,
         expect_tool_call=False,
@@ -394,7 +398,7 @@ TESTS = [
     # Test 13: "Thank you" -> NOT silent (polite acknowledgment)
     make_with_context(
         messages=[{"role": "user", "content": "Thank you"}],
-        desc="Thank you should NOT be [SILENT]",
+        desc="Thank you should NOT be <silent/>",
         rules_tested=["GOODBYE-vs-SILENT"],
         expect_silent=False,
         expect_tool_call=False,
@@ -490,8 +494,9 @@ def call_groq(api_key, messages, system_prompt, retry=0):
 
 def count_sentences(text):
     """Count sentences. Handle abbreviations roughly."""
-    # Remove [SILENT] or similar tags
-    clean = re.sub(r'\[.*?\]', '', text).strip()
+    # Remove <silent/> and bracketed tags
+    clean = re.sub(r'<silent\s*/?\s*>', '', text)
+    clean = re.sub(r'\[.*?\]', '', clean).strip()
     if not clean:
         return 0
     # Split on sentence-ending punctuation
@@ -502,8 +507,9 @@ def count_sentences(text):
 
 
 def count_words(text):
-    """Count words, excluding [SILENT] tags."""
-    clean = re.sub(r'\[.*?\]', '', text).strip()
+    """Count words, excluding <silent/> tags."""
+    clean = re.sub(r'<silent\s*/?\s*>', '', text)
+    clean = re.sub(r'\[.*?\]', '', clean).strip()
     if not clean:
         return 0
     return len(clean.split())
@@ -516,7 +522,7 @@ def check_compliance(content, test_case):
     is_tool_only = not text and test_case.get('expect_tool_call')
 
     # If response is only tool calls with no text, most checks pass trivially
-    if is_tool_only or text == '[SILENT]':
+    if is_tool_only or text == '<silent/>':
         return {
             'words': (0, True, "N/A (tool call / silent)"),
             'sentences': (0, True, "N/A"),
@@ -638,15 +644,15 @@ def main():
                     print(f"    {fn}: {args_str[:120]}")
         print(f"  LATENCY: {latency}ms")
 
-        # Check [SILENT] expectations
-        is_silent = content.strip() == '[SILENT]'
+        # Check <silent/> expectations
+        is_silent = '<silent' in content.strip()
         silent_ok = True
         if test['expect_silent']:
             silent_ok = is_silent
-            print(f"  [SILENT]: {'YES' if is_silent else 'NO'} {'PASS' if silent_ok else 'FAIL -- expected [SILENT]'}")
+            print(f"  <silent/>: {'YES' if is_silent else 'NO'} {'PASS' if silent_ok else 'FAIL -- expected <silent/>'}")
         elif is_silent and not test['expect_silent']:
             silent_ok = False
-            print(f"  [SILENT]: YES -- FAIL (should NOT be silent)")
+            print(f"  <silent/>: YES -- FAIL (should NOT be silent)")
 
         # Run compliance checks
         checks = check_compliance(content, test)
