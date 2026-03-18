@@ -89,6 +89,10 @@ interface VoiceTranscriptProps {
   onStartMic?: () => void;
   /** Callback to switch to keyboard mode from empty state */
   onSwitchToKeyboard?: () => void;
+  /** Callback when user reports a bad assistant response */
+  onReport?: (turnNumber: number, assistantMessage: string, userMessage?: string) => void;
+  /** Turn number of the most recently sent feedback (shows "Sent" confirmation) */
+  feedbackSentTurn?: number | null;
 }
 
 /** Progressively reveals words while preserving FormattedText structure */
@@ -264,6 +268,8 @@ export default function VoiceTranscript({
   voiceState,
   onStartMic,
   onSwitchToKeyboard,
+  onReport,
+  feedbackSentTurn,
 }: VoiceTranscriptProps) {
   const config = useSiteConfig();
   const fontFamily = config.fontFamily ?? DEFAULT_FONT_FAMILY;
@@ -464,6 +470,35 @@ export default function VoiceTranscript({
                       />
                     )}
                   </div>
+                  {isAI && !isLast && onReport && (() => {
+                    const turnNumber = visible.slice(0, idx + 1).filter(m => m.role === 'assistant').length;
+                    const isSent = feedbackSentTurn === turnNumber;
+                    return (
+                      <motion.button
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        whileHover={{ opacity: 1 }}
+                        disabled={isSent}
+                        onClick={() => {
+                          const userMsg = visible.slice(0, idx).reverse().find(m => m.role === 'user');
+                          onReport(turnNumber, msg.text, userMsg?.text);
+                        }}
+                        style={{
+                          marginTop: 4,
+                          fontSize: 11,
+                          padding: '3px 10px',
+                          borderRadius: 12,
+                          border: `1px solid ${isSent ? '#16a34a' : '#d97706'}`,
+                          background: isSent ? 'rgba(22,163,74,0.08)' : 'rgba(245,158,11,0.08)',
+                          color: isSent ? '#16a34a' : '#92400e',
+                          cursor: isSent ? 'default' : 'pointer',
+                          opacity: isSent ? 0.8 : 0.5,
+                        }}
+                      >
+                        {isSent ? '\u2713 Sent' : '\u25B6 Report'}
+                      </motion.button>
+                    );
+                  })()}
                 </motion.div>
               );
             })}
