@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 5.0.4
+
+### Patch Changes
+
+- 6a61f6e: CI pipeline: auto-redeploy Coolify apps with force_rebuild after npm publish, with 30s delay for CDN propagation.
+  - @unctad-ai/voice-agent-core@5.0.4
+
 ## 5.0.3
 
 ### Patch Changes
