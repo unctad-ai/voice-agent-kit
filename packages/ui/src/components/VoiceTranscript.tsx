@@ -470,7 +470,7 @@ export default function VoiceTranscript({
                       />
                     )}
                   </div>
-                  {isAI && !isLast && onReport && (() => {
+                  {isAI && (!isLast || !isTyping) && onReport && (() => {
                     const turnNumber = visible.slice(0, idx + 1).filter(m => m.role === 'assistant').length;
                     const isSent = feedbackSentTurn === turnNumber;
                     return (
@@ -484,18 +484,18 @@ export default function VoiceTranscript({
                           onReport(turnNumber, msg.text, userMsg?.text);
                         }}
                         style={{
-                          marginTop: 4,
-                          fontSize: 11,
-                          padding: '3px 10px',
-                          borderRadius: 12,
+                          marginTop: 2,
+                          fontSize: 10,
+                          padding: '1px 7px',
+                          borderRadius: 8,
                           border: `1px solid ${isSent ? '#16a34a' : '#d97706'}`,
                           background: isSent ? 'rgba(22,163,74,0.08)' : 'rgba(245,158,11,0.08)',
                           color: isSent ? '#16a34a' : '#92400e',
                           cursor: isSent ? 'default' : 'pointer',
-                          opacity: isSent ? 0.8 : 0.5,
+                          opacity: isSent ? 0.8 : 0.4,
                         }}
                       >
-                        {isSent ? '\u2713 Sent' : <><Flag size={10} strokeWidth={2.5} style={{ display: 'inline', verticalAlign: '-1px', marginRight: 3 }} /> Report</>}
+                        {isSent ? '\u2713 Sent' : <><Flag size={8} strokeWidth={2.5} style={{ display: 'inline', verticalAlign: '-1px', marginRight: 2 }} /> Report</>}
                       </motion.button>
                     );
                   })()}
