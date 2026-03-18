@@ -132,6 +132,30 @@ logger.error('tts:error', err);                  // [a1b2c3d4:1] tts:error <err>
 - No per-frame/per-message WS logging — session lifecycle + pipeline stages only
 - Exported from package index: `createSessionLogger`, `SessionLogger` (for testing/custom handlers)
 
+## System Prompt (STRICT — read before touching)
+
+`packages/server/src/systemPrompt.ts` is the most sensitive file in the kit. Every word is heard by users via TTS. Changes require discipline:
+
+**Process:**
+1. Never edit reactively to fix one test failure — that's overfitting
+2. Run `python3 scripts/test-llm-compliance.py` before AND after any change
+3. A/B test wording changes with at least 3 Groq API calls before committing
+4. The prompt is structured as a decision cascade (SILENT → SPEECH → RULES → TONE → TOOLS → FORMS → GOODBYE) — do not reorder sections without re-running the full eval
+5. Get explicit user approval before changing the system prompt
+
+**What NOT to do:**
+- Don't add rules to fix individual LLM misbehaviors — address holistically
+- Don't add sanitizer hacks to compensate for prompt failures — tune the LLM
+- Don't duplicate the prompt anywhere — the eval script imports it from the built kit
+- Don't add `<internal>` instructions in tool responses that override system prompt rules
+
+**Key design decisions (do not reverse without evidence):**
+- `<silent/>` not `[SILENT]` — XML tag aligns with Qwen3 ChatML training (A/B: 9/10 vs 0/3)
+- Temperature 0.1 — better rule compliance than 0.3 (A/B tested)
+- "BEFORE RESPONDING, ask yourself" — guides the `<think>` step to evaluate silence first
+- BAD/GOOD examples — concrete examples improve compliance more than abstract rules
+- No contractions — government portal formality, TTS handles full words better
+
 ## Development Rules
 
 - `useChat` (from `@ai-sdk/react`) drives the client-server protocol — not CopilotKit
