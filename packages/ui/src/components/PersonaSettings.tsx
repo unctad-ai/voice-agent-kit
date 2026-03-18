@@ -30,6 +30,7 @@ export function PersonaSettings({ adminPassword }: { adminPassword?: string | nu
 function PersonaSettingsInner({ adminPassword }: { adminPassword: string | null }) {
   const config = useSiteConfig();
   const persona = usePersonaContext();
+  const [showRecording, setShowRecording] = useState(false);
   if (!persona) return null;
   const { persona: data, isLoaded, uploadAvatar, uploadVoice, deleteVoice, setActiveVoice, previewVoice, updateConfig } = persona;
 
@@ -52,6 +53,24 @@ function PersonaSettingsInner({ adminPassword }: { adminPassword: string | null 
     );
   }
 
+  // Full-panel recording flow
+  if (showRecording) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: 'inherit' }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>Record voice sample</span>
+        <RecordingFlow
+          onComplete={async (blob, name) => {
+            const file = new File([blob], `${name}.wav`, { type: 'audio/wav' });
+            await uploadVoice(file, name, adminPassword ?? undefined);
+            setShowRecording(false);
+          }}
+          onCancel={() => setShowRecording(false)}
+          primaryColor={config.colors.primary}
+        />
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: 'inherit' }}>
       {isAdmin ? (
@@ -66,6 +85,7 @@ function PersonaSettingsInner({ adminPassword }: { adminPassword: string | null 
             onSelect={(id) => setActiveVoice(id, adminPassword)}
             onPreview={previewVoice}
             primaryColor={config.colors.primary}
+            onRecord={() => setShowRecording(true)}
           />
 
           {/* Shared settings */}
@@ -384,7 +404,7 @@ function NameSection({ name, onSave, primaryColor }: {
   );
 }
 
-function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onPreview, primaryColor, disabled }: {
+function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onPreview, primaryColor, disabled, onRecord }: {
   voices: { id: string; name: string }[];
   activeVoiceId: string;
   onUpload: (file: File, name: string) => Promise<any>;
@@ -393,11 +413,11 @@ function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onP
   onPreview: (id: string, text: string) => Promise<ArrayBuffer>;
   primaryColor: string;
   disabled?: boolean;
+  onRecord?: () => void;
 }) {
   const [uploading, setUploading] = useState(false);
   const [uploadName, setUploadName] = useState('');
   const [showUpload, setShowUpload] = useState(false);
-  const [showRecording, setShowRecording] = useState(false);
   const [previewing, setPreviewing] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<File | null>(null);
@@ -474,23 +494,15 @@ function VoiceSection({ voices, activeVoiceId, onUpload, onDelete, onSelect, onP
             onCancel={() => { setShowUpload(false); fileRef.current = null; }}
             primaryColor={primaryColor}
           />
-        ) : showRecording ? (
-          <RecordingFlow
-            onComplete={async (blob, name) => {
-              const file = new File([blob], `${name}.wav`, { type: 'audio/wav' });
-              await onUpload(file, name);
-              setShowRecording(false);
-            }}
-            onCancel={() => setShowRecording(false)}
-            primaryColor={primaryColor}
-          />
         ) : (
           <div style={{ display: 'flex', gap: 8 }}>
-            <DashedButton
-              disabled={voices.length >= 10}
-              onClick={() => setShowRecording(true)}
-              label="Record voice sample"
-            />
+            {onRecord && (
+              <DashedButton
+                disabled={voices.length >= 10}
+                onClick={onRecord}
+                label="Record voice sample"
+              />
+            )}
             <DashedButton
               disabled={voices.length >= 10}
               onClick={() => inputRef.current?.click()}
