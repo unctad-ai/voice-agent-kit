@@ -43,6 +43,12 @@ import PipelineMetricsBar from './PipelineMetricsBar';
 const VoiceSettingsView = lazy(() => import('./VoiceSettingsView'));
 
 // ---------------------------------------------------------------------------
+// Retry backoff constants
+// ---------------------------------------------------------------------------
+const RETRY_INITIAL_MS = 3000;
+const RETRY_MAX_MS = 30000;
+
+// ---------------------------------------------------------------------------
 // State labels for composer bar
 // ---------------------------------------------------------------------------
 const STATE_LABELS: Record<VoiceState, string> = {
@@ -393,6 +399,7 @@ function ComposerBar({
   }, [mode]);
 
   const handleSubmit = () => {
+    if (disabled) return;
     const trimmed = text.trim();
     if (!trimmed) return;
     onTextSubmit(trimmed);
@@ -810,8 +817,10 @@ function WiredPanelInner({
   const backoffDelayRef = useRef(3000);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const RETRY_INITIAL_MS = 3000;
-  const RETRY_MAX_MS = 30000;
+  const dismissErrorRef = useRef(dismissError);
+  useEffect(() => { dismissErrorRef.current = dismissError; }, [dismissError]);
+  const autoListenRef = useRef(settings.autoListen);
+  useEffect(() => { autoListenRef.current = settings.autoListen; }, [settings.autoListen]);
 
   const clearCountdown = useCallback(() => {
     if (countdownTimerRef.current) { clearInterval(countdownTimerRef.current); countdownTimerRef.current = null; }
@@ -842,13 +851,13 @@ function WiredPanelInner({
       setBackendDown(!available);
       if (available) {
         backoffDelayRef.current = RETRY_INITIAL_MS;
-        dismissError();
-        if (!autoStartedRef.current && settings.autoListen) { autoStartedRef.current = true; startRef.current(); }
+        dismissErrorRef.current();
+        if (!autoStartedRef.current && autoListenRef.current) { autoStartedRef.current = true; startRef.current(); }
       } else {
         scheduleRetry(backoffDelayRef.current);
       }
     });
-  }, [dismissError, settings.autoListen, scheduleRetry, clearCountdown]);
+  }, [scheduleRetry, clearCountdown]);
 
   useEffect(() => { runHealthCheckRef.current = runHealthCheck; }, [runHealthCheck]);
 
@@ -918,13 +927,13 @@ function WiredPanelInner({
       setIsRetrying(false);
       setBackendDown(!available);
       if (available) {
-        dismissError();
-        if (!autoStartedRef.current && settings.autoListen) { autoStartedRef.current = true; startRef.current(); }
+        dismissErrorRef.current();
+        if (!autoStartedRef.current && autoListenRef.current) { autoStartedRef.current = true; startRef.current(); }
       } else {
         scheduleRetry(backoffDelayRef.current);
       }
     }).catch(() => setIsRetrying(false));
-  }, [isRetrying, clearCountdown, scheduleRetry, dismissError, settings.autoListen]);
+  }, [isRetrying, clearCountdown, scheduleRetry]);
 
   // Auto-expand panel when first message arrives (voice-first: skip empty state)
   const onExpandRef = useRef(onExpand);
