@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 5.0.2
+
+### Patch Changes
+
+- d61766c: Fix paramsJson type coercion for Qwen3 (object→string via z.preprocess) and add prompt rule to execute confirmed actions immediately without re-asking.
+  - @unctad-ai/voice-agent-core@5.0.2
+
 ## 5.0.1
 
 ### Patch Changes
