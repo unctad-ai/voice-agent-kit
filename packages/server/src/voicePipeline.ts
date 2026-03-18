@@ -22,6 +22,7 @@ export interface VoicePipelineOptions {
   logger: SessionLogger;
   sttClient: SttStreamClient;
   ttsConfig: TtsProviderConfig;
+  ttsAvailable?: boolean;
   groqApiKey: string;
   groqModel?: string;
   send: (event: string) => void;
@@ -121,6 +122,7 @@ export class VoicePipeline {
   private session: SessionState = { conversation: [] };
   private abortController: AbortController | null = null;
   private logger: SessionLogger;
+  private ttsAvailable: boolean;
 
   // STT done queue (replaces fragile sttDoneResolve pattern)
   private sttQueue = new AsyncQueue<SttDoneResult>();
@@ -132,6 +134,7 @@ export class VoicePipeline {
   constructor(options: VoicePipelineOptions) {
     this.options = options;
     this.logger = options.logger;
+    this.ttsAvailable = options.ttsAvailable ?? true;
   }
 
   // ─── Public API ──────────────────────────────────────────────────────────
@@ -294,11 +297,11 @@ export class VoicePipeline {
       // TTS — with graceful degradation
       const ttsText = sanitizeForTTS(assistantText);
 
-      if (!ttsText || ttsText.trim() === '') {
+      if (!ttsText || ttsText.trim() === '' || !this.ttsAvailable) {
         send(createEvent('response.audio.done', {}));
         send(createEvent('timings', { stt_ms: sttMs, llm_ms: llmMs, tts_ms: 0, total_ms: Date.now() - turnStart }));
         send(createEvent('status', { status: 'listening' }));
-        this.logger.info('turn:done', 'silent', Date.now() - turnStart);
+        this.logger.info('turn:done', this.ttsAvailable ? 'silent' : 'no-tts', Date.now() - turnStart);
         return;
       }
 
@@ -386,15 +389,19 @@ export class VoicePipeline {
           item: { id: `msg_${Date.now()}`, role: 'assistant', content: assistantText },
         }));
 
-        send(createEvent('status', { status: 'speaking' }));
-        const ttsText = sanitizeForTTS(assistantText);
-        const ttsStart = Date.now();
-        await this.streamTtsAudio(ttsText || assistantText, ttsConfig, signal, sendBinary);
-        const ttsMs = Date.now() - ttsStart;
-        this.logger.info('tts:done', `provider=${ttsConfig.ttsProvider} chars=${(ttsText || assistantText).length}`, ttsMs);
-
-        send(createEvent('response.audio.done', {}));
-        send(createEvent('timings', { stt_ms: 0, llm_ms: llmMs, tts_ms: ttsMs, total_ms: Date.now() - turnStart }));
+        if (this.ttsAvailable) {
+          send(createEvent('status', { status: 'speaking' }));
+          const ttsText = sanitizeForTTS(assistantText);
+          const ttsStart = Date.now();
+          await this.streamTtsAudio(ttsText || assistantText, ttsConfig, signal, sendBinary);
+          const ttsMs = Date.now() - ttsStart;
+          this.logger.info('tts:done', `provider=${ttsConfig.ttsProvider} chars=${(ttsText || assistantText).length}`, ttsMs);
+          send(createEvent('response.audio.done', {}));
+          send(createEvent('timings', { stt_ms: 0, llm_ms: llmMs, tts_ms: ttsMs, total_ms: Date.now() - turnStart }));
+        } else {
+          send(createEvent('response.audio.done', {}));
+          send(createEvent('timings', { stt_ms: 0, llm_ms: llmMs, tts_ms: 0, total_ms: Date.now() - turnStart }));
+        }
       } else {
         send(createEvent('response.text.done', { text: assistantText }));
         send(createEvent('response.audio.done', {}));

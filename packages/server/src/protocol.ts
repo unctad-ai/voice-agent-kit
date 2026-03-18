@@ -50,6 +50,7 @@ export type ClientEvent =
 export interface SessionCreatedEvent {
   type: 'session.created';
   session_id: string;
+  tts_available: boolean;
 }
 
 export interface SpeechStartedEvent {

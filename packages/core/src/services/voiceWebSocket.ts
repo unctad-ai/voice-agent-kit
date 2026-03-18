@@ -225,7 +225,7 @@ export class VoiceWebSocketManager {
  */
 export async function checkPipelineHealth(
   url: string,
-): Promise<{ connected: boolean }> {
+): Promise<{ connected: boolean; ttsAvailable?: boolean }> {
   return new Promise((resolve) => {
     try {
       const ws = new WebSocket(url);
@@ -234,10 +234,15 @@ export async function checkPipelineHealth(
         resolve({ connected: false });
       }, 5000);
 
-      ws.onopen = () => {
-        clearTimeout(timer);
-        ws.close();
-        resolve({ connected: true });
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(String(event.data));
+          if (data.type === 'session.created') {
+            clearTimeout(timer);
+            ws.close();
+            resolve({ connected: true, ttsAvailable: data.tts_available ?? true });
+          }
+        } catch { /* ignore non-JSON frames */ }
       };
       ws.onerror = () => {
         clearTimeout(timer);
@@ -271,9 +276,9 @@ function buildDefaultWsUrl(): string {
  * Convenience health check that auto-builds the WebSocket URL.
  * Returns the same shape as the old checkLLMHealth for backward compatibility.
  */
-export async function checkBackendHealth(): Promise<{ available: boolean; message?: string }> {
+export async function checkBackendHealth(): Promise<{ available: boolean; ttsAvailable?: boolean; message?: string }> {
   const url = buildDefaultWsUrl();
-  const { connected } = await checkPipelineHealth(url);
-  if (connected) return { available: true };
+  const result = await checkPipelineHealth(url);
+  if (result.connected) return { available: true, ttsAvailable: result.ttsAvailable };
   return { available: false, message: 'Voice pipeline unreachable' };
 }

@@ -52,6 +52,7 @@ export interface UseVoiceWebSocketReturn {
   lastErrorCode: string | null;
   messages: VoiceWebSocketMessage[];
   isConnected: boolean;
+  ttsAvailable: boolean;
   connect: (conversation?: unknown[]) => void;
   disconnect: () => void;
   sendAudio: (pcm: Float32Array) => void;
@@ -82,6 +83,7 @@ export function useVoiceWebSocket({
   const [lastErrorCode, setLastErrorCode] = useState<string | null>(null);
   const [messages, setMessages] = useState<VoiceWebSocketMessage[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [ttsAvailable, setTtsAvailable] = useState(true);
   const [sttResult, setSttResult] = useState<SttResult | null>(null);
 
   const managerRef = useRef<VoiceWebSocketManager | null>(null);
@@ -107,9 +109,10 @@ export function useVoiceWebSocket({
 
       // --- Event handlers ---
 
-      manager.onEvent('session.created', () => {
+      manager.onEvent('session.created', (event: { tts_available?: boolean }) => {
         setIsConnected(true);
         setLastErrorCode(null);
+        setTtsAvailable(event.tts_available ?? true);
       });
 
       manager.onEvent('status', (event: StatusEvent) => {
@@ -254,6 +257,7 @@ export function useVoiceWebSocket({
     lastErrorCode,
     messages,
     isConnected,
+    ttsAvailable,
     connect,
     disconnect,
     sendAudio,

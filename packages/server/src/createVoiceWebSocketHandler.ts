@@ -92,10 +92,28 @@ export function createVoiceWebSocketHandler(
       ttsFallback: options.ttsFallback ?? false,
     };
 
+    // Check if TTS is available for the selected provider (or fallback chain)
+    const providerUrlMap: Record<string, string> = {
+      'vllm-omni': ttsConfig.vllmOmniUrl,
+      'qwen3-tts': ttsConfig.qwen3TtsUrl,
+      'chatterbox-turbo': ttsConfig.chatterboxTurboUrl,
+      'cosyvoice': ttsConfig.cosyVoiceTtsUrl,
+      'luxtts': ttsConfig.luxTtsUrl,
+      'pocket-tts': ttsConfig.pocketTtsUrl,
+      'resemble': ttsConfig.resembleApiKey,
+    };
+    const primaryHasUrl = Boolean(providerUrlMap[ttsConfig.ttsProvider]);
+    const fallbackHasUrl = ttsConfig.ttsFallback && (Boolean(ttsConfig.pocketTtsUrl) || Boolean(ttsConfig.resembleApiKey));
+    const ttsAvailable = primaryHasUrl || fallbackHasUrl;
+    if (!ttsAvailable) {
+      logger.warn('tts:unavailable', `provider=${ttsConfig.ttsProvider} — no URL configured, text-only mode`);
+    }
+
     pipeline = new VoicePipeline({
       logger,
       sttClient,
       ttsConfig,
+      ttsAvailable,
       groqApiKey: options.groqApiKey,
       groqModel: options.groqModel,
       send: safeSend,
@@ -106,7 +124,7 @@ export function createVoiceWebSocketHandler(
 
     sttClient.connect();
 
-    safeSend(createEvent('session.created', { session_id: sessionId }));
+    safeSend(createEvent('session.created', { session_id: sessionId, tts_available: ttsAvailable }));
 
     // Audio capture for diagnostics (enabled via CAPTURE_AUDIO=1)
     const captureAudio = process.env.CAPTURE_AUDIO === '1';

@@ -924,6 +924,9 @@ export function useVoiceAgent({
     analyser,
     sendTextMessage,
     lastTimings,
-    settings,
+    settings: {
+      ...settings,
+      ttsEnabled: settings.ttsEnabled && voiceWs.ttsAvailable,
+    },
   };
 }
