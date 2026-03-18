@@ -1,10 +1,6 @@
 import { Router, type Router as RouterType } from 'express';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const KIT_VERSION: string = (require('../../package.json') as { version: string }).version;
 
 export interface FeedbackEntry {
   sessionId: string;
@@ -21,7 +17,7 @@ export interface FeedbackEntry {
   timestamp: number;
 }
 
-export function createFeedbackRoutes(dataDir: string): { router: RouterType } {
+export function createFeedbackRoutes(dataDir: string, kitVersion?: string): { router: RouterType } {
   const router = Router();
   const feedbackDir = path.join(dataDir, 'feedback');
 
@@ -32,7 +28,7 @@ export function createFeedbackRoutes(dataDir: string): { router: RouterType } {
     try {
       const entry: FeedbackEntry = {
         ...req.body,
-        kitVersion: KIT_VERSION,
+        ...(kitVersion ? { kitVersion } : {}),
         timestamp: Date.now(),
         userAgent: req.headers['user-agent'] || '',
       };

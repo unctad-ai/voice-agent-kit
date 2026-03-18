@@ -1,10 +1,18 @@
 import type { Server as HttpServer } from 'http';
 import type { Express } from 'express';
 import path from 'path';
+import { readFileSync } from 'fs';
 import { createVoiceWebSocketHandler } from './createVoiceWebSocketHandler.js';
 import { createPersonaRoutes } from './createPersonaRoutes.js';
 import { createFeedbackRoutes } from './feedbackRoutes.js';
 import { PersonaStore } from './personaStore.js';
+
+// Read kit version from the server package.json at module load
+let KIT_VERSION: string | undefined;
+try {
+  const pkgPath = new URL('../package.json', import.meta.url);
+  KIT_VERSION = (JSON.parse(readFileSync(pkgPath, 'utf8')) as { version: string }).version;
+} catch { /* version will be omitted from feedback */ }
 
 export type { VoiceServerOptions } from './types.js';
 import type { VoiceServerOptions } from './types.js';
@@ -47,7 +55,7 @@ export function attachVoicePipeline(
 
   if (app) {
     const dataDir = options.personaDir ? path.dirname(options.personaDir) : path.join(process.cwd(), 'data');
-    const { router: feedbackRouter } = createFeedbackRoutes(dataDir);
+    const { router: feedbackRouter } = createFeedbackRoutes(dataDir, KIT_VERSION);
     app.use('/api/feedback', feedbackRouter);
   }
 }
