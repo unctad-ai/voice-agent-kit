@@ -282,10 +282,19 @@ export class VoicePipeline {
       send(createEvent('response.text.done', { text: assistantText }));
       this.session.conversation.push({ role: 'assistant', content: assistantText });
 
+      // Silent check on raw text (before sanitization strips the tag)
+      if (assistantText.includes('<silent')) {
+        send(createEvent('response.audio.done', {}));
+        send(createEvent('timings', { stt_ms: sttMs, llm_ms: llmMs, tts_ms: 0, total_ms: Date.now() - turnStart }));
+        send(createEvent('status', { status: 'listening' }));
+        this.logger.info('turn:done', 'silent', Date.now() - turnStart);
+        return;
+      }
+
       // TTS — with graceful degradation
       const ttsText = sanitizeForTTS(assistantText);
 
-      if (!ttsText || ttsText.includes('<silent') || ttsText.trim() === '') {
+      if (!ttsText || ttsText.trim() === '') {
         send(createEvent('response.audio.done', {}));
         send(createEvent('timings', { stt_ms: sttMs, llm_ms: llmMs, tts_ms: 0, total_ms: Date.now() - turnStart }));
         send(createEvent('status', { status: 'listening' }));
@@ -378,10 +387,11 @@ export class VoicePipeline {
         }));
 
         send(createEvent('status', { status: 'speaking' }));
+        const ttsText = sanitizeForTTS(assistantText);
         const ttsStart = Date.now();
-        await this.streamTtsAudio(assistantText, ttsConfig, signal, sendBinary);
+        await this.streamTtsAudio(ttsText || assistantText, ttsConfig, signal, sendBinary);
         const ttsMs = Date.now() - ttsStart;
-        this.logger.info('tts:done', `provider=${ttsConfig.ttsProvider} chars=${assistantText.length}`, ttsMs);
+        this.logger.info('tts:done', `provider=${ttsConfig.ttsProvider} chars=${(ttsText || assistantText).length}`, ttsMs);
 
         send(createEvent('response.audio.done', {}));
         send(createEvent('timings', { stt_ms: 0, llm_ms: llmMs, tts_ms: ttsMs, total_ms: Date.now() - turnStart }));

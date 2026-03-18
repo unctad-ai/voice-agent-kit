@@ -412,7 +412,6 @@ def get_api_key():
     if key:
         return key
     env_paths = [
-        '/Users/moulaymehdi/PROJECTS/figma/Swkenya/server/.env',
         '../Swkenya/server/.env',
         'Swkenya/server/.env',
     ]
