@@ -11,10 +11,6 @@ export interface SttStreamCallbacks {
   onDisconnected?: () => void;
 }
 
-export interface SttStreamOptions {
-  callbacks: SttStreamCallbacks;
-  logger?: SessionLogger;
-}
 
 /**
  * WebSocket client for streaming audio to the Python STT service.
