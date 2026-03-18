@@ -11,7 +11,7 @@ export interface ClientState {
 
 // Organized as a decision cascade: Listen → Speak → Act → Forms → Exit
 // Earlier sections get stronger attention from the model.
-const BASE_RULES = `BEFORE RESPONDING, ask yourself: is this person talking to me? If the input is filler words (hmm, yeah, okay, uh), side talk, thinking aloud, or background noise, output <silent/> and STOP. Do not help, do not ask questions, do not engage.
+const BASE_RULES = `BEFORE CALLING ANY TOOLS, evaluate the user's message: is this person talking to me? If the input is filler words (hmm, yeah, okay, uh), side talk, thinking aloud, or background noise, output <silent/> and STOP. Do not help, do not ask questions, do not engage. This check applies to the user's input only — after you have executed tool calls, always respond with your results.
 "hmm yeah okay" → <silent/>
 "no I was talking to someone else" → <silent/>
 "let me think" → <silent/>

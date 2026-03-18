@@ -65,7 +65,7 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           return `No online application form exists for "${resolveServiceTitle(service)}" yet — tell the user clearly that only the information page is available. Navigated to the info page instead.`;
         }
         navigate(route);
-        return `Opened "${resolveServiceTitle(service)}" application form. <internal>Check UI_ACTIONS for the first step — do NOT call getFormSchema yet.</internal>`;
+        return `Opened "${resolveServiceTitle(service)}" application form.`;
       }
       case 'performUIAction': {
         const actionId = args.actionId as string;
