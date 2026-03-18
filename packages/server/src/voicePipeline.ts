@@ -493,7 +493,7 @@ export class VoicePipeline {
         system: buildSystemPrompt(siteConfig, this.session.clientState),
         messages,
         tools: toolsForModel,
-        temperature: 0.3,
+        temperature: 0.1,
         topP: 0.8,
         abortSignal: roundSignal,
       });
