@@ -13,7 +13,7 @@ import {
 } from '@unctad-ai/voice-agent-core';
 import type { VoiceMessage, ActionCategory } from '@unctad-ai/voice-agent-core';
 import type { VoiceErrorType } from './VoiceErrorDisplay';
-import { ArrowRight, PenLine, MousePointerClick, Search, Info, ChevronDown, Mic, Keyboard } from 'lucide-react';
+import { ArrowRight, PenLine, MousePointerClick, Search, Info, ChevronDown, Mic, Keyboard, Flag } from 'lucide-react';
 
 /** Strip markdown/HTML artifacts, TTS paralinguistic tags, and emojis — preserves line breaks */
 function cleanForDisplay(text: string): string {
@@ -495,7 +495,7 @@ export default function VoiceTranscript({
                           opacity: isSent ? 0.8 : 0.5,
                         }}
                       >
-                        {isSent ? '\u2713 Sent' : '\u25B6 Report'}
+                        {isSent ? '\u2713 Sent' : <><Flag size={10} strokeWidth={2.5} style={{ display: 'inline', verticalAlign: '-1px', marginRight: 3 }} /> Report</>}
                       </motion.button>
                     );
                   })()}
