@@ -695,6 +695,7 @@ export class VoicePipeline {
   ): Promise<void> {
     const response = await synthesize(text, ttsConfig, signal, {
       temperature: this.session.ttsTemperature,
+      logger: this.logger,
     });
 
     if (!response.ok) {

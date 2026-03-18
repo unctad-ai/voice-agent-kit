@@ -1,5 +1,6 @@
 import WebSocket from 'ws';
 import { WsState, canSend, transitionTo } from './wsState.js';
+import type { SessionLogger } from './logger.js';
 
 export interface SttStreamCallbacks {
   onWord?: (text: string, tokenId: number) => void;
@@ -8,6 +9,11 @@ export interface SttStreamCallbacks {
   onError?: (error: Error) => void;
   onConnected?: () => void;
   onDisconnected?: () => void;
+}
+
+export interface SttStreamOptions {
+  callbacks: SttStreamCallbacks;
+  logger?: SessionLogger;
 }
 
 /**
@@ -25,14 +31,16 @@ export class SttStreamClient {
   private ws: WebSocket | null = null;
   private url: string;
   private callbacks: SttStreamCallbacks;
+  private logger?: SessionLogger;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectDelay = 1000;
   private readonly maxReconnectDelay = 30000;
   private _state: WsState = WsState.CLOSED;
 
-  constructor(url: string, callbacks: SttStreamCallbacks) {
+  constructor(url: string, callbacks: SttStreamCallbacks, logger?: SessionLogger) {
     this.url = url;
     this.callbacks = callbacks;
+    this.logger = logger;
   }
 
   get state(): WsState {
@@ -58,7 +66,7 @@ export class SttStreamClient {
         try {
           const msg = JSON.parse(data.toString());
           if (msg.type === 'done') {
-            console.log(`[STT] done: "${(msg.text || '').slice(0, 80)}" (${msg.duration_ms}ms)`);
+            this.logger?.info('stt:raw-done', `"${msg.text || ''}" dur=${msg.duration_ms}ms`);
           }
           switch (msg.type) {
             case 'word':
@@ -114,10 +122,10 @@ export class SttStreamClient {
    */
   flush(): void {
     if (!canSend(this._state) || !this.ws) {
-      console.log(`[STT] flush DROPPED (state=${WsState[this._state]})`);
+      this.logger?.warn('stt:flush-dropped', `state=${WsState[this._state]}`);
       return;
     }
-    console.log('[STT] flush sent');
+    this.logger?.info('stt:flush');
     this.ws.send(JSON.stringify({ type: 'flush' }));
   }
 

@@ -181,8 +181,9 @@ export async function synthesize(
   text: string,
   config: TtsProviderConfig,
   signal?: AbortSignal,
-  opts?: { temperature?: number }
+  opts?: { temperature?: number; logger?: import('./logger.js').SessionLogger }
 ): Promise<Response> {
+  const warn = (msg: string) => opts?.logger ? opts.logger.warn(msg) : console.warn(msg);
   const {
     ttsProvider,
     vllmOmniUrl,
@@ -214,11 +215,11 @@ export async function synthesize(
       refText: vllmOmniRefText || undefined,
     });
     if (!response.ok && ttsFallback) {
-      console.warn('[TTS] vllm-omni failed, falling back to pocket-tts');
+      warn('[TTS] vllm-omni failed, falling back to pocket-tts');
       config.rawPcm = false;
       response = await synthesizeWithPocketTTS(text, pocketTtsUrl, signal);
       if (!response.ok) {
-        console.warn('[TTS] pocket-tts failed, falling back to Resemble');
+        warn('[TTS] pocket-tts failed, falling back to Resemble');
         response = await callResemble(signal);
       }
     }
@@ -226,35 +227,35 @@ export async function synthesize(
     response = await synthesizeWithQwen3TTS(text, qwen3TtsUrl, signal, { temperature: opts?.temperature, voice: voiceId });
     // Retry once on 503 (GPU lock may be releasing via watchdog)
     if (response.status === 503 && !signal?.aborted) {
-      console.warn('[TTS] qwen3-tts 503, retrying in 2s...');
+      warn('[TTS] qwen3-tts 503, retrying in 2s...');
       await new Promise((r) => setTimeout(r, 2000));
       response = await synthesizeWithQwen3TTS(text, qwen3TtsUrl, signal, { temperature: opts?.temperature, voice: voiceId });
     }
     if (!response.ok && ttsFallback) {
-      console.warn('[TTS] qwen3-tts failed, falling back to pocket-tts');
+      warn('[TTS] qwen3-tts failed, falling back to pocket-tts');
       response = await synthesizeWithPocketTTS(text, pocketTtsUrl, signal);
       if (!response.ok) {
-        console.warn('[TTS] pocket-tts failed, falling back to Resemble');
+        warn('[TTS] pocket-tts failed, falling back to Resemble');
         response = await callResemble(signal);
       }
     }
   } else if (ttsProvider === 'chatterbox-turbo') {
     response = await synthesizeWithChatterboxTurbo(text, chatterboxTurboUrl, signal);
     if (!response.ok && ttsFallback) {
-      console.warn('[TTS] chatterbox-turbo failed, falling back to pocket-tts');
+      warn('[TTS] chatterbox-turbo failed, falling back to pocket-tts');
       response = await synthesizeWithPocketTTS(text, pocketTtsUrl, signal);
       if (!response.ok) {
-        console.warn('[TTS] pocket-tts failed, falling back to Resemble');
+        warn('[TTS] pocket-tts failed, falling back to Resemble');
         response = await callResemble(signal);
       }
     }
   } else if (ttsProvider === 'cosyvoice') {
     response = await synthesizeWithCosyVoice(text, cosyVoiceTtsUrl, signal);
     if (!response.ok && ttsFallback) {
-      console.warn('[TTS] cosyvoice failed, falling back to pocket-tts');
+      warn('[TTS] cosyvoice failed, falling back to pocket-tts');
       response = await synthesizeWithPocketTTS(text, pocketTtsUrl, signal);
       if (!response.ok) {
-        console.warn('[TTS] pocket-tts failed, falling back to Resemble');
+        warn('[TTS] pocket-tts failed, falling back to Resemble');
         response = await callResemble(signal);
       }
     }
@@ -266,17 +267,17 @@ export async function synthesize(
       temperature: opts?.temperature,
     });
     if (!response.ok && ttsFallback) {
-      console.warn('[TTS] luxtts failed, falling back to pocket-tts');
+      warn('[TTS] luxtts failed, falling back to pocket-tts');
       response = await synthesizeWithPocketTTS(text, pocketTtsUrl, signal);
       if (!response.ok) {
-        console.warn('[TTS] pocket-tts failed, falling back to Resemble');
+        warn('[TTS] pocket-tts failed, falling back to Resemble');
         response = await callResemble(signal);
       }
     }
   } else if (ttsProvider === 'pocket-tts') {
     response = await synthesizeWithPocketTTS(text, pocketTtsUrl, signal);
     if (!response.ok && ttsFallback) {
-      console.warn('[TTS] pocket-tts failed, falling back to Resemble');
+      warn('[TTS] pocket-tts failed, falling back to Resemble');
       response = await callResemble(signal);
     }
   } else {

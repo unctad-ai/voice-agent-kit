@@ -70,7 +70,7 @@ export function createVoiceWebSocketHandler(
         logger.error('stt:error', err.message);
         safeSend(createEvent('error', { code: 'stt_error', message: err.message }));
       },
-    });
+    }, logger);
 
     // Build TTS config from options
     const ttsConfig: TtsProviderConfig = {

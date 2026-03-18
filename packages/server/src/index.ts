@@ -50,3 +50,5 @@ export { createBuiltinTools } from './builtinTools.js';
 export { buildSynonymMap, fuzzySearch } from './builtinTools.js';
 export type { ClientState } from './systemPrompt.js';
 export type { PersonaRoutesOptions } from './createPersonaRoutes.js';
+export { createSessionLogger } from './logger.js';
+export type { SessionLogger } from './logger.js';
