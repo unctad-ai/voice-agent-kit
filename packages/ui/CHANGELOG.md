@@ -1,5 +1,25 @@
 # @unctad-ai/voice-agent-ui
 
+## 5.1.0
+
+### Minor Changes
+
+- 369ca7d: Conversation feedback and session trace retrieval
+
+  - feat(server): POST/GET `/api/feedback` for reporting bad assistant responses
+  - feat(server): GET `/api/traces` and `/api/traces/:sessionId` for session trace retrieval
+  - feat(server): session logger buffers structured trace entries, flushes to disk on session close
+  - feat(core): expose `sessionId` from `session.created` WebSocket event
+  - feat(ui): feedback pill on assistant messages with "Feedback" label on hover
+  - feat(ui): amber feedback composer mode with positive "How could this be better?" placeholder
+  - feat(ui): deduplicate consecutive assistant name labels in transcript
+
+### Patch Changes
+
+- Updated dependencies [369ca7d]
+  - @unctad-ai/voice-agent-core@5.1.0
+  - @unctad-ai/voice-agent-registries@5.1.0
+
 ## 5.0.6
 
 ### Patch Changes
