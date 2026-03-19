@@ -9,3 +9,4 @@ dist/
 autotune/results.tsv
 run.json
 run.log
+.superpowers
