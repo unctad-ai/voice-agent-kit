@@ -13,7 +13,7 @@ import {
 } from '@unctad-ai/voice-agent-core';
 import type { VoiceMessage, ActionCategory } from '@unctad-ai/voice-agent-core';
 import type { VoiceErrorType } from './VoiceErrorDisplay';
-import { ArrowRight, PenLine, MousePointerClick, Search, Info, ChevronDown, Mic, Keyboard, Flag } from 'lucide-react';
+import { ArrowRight, PenLine, MousePointerClick, Search, Info, ChevronDown, Mic, Keyboard, Flag, Copy, Check } from 'lucide-react';
 
 /** Strip markdown/HTML artifacts, TTS paralinguistic tags, and emojis — preserves line breaks */
 function cleanForDisplay(text: string): string {
@@ -92,7 +92,7 @@ interface VoiceTranscriptProps {
   /** Callback when user reports a bad assistant response */
   onReport?: (turnNumber: number, assistantMessage: string, userMessage?: string) => void;
   /** Turn number of the most recently sent feedback (shows "Sent" confirmation) */
-  feedbackSentTurn?: number | null;
+  feedbackSentTurn?: { turnNumber: number; ticketId: string } | null;
 }
 
 /** Progressively reveals words while preserving FormattedText structure */
@@ -258,6 +258,61 @@ function isDisplayWorthy(msg: VoiceMessage): boolean {
   const alphaOnly = t.replace(/[\s\p{P}\p{S}]+/gu, '');
   if (alphaOnly.length === 0) return false;
   return true;
+}
+
+function FeedbackPill({ isSent, ticketId, onReport }: {
+  isSent: boolean;
+  ticketId: string | null;
+  onReport: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      disabled={isSent}
+      onClick={() => { if (!isSent) onReport(); }}
+      className="voice-feedback-pill"
+      style={{
+        marginTop: 2,
+        fontSize: 11,
+        padding: '2px 8px',
+        borderRadius: 8,
+        border: isSent ? '1px solid rgba(217,119,6,0.3)' : '1px solid rgba(0,0,0,0.12)',
+        background: 'transparent',
+        color: isSent ? '#92400e' : 'rgba(0,0,0,0.30)',
+        cursor: isSent ? 'default' : 'pointer',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 3,
+        opacity: isSent ? 1 : 0,
+        transition: 'opacity 0.15s, color 0.15s',
+        fontFamily: isSent ? 'monospace' : 'inherit',
+      }}
+    >
+      {isSent && ticketId ? (
+        <>
+          {ticketId}
+          <span
+            role="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(ticketId).then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              }).catch(() => {});
+            }}
+            style={{ cursor: 'pointer', display: 'inline-flex', marginLeft: 2 }}
+          >
+            {copied ? <Check size={10} strokeWidth={2} /> : <Copy size={10} strokeWidth={2} />}
+          </span>
+        </>
+      ) : (
+        <>
+          <Flag size={10} strokeWidth={2} />
+          Feedback
+        </>
+      )}
+    </button>
+  );
 }
 
 export default function VoiceTranscript({
@@ -480,34 +535,16 @@ export default function VoiceTranscript({
                   </div>
                   {isAI && (!isLast || !isTyping) && onReport && (() => {
                     const turnNumber = visible.slice(0, idx + 1).filter(m => m.role === 'assistant').length;
-                    const isSent = feedbackSentTurn === turnNumber;
+                    const isSent = feedbackSentTurn?.turnNumber === turnNumber;
                     return (
-                      <button
-                        disabled={isSent}
-                        onClick={() => {
+                      <FeedbackPill
+                        isSent={isSent}
+                        ticketId={isSent ? feedbackSentTurn.ticketId : null}
+                        onReport={() => {
                           const userMsg = visible.slice(0, idx).reverse().find(m => m.role === 'user');
                           onReport(turnNumber, msg.text, userMsg?.text);
                         }}
-                        className="voice-feedback-pill"
-                        style={{
-                          marginTop: 2,
-                          fontSize: 11,
-                          padding: '2px 8px',
-                          borderRadius: 8,
-                          border: isSent ? '1px solid rgba(22,163,74,0.3)' : '1px solid rgba(0,0,0,0.12)',
-                          background: 'transparent',
-                          color: isSent ? '#16a34a' : 'rgba(0,0,0,0.30)',
-                          cursor: isSent ? 'default' : 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 3,
-                          opacity: isSent ? 1 : 0,
-                          transition: 'opacity 0.15s, color 0.15s',
-                        }}
-                      >
-                        <Flag size={10} strokeWidth={2} />
-                        {isSent ? 'Sent' : 'Feedback'}
-                      </button>
+                      />
                     );
                   })()}
                 </motion.div>
