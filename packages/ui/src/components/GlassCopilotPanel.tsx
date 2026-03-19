@@ -735,7 +735,7 @@ function ExpandedContent({
   onStartMic?: () => void; onSwitchToKeyboard?: () => void;
   switchToTextRef?: React.RefObject<(() => void) | null>;
   onReport?: (turnNumber: number, assistantMessage: string, userMessage?: string) => void;
-  feedbackSentTurn?: number | null;
+  feedbackSentTurn?: { turnNumber: number; ticketId: string } | null;
   feedbackTarget?: { assistantMessage: string; userMessage?: string; turnNumber: number } | null;
   onFeedbackSubmit?: (text: string, target: { assistantMessage: string; userMessage?: string; turnNumber: number }) => void;
   onFeedbackCancel?: () => void;
@@ -914,7 +914,21 @@ function WiredPanelInner({
 
   const [toolResult, setToolResult] = useState<VoiceToolResult | null>(null);
   const [feedbackTarget, setFeedbackTarget] = useState<{ assistantMessage: string; userMessage?: string; turnNumber: number } | null>(null);
-  const [feedbackSentTurn, setFeedbackSentTurn] = useState<number | null>(null);
+  const [feedbackSentTurn, setFeedbackSentTurn] = useState<{ turnNumber: number; ticketId: string } | null>(null);
+
+  useEffect(() => {
+    if (!feedbackSentTurn) return;
+    const dismiss = () => setFeedbackSentTurn(null);
+    const timer = setTimeout(() => {
+      window.addEventListener('click', dismiss, { once: true });
+      window.addEventListener('scroll', dismiss, { once: true, capture: true });
+    }, 100);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('click', dismiss);
+      window.removeEventListener('scroll', dismiss);
+    };
+  }, [feedbackSentTurn]);
   const orbState = voiceStateToOrbState(state);
   const [backendDown, setBackendDown] = useState(false);
   const autoStartedRef = useRef(false);
@@ -1033,7 +1047,7 @@ function WiredPanelInner({
     const backendUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_BACKEND_URL) || '';
     const url = backendUrl ? `${backendUrl}/api/feedback` : '/api/feedback';
     try {
-      await fetch(url, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1048,8 +1062,9 @@ function WiredPanelInner({
           kitVersion: __KIT_VERSION__,
         }),
       });
-      setFeedbackSentTurn(target.turnNumber);
-      setTimeout(() => setFeedbackSentTurn(null), 2000);
+      const body = await res.json().catch(() => ({ ticketId: undefined }));
+      setFeedbackSentTurn({ turnNumber: target.turnNumber, ticketId: body.ticketId || '\u2713' });
+      setTimeout(() => setFeedbackSentTurn(null), 4000);
     } catch { /* silent — feedback is best-effort */ }
     setFeedbackTarget(null);
   }, [sessionId, config.copilotName, lastTimings]);

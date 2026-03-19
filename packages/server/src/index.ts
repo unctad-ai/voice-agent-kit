@@ -67,7 +67,7 @@ export function attachVoicePipeline(
 }
 
 export { createPersonaRoutes } from './createPersonaRoutes.js';
-export { createFeedbackRoutes } from './feedbackRoutes.js';
+export { createFeedbackRoutes, generateTicketId } from './feedbackRoutes.js';
 export type { FeedbackEntry } from './feedbackRoutes.js';
 export { buildSystemPrompt } from './systemPrompt.js';
 export { createBuiltinTools } from './builtinTools.js';
