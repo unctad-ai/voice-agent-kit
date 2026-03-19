@@ -42,15 +42,22 @@ export function createFeedbackRoutes(dataDir: string, kitVersion?: string): { ro
 
   router.post('/', async (req, res) => {
     try {
+      const timestamp = Date.now();
+      const sessionId = req.body.sessionId || 'unknown';
+      const turnNumber = req.body.turnNumber ?? 0;
+      const ticketId = generateTicketId(timestamp, sessionId, turnNumber);
+
       const entry: FeedbackEntry = {
         ...req.body,
         ...(kitVersion ? { kitVersion } : {}),
-        timestamp: Date.now(),
+        timestamp,
         userAgent: req.headers['user-agent'] || '',
+        ticketId,
+        status: 'new',
       };
-      const filename = `${entry.timestamp}-${entry.sessionId || 'unknown'}-${entry.turnNumber ?? 0}.json`;
+      const filename = `${ticketId}.json`;
       await fs.writeFile(path.join(feedbackDir, filename), JSON.stringify(entry, null, 2));
-      res.status(201).json({ ok: true });
+      res.status(201).json({ ok: true, ticketId });
     } catch (err) {
       res.status(500).json({ error: 'Failed to save feedback' });
     }
