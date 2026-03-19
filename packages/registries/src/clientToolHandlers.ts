@@ -53,6 +53,16 @@ export function createClientToolHandler(deps: ClientToolDeps) {
         const service = config.services.find(s => s.id === serviceId);
         if (!service) return 'Service not found';
         const { id, ...details } = service;
+        const hasArray = (v: unknown) => Array.isArray(v) && v.length > 0;
+        const hasRichData = details.duration || details.cost || details.overview
+          || hasArray(details.requirements) || hasArray(details.steps)
+          || hasArray(details.eligibility) || hasArray(details.process);
+        if (!hasRichData) {
+          return JSON.stringify({
+            ...details,
+            _note: 'Only basic info is available to the assistant. The page may show additional details like duration, cost, and requirements that are not loaded here. Do not claim these details are absent — say you do not have that information.',
+          });
+        }
         return JSON.stringify(details);
       }
       case 'startApplication': {
