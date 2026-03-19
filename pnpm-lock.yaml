@@ -47,13 +47,14 @@ importers:
         version: 4.3.6
 
   packages/registries:
+    dependencies:
+      '@unctad-ai/voice-agent-core':
+        specifier: workspace:*
+        version: link:../core
     devDependencies:
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14
-      '@unctad-ai/voice-agent-core':
-        specifier: workspace:*
-        version: link:../core
       react:
         specifier: ^19.2.4
         version: 19.2.4

@@ -31,13 +31,14 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "dependencies": {
+    "@unctad-ai/voice-agent-core": "workspace:*"
+  },
   "peerDependencies": {
-    "@unctad-ai/voice-agent-core": "workspace:*",
     "react": ">=18"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
-    "@unctad-ai/voice-agent-core": "workspace:*",
     "react": "^19.2.4",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
