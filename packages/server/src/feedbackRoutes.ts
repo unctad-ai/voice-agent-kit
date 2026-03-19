@@ -65,21 +65,54 @@ export function createFeedbackRoutes(dataDir: string, kitVersion?: string): { ro
 
   router.get('/', async (req, res) => {
     try {
-      const { sessionId, copilotName, from, to, limit = '50' } = req.query as Record<string, string>;
+      const { sessionId, copilotName, from, to, limit = '50', status } = req.query as Record<string, string>;
       const files = await fs.readdir(feedbackDir).catch(() => [] as string[]);
       let entries: FeedbackEntry[] = [];
-      for (const file of files.filter(f => f.endsWith('.json')).sort().reverse()) {
-        if (entries.length >= parseInt(limit)) break;
+      for (const file of files.filter(f => f.endsWith('.json'))) {
         const data = JSON.parse(await fs.readFile(path.join(feedbackDir, file), 'utf8'));
+        // v1 migration: derive missing ticketId and default status
+        if (!data.ticketId) {
+          data.ticketId = generateTicketId(data.timestamp, data.sessionId || 'unknown', data.turnNumber ?? 0);
+          data.status = data.status || 'new';
+        }
+        if (!data.status) data.status = 'new';
         if (sessionId && data.sessionId !== sessionId) continue;
         if (copilotName && data.copilotName !== copilotName) continue;
         if (from && data.timestamp < new Date(from).getTime()) continue;
         if (to && data.timestamp > new Date(to).getTime()) continue;
+        if (status && data.status !== status) continue;
         entries.push(data);
       }
+      // Sort by timestamp descending (can't rely on filename order with ticketId filenames)
+      entries.sort((a, b) => b.timestamp - a.timestamp);
+      entries = entries.slice(0, parseInt(limit));
       res.json(entries);
     } catch (err) {
       res.status(500).json({ error: 'Failed to read feedback' });
+    }
+  });
+
+  router.get('/:ticketId', async (req, res) => {
+    const { ticketId } = req.params;
+    const filePath = path.join(feedbackDir, `${ticketId}.json`);
+    try {
+      const data = JSON.parse(await fs.readFile(filePath, 'utf8'));
+      res.json(data);
+    } catch {
+      // Try scanning for v1 files
+      try {
+        const files = await fs.readdir(feedbackDir);
+        for (const file of files.filter(f => f.endsWith('.json'))) {
+          const data = JSON.parse(await fs.readFile(path.join(feedbackDir, file), 'utf8'));
+          const derived = data.ticketId || generateTicketId(data.timestamp, data.sessionId || 'unknown', data.turnNumber ?? 0);
+          if (derived === ticketId) {
+            if (!data.ticketId) { data.ticketId = derived; data.status = data.status || 'new'; }
+            res.json(data);
+            return;
+          }
+        }
+      } catch { /* directory may not exist */ }
+      res.status(404).json({ error: 'Feedback not found' });
     }
   });
 

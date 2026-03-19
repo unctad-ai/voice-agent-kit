@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createFeedbackRoutes, generateTicketId } from '../feedbackRoutes.js';
 import express from 'express';
+import type { Server } from 'http';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -77,5 +78,99 @@ describe('POST /api/feedback', () => {
     const stored = JSON.parse(await fs.readFile(path.join(feedbackDir, files[0]), 'utf8'));
     expect(stored.ticketId).toBe(body.ticketId);
     expect(stored.status).toBe('new');
+  });
+});
+
+describe('GET /api/feedback', () => {
+  let tmpDir: string;
+  let feedbackDir: string;
+  let listener: Server;
+  let port: number;
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fb-'));
+    feedbackDir = path.join(tmpDir, 'feedback');
+    await fs.mkdir(feedbackDir, { recursive: true });
+    const { router } = createFeedbackRoutes(tmpDir);
+    const app = express().use(express.json()).use('/api/feedback', router);
+    listener = app.listen(0);
+    port = (listener.address() as any).port;
+  });
+
+  afterEach(async () => {
+    listener.close();
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('filters by status', async () => {
+    await fs.writeFile(path.join(feedbackDir, 'FB-AAAA.json'),
+      JSON.stringify({ ticketId: 'FB-AAAA', status: 'new', text: 'a', timestamp: 2000 }));
+    await fs.writeFile(path.join(feedbackDir, 'FB-BBBB.json'),
+      JSON.stringify({ ticketId: 'FB-BBBB', status: 'triaged', text: 'b', timestamp: 1000 }));
+
+    const res = await fetch(`http://127.0.0.1:${port}/api/feedback?status=new`);
+    const entries = await res.json();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].ticketId).toBe('FB-AAAA');
+  });
+
+  it('returns entries sorted by timestamp descending', async () => {
+    await fs.writeFile(path.join(feedbackDir, 'FB-AAAA.json'),
+      JSON.stringify({ ticketId: 'FB-AAAA', status: 'new', text: 'old', timestamp: 1000 }));
+    await fs.writeFile(path.join(feedbackDir, 'FB-ZZZZ.json'),
+      JSON.stringify({ ticketId: 'FB-ZZZZ', status: 'new', text: 'new', timestamp: 3000 }));
+
+    const res = await fetch(`http://127.0.0.1:${port}/api/feedback`);
+    const entries = await res.json();
+    expect(entries[0].ticketId).toBe('FB-ZZZZ'); // newer first
+    expect(entries[1].ticketId).toBe('FB-AAAA');
+  });
+
+  it('handles v1 files (missing ticketId/status)', async () => {
+    await fs.writeFile(path.join(feedbackDir, '1710693600000-sess1-2.json'),
+      JSON.stringify({ sessionId: 'sess1', turnNumber: 2, text: 'old', timestamp: 1710693600000 }));
+
+    const res = await fetch(`http://127.0.0.1:${port}/api/feedback`);
+    const entries = await res.json();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].ticketId).toMatch(/^FB-[A-Z2-9]{4}$/);
+    expect(entries[0].status).toBe('new');
+  });
+});
+
+describe('GET /api/feedback/:ticketId', () => {
+  let tmpDir: string;
+  let feedbackDir: string;
+  let listener: Server;
+  let port: number;
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fb-'));
+    feedbackDir = path.join(tmpDir, 'feedback');
+    await fs.mkdir(feedbackDir, { recursive: true });
+    const { router } = createFeedbackRoutes(tmpDir);
+    const app = express().use(express.json()).use('/api/feedback', router);
+    listener = app.listen(0);
+    port = (listener.address() as any).port;
+  });
+
+  afterEach(async () => {
+    listener.close();
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns single entry by ticket ID', async () => {
+    await fs.writeFile(path.join(feedbackDir, 'FB-XXYY.json'),
+      JSON.stringify({ ticketId: 'FB-XXYY', status: 'new', text: 'test', timestamp: 1000 }));
+
+    const res = await fetch(`http://127.0.0.1:${port}/api/feedback/FB-XXYY`);
+    expect(res.status).toBe(200);
+    const entry = await res.json();
+    expect(entry.ticketId).toBe('FB-XXYY');
+  });
+
+  it('returns 404 for unknown ticket', async () => {
+    const res = await fetch(`http://127.0.0.1:${port}/api/feedback/FB-ZZZZ`);
+    expect(res.status).toBe(404);
   });
 });
