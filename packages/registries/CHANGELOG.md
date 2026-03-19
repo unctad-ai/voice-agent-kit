@@ -1,5 +1,15 @@
 # @unctad-ai/voice-agent-registries
 
+## 5.1.1
+
+### Patch Changes
+
+- 243e44d: fix(registries): warn LLM when getServiceDetails returns sparse data
+
+  When service data only has basic fields (title, category), the handler now appends a \_note telling the LLM not to claim details like duration or cost are absent. Prevents hallucination when consuming projects haven't populated rich service data.
+
+  - @unctad-ai/voice-agent-core@5.1.1
+
 ## 5.1.0
 
 ### Minor Changes
