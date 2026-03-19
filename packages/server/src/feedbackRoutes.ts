@@ -2,6 +2,17 @@ import { Router, type Router as RouterType } from 'express';
 import { promises as fs } from 'fs';
 import path from 'path';
 
+export function generateTicketId(timestamp: number, sessionId: string, turnNumber: number): string {
+  const input = `${timestamp}-${sessionId}-${turnNumber}`;
+  let hash = 0;
+  for (const ch of input) hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0;
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I
+  const abs = Math.abs(hash);
+  return 'FB-' + Array.from({ length: 4 }, (_, i) =>
+    chars[(abs >> (i * 5)) & 31]
+  ).join('');
+}
+
 export interface FeedbackEntry {
   sessionId: string;
   turnNumber?: number;
@@ -15,6 +26,11 @@ export interface FeedbackEntry {
   kitVersion?: string;
   userAgent?: string;
   timestamp: number;
+  ticketId: string;
+  status: 'new' | 'triaged' | 'dismissed' | 'confirmed' | 'fixed';
+  rootCause?: string;
+  notes?: string;
+  updatedAt?: number;
 }
 
 export function createFeedbackRoutes(dataDir: string, kitVersion?: string): { router: RouterType } {
