@@ -116,5 +116,30 @@ export function createFeedbackRoutes(dataDir: string, kitVersion?: string): { ro
     }
   });
 
+  const VALID_STATUSES = new Set(['new', 'triaged', 'dismissed', 'confirmed', 'fixed']);
+
+  router.patch('/:ticketId', async (req, res) => {
+    const { ticketId } = req.params;
+    const { status, rootCause, notes } = req.body;
+    if (status && !VALID_STATUSES.has(status)) {
+      return res.status(400).json({ error: `Invalid status. Must be one of: ${[...VALID_STATUSES].join(', ')}` });
+    }
+    if (notes && notes.length > 2000) {
+      return res.status(400).json({ error: 'Notes must be 2000 characters or fewer' });
+    }
+    const filePath = path.join(feedbackDir, `${ticketId}.json`);
+    try {
+      const data = JSON.parse(await fs.readFile(filePath, 'utf8'));
+      if (status) data.status = status;
+      if (rootCause !== undefined) data.rootCause = rootCause;
+      if (notes !== undefined) data.notes = notes;
+      data.updatedAt = Date.now();
+      await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+      res.json({ ok: true, ticketId, status: data.status });
+    } catch {
+      res.status(404).json({ error: 'Feedback not found' });
+    }
+  });
+
   return { router };
 }

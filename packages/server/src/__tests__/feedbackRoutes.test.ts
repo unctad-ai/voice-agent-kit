@@ -174,3 +174,78 @@ describe('GET /api/feedback/:ticketId', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('PATCH /api/feedback/:ticketId', () => {
+  let tmpDir: string;
+  let feedbackDir: string;
+  let listener: Server;
+  let port: number;
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fb-'));
+    feedbackDir = path.join(tmpDir, 'feedback');
+    await fs.mkdir(feedbackDir, { recursive: true });
+    const { router } = createFeedbackRoutes(tmpDir);
+    const app = express().use(express.json()).use('/api/feedback', router);
+    listener = app.listen(0);
+    port = (listener.address() as any).port;
+  });
+
+  afterEach(async () => {
+    listener.close();
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('updates status and sets updatedAt', async () => {
+    await fs.writeFile(path.join(feedbackDir, 'FB-AAAA.json'),
+      JSON.stringify({ ticketId: 'FB-AAAA', status: 'new', text: 'test', timestamp: 1000 }));
+
+    const res = await fetch(`http://127.0.0.1:${port}/api/feedback/FB-AAAA`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'triaged', rootCause: 'sparse-tool-data', notes: 'Missing fields' }),
+    });
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.status).toBe('triaged');
+
+    const stored = JSON.parse(await fs.readFile(path.join(feedbackDir, 'FB-AAAA.json'), 'utf8'));
+    expect(stored.status).toBe('triaged');
+    expect(stored.rootCause).toBe('sparse-tool-data');
+    expect(stored.notes).toBe('Missing fields');
+    expect(stored.updatedAt).toBeGreaterThan(0);
+  });
+
+  it('rejects invalid status', async () => {
+    await fs.writeFile(path.join(feedbackDir, 'FB-AAAA.json'),
+      JSON.stringify({ ticketId: 'FB-AAAA', status: 'new', text: 'test', timestamp: 1000 }));
+
+    const res = await fetch(`http://127.0.0.1:${port}/api/feedback/FB-AAAA`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'invalid' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects notes over 2000 chars', async () => {
+    await fs.writeFile(path.join(feedbackDir, 'FB-AAAA.json'),
+      JSON.stringify({ ticketId: 'FB-AAAA', status: 'new', text: 'test', timestamp: 1000 }));
+
+    const res = await fetch(`http://127.0.0.1:${port}/api/feedback/FB-AAAA`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'triaged', notes: 'x'.repeat(2001) }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for unknown ticket', async () => {
+    const res = await fetch(`http://127.0.0.1:${port}/api/feedback/FB-ZZZZ`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'triaged' }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
