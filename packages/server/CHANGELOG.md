@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-server
 
+## 5.1.2
+
+### Patch Changes
+
+- 02b3654: Feedback v2: persistent ticket IDs, collision guard, improved copy UX
+  - @unctad-ai/voice-agent-core@5.1.2
+
 ## 5.1.1
 
 ### Patch Changes
