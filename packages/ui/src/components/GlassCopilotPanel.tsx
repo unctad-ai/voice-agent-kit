@@ -1005,12 +1005,33 @@ function WiredPanelInner({
 
   useEffect(() => { if (panelState === 'hidden') stopRef.current(true); }, [panelState]);
 
+  // micOpen: true when mic is live (LISTENING or USER_SPEAKING).
+  // Used as the effect dep so the idle timer starts when the mic opens and
+  // clears when the pipeline takes over (PROCESSING/AI_SPEAKING).
+  // VAD bouncing between LISTENING↔USER_SPEAKING keeps micOpen=true,
+  // so background noise doesn't reset the timer.
+  // Full pipeline turns DO reset it (micOpen false→true), which is correct —
+  // after a real answer the user needs a fresh window to respond.
+  const micOpen = state === 'LISTENING' || state === 'USER_SPEAKING';
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   useEffect(() => {
     if (panelState === 'hidden' || micPaused || showSettings) return;
-    if (state === 'PROCESSING' || state === 'AI_SPEAKING') return;
-    const timer = setTimeout(() => { stopRef.current(); if (hasConversationRef.current) { setMicPaused(true); } else { onCollapseRef.current(); } }, settings.idleTimeoutMs);
+    if (!micOpen) return;
+    // Reschedule loop: if the timer fires while the user is mid-speech,
+    // reschedule instead of closing — prevents cutting off long utterances.
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      timer = setTimeout(() => {
+        if (stateRef.current === 'USER_SPEAKING') { schedule(); return; }
+        stopRef.current();
+        if (hasConversationRef.current) { setMicPaused(true); } else { onCollapseRef.current(); }
+      }, settings.idleTimeoutMs);
+    };
+    schedule();
     return () => clearTimeout(timer);
-  }, [state, panelState, micPaused, showSettings, activity, settings.idleTimeoutMs]);
+  }, [micOpen, panelState, micPaused, showSettings, activity, settings.idleTimeoutMs]);
 
   useEffect(() => {
     if (!micPaused || panelState !== 'expanded' || showSettings) return;
