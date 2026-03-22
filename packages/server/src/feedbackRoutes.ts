@@ -45,7 +45,21 @@ export function createFeedbackRoutes(dataDir: string, kitVersion?: string): { ro
       const timestamp = Date.now();
       const sessionId = req.body.sessionId || 'unknown';
       const turnNumber = req.body.turnNumber ?? 0;
-      const ticketId = generateTicketId(timestamp, sessionId, turnNumber);
+      let ticketId = generateTicketId(timestamp, sessionId, turnNumber);
+
+      // Collision guard: if file already exists, rehash with shifted timestamp
+      let filePath = path.join(feedbackDir, `${ticketId}.json`);
+      let collided = false;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try { await fs.access(filePath); } catch { break; } // file doesn't exist — use this ID
+        collided = true;
+        ticketId = generateTicketId(timestamp + attempt + 1, sessionId, turnNumber);
+        filePath = path.join(feedbackDir, `${ticketId}.json`);
+      }
+      // If still colliding after retries, bail
+      if (collided) {
+        try { await fs.access(filePath); return res.status(409).json({ error: 'Ticket ID collision, please retry' }); } catch { /* good */ }
+      }
 
       const entry: FeedbackEntry = {
         ...req.body,
@@ -55,8 +69,7 @@ export function createFeedbackRoutes(dataDir: string, kitVersion?: string): { ro
         ticketId,
         status: 'new',
       };
-      const filename = `${ticketId}.json`;
-      await fs.writeFile(path.join(feedbackDir, filename), JSON.stringify(entry, null, 2));
+      await fs.writeFile(filePath, JSON.stringify(entry, null, 2));
       res.status(201).json({ ok: true, ticketId });
     } catch (err) {
       res.status(500).json({ error: 'Failed to save feedback' });

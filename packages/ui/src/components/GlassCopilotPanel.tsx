@@ -721,7 +721,7 @@ function ExpandedContent({
   isRetrying = false, retryCountdown, lastTimings, showPipelineMetrics, pipelineMetricsAutoHideMs,
   showSettings, onSettingsToggle, ttsEnabled = true, copilotName, portraitSrc,
   onStartMic, onSwitchToKeyboard, switchToTextRef,
-  onReport, feedbackSentTurn, feedbackTarget, onFeedbackSubmit, onFeedbackCancel,
+  onReport, feedbackSentTurns, feedbackTarget, onFeedbackSubmit, onFeedbackCancel,
 }: {
   orbState: OrbState; getAmplitude: () => number; analyser: AnalyserNode | null;
   voiceState: VoiceState; messages: VoiceMessage[]; isTyping: boolean;
@@ -735,7 +735,7 @@ function ExpandedContent({
   onStartMic?: () => void; onSwitchToKeyboard?: () => void;
   switchToTextRef?: React.RefObject<(() => void) | null>;
   onReport?: (turnNumber: number, assistantMessage: string, userMessage?: string) => void;
-  feedbackSentTurn?: { turnNumber: number; ticketId: string } | null;
+  feedbackSentTurns?: Record<number, string>;
   feedbackTarget?: { assistantMessage: string; userMessage?: string; turnNumber: number } | null;
   onFeedbackSubmit?: (text: string, target: { assistantMessage: string; userMessage?: string; turnNumber: number }) => void;
   onFeedbackCancel?: () => void;
@@ -814,7 +814,7 @@ function ExpandedContent({
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div data-testid="voice-agent-transcript" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}><VoiceTranscript messages={messages} isTyping={isTyping} variant="panel" voiceError={voiceError} voiceState={voiceState} onStartMic={onStartMic} onSwitchToKeyboard={onSwitchToKeyboard} onReport={onReport} feedbackSentTurn={feedbackSentTurn} /></div>
+        <div data-testid="voice-agent-transcript" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}><VoiceTranscript messages={messages} isTyping={isTyping} variant="panel" voiceError={voiceError} voiceState={voiceState} onStartMic={onStartMic} onSwitchToKeyboard={onSwitchToKeyboard} onReport={onReport} feedbackSentTurns={feedbackSentTurns} /></div>
         <div style={{ flexShrink: 0 }}>
           <PipelineMetricsBar timings={lastTimings ?? null} show={showPipelineMetrics} autoHideMs={pipelineMetricsAutoHideMs} />
           {isOffline && onRetry && (
@@ -914,21 +914,7 @@ function WiredPanelInner({
 
   const [toolResult, setToolResult] = useState<VoiceToolResult | null>(null);
   const [feedbackTarget, setFeedbackTarget] = useState<{ assistantMessage: string; userMessage?: string; turnNumber: number } | null>(null);
-  const [feedbackSentTurn, setFeedbackSentTurn] = useState<{ turnNumber: number; ticketId: string } | null>(null);
-
-  useEffect(() => {
-    if (!feedbackSentTurn) return;
-    const dismiss = () => setFeedbackSentTurn(null);
-    const timer = setTimeout(() => {
-      window.addEventListener('click', dismiss, { once: true });
-      window.addEventListener('scroll', dismiss, { once: true, capture: true });
-    }, 100);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('click', dismiss);
-      window.removeEventListener('scroll', dismiss);
-    };
-  }, [feedbackSentTurn]);
+  const [feedbackSentTurns, setFeedbackSentTurns] = useState<Record<number, string>>({});
   const orbState = voiceStateToOrbState(state);
   const [backendDown, setBackendDown] = useState(false);
   const autoStartedRef = useRef(false);
@@ -1063,8 +1049,7 @@ function WiredPanelInner({
         }),
       });
       const body = await res.json().catch(() => ({ ticketId: undefined }));
-      setFeedbackSentTurn({ turnNumber: target.turnNumber, ticketId: body.ticketId || '\u2713' });
-      setTimeout(() => setFeedbackSentTurn(null), 4000);
+      setFeedbackSentTurns(prev => ({ ...prev, [target.turnNumber]: body.ticketId || '\u2713' }));
     } catch { /* silent — feedback is best-effort */ }
     setFeedbackTarget(null);
   }, [sessionId, config.copilotName, lastTimings]);
@@ -1127,7 +1112,7 @@ function WiredPanelInner({
 
   return (
     <div className="relative h-full">
-      <ExpandedContent orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} messages={messages} isTyping={isTyping} toolResult={toolResult} voiceError={effectiveError} dismissError={dismissError} onCollapse={onCollapse} onClose={onClose} onTextSubmit={handleTextSubmit} onMicToggle={handleMicToggle} micPaused={micPaused} onToolDismiss={() => setToolResult(null)} onInteraction={bumpActivity} onRetry={handleRetryClick} isRetrying={isRetrying} retryCountdown={retryCountdown} lastTimings={lastTimings} showPipelineMetrics={settings.showPipelineMetrics} pipelineMetricsAutoHideMs={settings.pipelineMetricsAutoHideMs} showSettings={showSettings} onSettingsToggle={toggleSettings} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} onStartMic={handleMicToggle} onSwitchToKeyboard={handleSwitchToKeyboard} switchToTextRef={switchToTextRef} onReport={handleReport} feedbackSentTurn={feedbackSentTurn} feedbackTarget={feedbackTarget} onFeedbackSubmit={handleFeedbackSubmit} onFeedbackCancel={handleFeedbackCancel} />
+      <ExpandedContent orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} messages={messages} isTyping={isTyping} toolResult={toolResult} voiceError={effectiveError} dismissError={dismissError} onCollapse={onCollapse} onClose={onClose} onTextSubmit={handleTextSubmit} onMicToggle={handleMicToggle} micPaused={micPaused} onToolDismiss={() => setToolResult(null)} onInteraction={bumpActivity} onRetry={handleRetryClick} isRetrying={isRetrying} retryCountdown={retryCountdown} lastTimings={lastTimings} showPipelineMetrics={settings.showPipelineMetrics} pipelineMetricsAutoHideMs={settings.pipelineMetricsAutoHideMs} showSettings={showSettings} onSettingsToggle={toggleSettings} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} onStartMic={handleMicToggle} onSwitchToKeyboard={handleSwitchToKeyboard} switchToTextRef={switchToTextRef} onReport={handleReport} feedbackSentTurns={feedbackSentTurns} feedbackTarget={feedbackTarget} onFeedbackSubmit={handleFeedbackSubmit} onFeedbackCancel={handleFeedbackCancel} />
       <AnimatePresence>
         {showSettings && (<Suspense fallback={null}><VoiceSettingsView onBack={toggleSettings} onVolumeChange={applyVolume} /></Suspense>)}
       </AnimatePresence>
