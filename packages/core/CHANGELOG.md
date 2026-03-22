@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 5.1.3
+
+### Patch Changes
+
+- ffe5163: Reduce mic idle timeout from 60s to 15s and prevent background noise from resetting it. VAD bouncing no longer extends the countdown; long utterances are safely rescheduled instead of cut off.
+  - @unctad-ai/voice-agent-registries@5.1.3
+
 ## 5.1.2
 
 ### Patch Changes
