@@ -1377,7 +1377,8 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
 
       <AnimatePresence>
         {!isVisible && (
-          <motion.div ref={fabRef} key="copilot-fab" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.25, ease: 'easeOut' }} className="fixed" style={{ bottom: PANEL_BOTTOM, right: PANEL_RIGHT, zIndex: PANEL_Z_INDEX }}>
+          <motion.div ref={fabRef} key="copilot-fab" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.25, ease: 'easeOut' }} className="fixed" style={{ bottom: PANEL_BOTTOM, right: PANEL_RIGHT, zIndex: PANEL_Z_INDEX, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <CopilotFABTooltip onClick={handleOpen} dismissed={isVisible} />
             <CopilotFAB onClick={handleOpen} portraitSrc={resolvedPortrait} isOffline={fabOffline} />
           </motion.div>
         )}
