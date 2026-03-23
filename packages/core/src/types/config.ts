@@ -77,4 +77,8 @@ export interface SiteConfig {
     firstVisit?: string;
     returnVisit?: string;
   };
+
+  /** Routes where the voice agent is hidden (exact match or prefix with trailing *).
+   *  e.g. ['/', '/admin/*'] hides on homepage and all /admin/ pages. */
+  excludeRoutes?: string[];
 }

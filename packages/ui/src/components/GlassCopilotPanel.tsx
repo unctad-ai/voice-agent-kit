@@ -86,6 +86,18 @@ interface GlassCopilotPanelProps {
 }
 
 // ---------------------------------------------------------------------------
+// Route exclusion helper
+// ---------------------------------------------------------------------------
+function isRouteExcluded(patterns?: string[]): boolean {
+  if (!patterns?.length || typeof window === 'undefined') return false;
+  const path = window.location.pathname;
+  return patterns.some((p) => {
+    if (p.endsWith('/*')) return path.startsWith(p.slice(0, -1));
+    return path === p;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // FAB — shown when panel is hidden
 // ---------------------------------------------------------------------------
 function CopilotFAB({ onClick, portraitSrc, isOffline = false }: { onClick: () => void; portraitSrc?: string; isOffline?: boolean }) {
@@ -101,13 +113,13 @@ function CopilotFAB({ onClick, portraitSrc, isOffline = false }: { onClick: () =
         border: 'none',
         padding: 0,
         borderRadius: '50%',
-        width: 68,
-        height: 68,
+        width: 80,
+        height: 80,
       }}
       aria-label="Open voice assistant"
       data-testid="voice-agent-fab"
     >
-      <div className="agent-fab-border" style={{ width: 68, height: 68, '--agent-primary': isOffline ? '#9ca3af' : colors.primary, animation: isOffline ? 'none' : undefined } as React.CSSProperties}>
+      <div className="agent-fab-border" style={{ width: 80, height: 80, '--agent-primary': isOffline ? '#9ca3af' : colors.primary, animation: isOffline ? 'none' : undefined } as React.CSSProperties}>
         <div className="agent-fab-border-inner">
           {portraitSrc ? (
             <img
@@ -1338,6 +1350,18 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
   const config = useSiteConfig();
   const resolvedPortrait = portraitSrc ?? config.avatarUrl;
 
+  // Hide on excluded routes
+  const [routeHidden, setRouteHidden] = useState(() => isRouteExcluded(config.excludeRoutes));
+  useEffect(() => {
+    if (!config.excludeRoutes?.length) return;
+    // Re-check on SPA navigation (popstate) and periodically for pushState
+    const check = () => setRouteHidden(isRouteExcluded(config.excludeRoutes));
+    window.addEventListener('popstate', check);
+    const timer = setInterval(check, 500);
+    return () => { window.removeEventListener('popstate', check); clearInterval(timer); };
+  }, [config.excludeRoutes]);
+  if (routeHidden) return null;
+
   // Uncontrolled mode: manage open state internally when isOpen prop is not provided
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = isOpenProp !== undefined;
@@ -1414,9 +1438,9 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
 
         {isVisible && (
           <motion.div ref={panelRef} tabIndex={-1} key="copilot-panel" role="dialog" aria-label="Voice Assistant" aria-modal="false" data-testid="voice-agent-panel"
-            initial={{ width: 68, height: 68, borderRadius: 34, opacity: 0, scale: 0.9 }}
+            initial={{ width: 80, height: 80, borderRadius: 40, opacity: 0, scale: 0.9 }}
             animate={{ width: PANEL_WIDTH, height: Math.min(targetHeight, window.innerHeight - 48), borderRadius: PANEL_BORDER_RADIUS, opacity: 1, scale: 1, transition: SPRING_PANEL }}
-            exit={{ width: 68, height: 68, borderRadius: 34, opacity: 0, scale: 0.95, transition: SPRING_PANEL_EXIT }}
+            exit={{ width: 80, height: 80, borderRadius: 40, opacity: 0, scale: 0.95, transition: SPRING_PANEL_EXIT }}
             className="fixed"
             style={{ bottom: PANEL_BOTTOM, right: PANEL_RIGHT, zIndex: PANEL_Z_INDEX, transformOrigin: 'bottom right', maxWidth: 'calc(100vw - 32px)', outline: 'none', fontFamily: config.fontFamily ?? DEFAULT_FONT_FAMILY }}
           >
