@@ -101,13 +101,13 @@ function CopilotFAB({ onClick, portraitSrc, isOffline = false }: { onClick: () =
         border: 'none',
         padding: 0,
         borderRadius: '50%',
-        width: 54,
-        height: 54,
+        width: 68,
+        height: 68,
       }}
       aria-label="Open voice assistant"
       data-testid="voice-agent-fab"
     >
-      <div className="agent-fab-border" style={{ width: 54, height: 54, '--agent-primary': isOffline ? '#9ca3af' : colors.primary, animation: isOffline ? 'none' : undefined } as React.CSSProperties}>
+      <div className="agent-fab-border" style={{ width: 68, height: 68, '--agent-primary': isOffline ? '#9ca3af' : colors.primary, animation: isOffline ? 'none' : undefined } as React.CSSProperties}>
         <div className="agent-fab-border-inner">
           {portraitSrc ? (
             <img
@@ -126,7 +126,7 @@ function CopilotFAB({ onClick, portraitSrc, isOffline = false }: { onClick: () =
                 justifyContent: 'center',
                 backgroundColor: '#6b7280',
                 color: 'white',
-                fontSize: 20,
+                fontSize: 24,
                 fontWeight: 700,
               }}
             >
@@ -1224,9 +1224,9 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
 
         {isVisible && (
           <motion.div ref={panelRef} tabIndex={-1} key="copilot-panel" role="dialog" aria-label="Voice Assistant" aria-modal="false" data-testid="voice-agent-panel"
-            initial={{ width: 48, height: 48, borderRadius: 24, opacity: 0, scale: 0.9 }}
+            initial={{ width: 68, height: 68, borderRadius: 34, opacity: 0, scale: 0.9 }}
             animate={{ width: PANEL_WIDTH, height: Math.min(targetHeight, window.innerHeight - 48), borderRadius: PANEL_BORDER_RADIUS, opacity: 1, scale: 1, transition: SPRING_PANEL }}
-            exit={{ width: 48, height: 48, borderRadius: 24, opacity: 0, scale: 0.95, transition: SPRING_PANEL_EXIT }}
+            exit={{ width: 68, height: 68, borderRadius: 34, opacity: 0, scale: 0.95, transition: SPRING_PANEL_EXIT }}
             className="fixed"
             style={{ bottom: PANEL_BOTTOM, right: PANEL_RIGHT, zIndex: PANEL_Z_INDEX, transformOrigin: 'bottom right', maxWidth: 'calc(100vw - 32px)', outline: 'none', fontFamily: config.fontFamily ?? DEFAULT_FONT_FAMILY }}
           >
