@@ -379,9 +379,9 @@ function CollapsedBar({
       {/* Mini avatar */}
       <div
         className="relative shrink-0"
-        style={{ width: 46, height: 46, opacity: isOffline ? 0.4 : 1 }}
+        style={{ width: 56, height: 56, opacity: isOffline ? 0.4 : 1 }}
       >
-        <AgentAvatar state={orbState} getAmplitude={getAmplitude} size={46} portraitSrc={portraitSrc} />
+        <AgentAvatar state={orbState} getAmplitude={getAmplitude} size={56} portraitSrc={portraitSrc} />
         {!ttsEnabled && (
           <div
             className="absolute flex items-center justify-center"
@@ -646,28 +646,34 @@ function ComposerBar({
             className="flex items-center gap-3"
             style={{ height: 56, padding: '10px 14px' }}
           >
-            <button
+            <motion.button
               onClick={onMicToggle}
-              className="shrink-0 rounded-full flex items-center justify-center transition-all relative cursor-pointer"
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.93 }}
+              animate={isListening
+                ? { backgroundColor: [colors.primary, `${colors.primary}BB`, colors.primary] }
+                : { backgroundColor: 'rgba(0,0,0,0.06)' }
+              }
+              transition={isListening
+                ? { backgroundColor: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } }
+                : { duration: 0.3 }
+              }
+              className="shrink-0 rounded-full flex items-center justify-center relative cursor-pointer"
               style={{
                 width: 44,
                 height: 44,
-                backgroundColor: isListening ? colors.primary : 'rgba(0,0,0,0.06)',
                 color: isListening ? 'white' : 'rgba(0,0,0,0.5)',
+                border: 'none',
+                padding: 0,
+                boxShadow: isListening
+                  ? `0 2px 8px ${colors.primary}40, 0 1px 3px rgba(0,0,0,0.12)`
+                  : '0 1px 4px rgba(0,0,0,0.10)',
               }}
               aria-label={isListening ? 'Stop listening' : 'Start listening'}
               data-testid="voice-agent-mic"
             >
-              {isListening && (
-                <motion.span
-                  className="absolute inset-0 rounded-full"
-                  animate={{ scale: [1, 1.22, 1], opacity: [0.25, 0.08, 0.25] }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                  style={{ backgroundColor: `${colors.primary}33`, filter: 'blur(4px)' }}
-                />
-              )}
               <Mic style={{ width: 18, height: 18, position: 'relative', zIndex: 1 }} />
-            </button>
+            </motion.button>
 
             <div className="flex-1 min-w-0">
               <AnimatePresence mode="wait">
@@ -941,9 +947,9 @@ function ExpandedContent({
         <motion.div
           animate={{ opacity: isOffline ? 0.35 : 1 }}
           className="relative shrink-0"
-          style={{ width: 46, height: 46, filter: isOffline ? 'grayscale(0.8)' : 'none' }}
+          style={{ width: 56, height: 56, filter: isOffline ? 'grayscale(0.8)' : 'none' }}
         >
-          <AgentAvatar state={orbState} getAmplitude={getAmplitude} size={46} showRing portraitSrc={portraitSrc} />
+          <AgentAvatar state={orbState} getAmplitude={getAmplitude} size={56} showRing portraitSrc={portraitSrc} />
           {!ttsEnabled && (
             <div
               className="absolute flex items-center justify-center"
