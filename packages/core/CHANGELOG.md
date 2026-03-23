@@ -1,5 +1,15 @@
 # @unctad-ai/voice-agent-core
 
+## 5.2.0
+
+### Minor Changes
+
+- 2cdf9f9: Larger FAB (68px) with animated tooltip introducing the voice agent as a virtual civil servant. First-visit greeting with CTA, return-visit re-engagement with 30min cooldown.
+
+### Patch Changes
+
+- @unctad-ai/voice-agent-registries@5.2.0
+
 ## 5.1.3
 
 ### Patch Changes
