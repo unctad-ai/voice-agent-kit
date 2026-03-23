@@ -71,4 +71,10 @@ export interface SiteConfig {
 
   /** Initial greeting shown/spoken when the panel opens. */
   greetingMessage?: string;
+
+  /** Override default FAB tooltip text. {name} is replaced with copilotName. */
+  fabTooltip?: {
+    firstVisit?: string;
+    returnVisit?: string;
+  };
 }
