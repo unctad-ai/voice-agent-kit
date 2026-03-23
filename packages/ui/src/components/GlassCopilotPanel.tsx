@@ -145,79 +145,82 @@ function CopilotFAB({ onClick, portraitSrc, isOffline = false }: { onClick: () =
 const FAB_GREETED_KEY = (name: string) => `voice-fab-greeted:${name}`;
 const FAB_LAST_SHOWN_KEY = (name: string) => `voice-fab-last-shown:${name}`;
 const FAB_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
-const FAB_TOOLTIP_MIN_WIDTH = 480; // hide tooltip on narrow viewports
+const FAB_TOOLTIP_NARROW_QUERY = '(max-width: 479px)';
 
-function CopilotFABTooltip({ onClick, dismissed: externalDismissed }: { onClick: () => void; dismissed?: boolean }) {
+function safeStorage(op: () => string | null): string | null;
+function safeStorage(op: () => void): void;
+function safeStorage(op: () => unknown): unknown {
+  try { return op(); } catch { return null; }
+}
+
+function CopilotFABTooltip({ onClick }: { onClick: () => void }) {
   const { copilotName, colors, fabTooltip } = useSiteConfig();
   const prefersReduced = useReducedMotion();
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  const isFirstVisit = useRef(false);
+  // Compute first-visit synchronously so render reads a stable value (not a ref set inside a timer)
+  const [isFirstVisit] = useState(() => !safeStorage(() => localStorage.getItem(FAB_GREETED_KEY(copilotName))));
 
-  // Hide on narrow viewports
+  // Responsive narrow viewport check via matchMedia
   useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < FAB_TOOLTIP_MIN_WIDTH) {
-      setDismissed(true);
-    }
+    if (typeof window === 'undefined') return;
+    const mql = window.matchMedia(FAB_TOOLTIP_NARROW_QUERY);
+    if (mql.matches) { setDismissed(true); return; }
+    const handler = (e: MediaQueryListEvent) => { if (e.matches) setDismissed(true); };
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
   }, []);
 
-  // External dismissal (e.g. FAB clicked)
   useEffect(() => {
-    if (externalDismissed) setDismissed(true);
-  }, [externalDismissed]);
-
-  useEffect(() => {
-    const greeted = localStorage.getItem(FAB_GREETED_KEY(copilotName));
-    const lastShown = localStorage.getItem(FAB_LAST_SHOWN_KEY(copilotName));
-    const now = Date.now();
-
-    if (!greeted) {
-      isFirstVisit.current = true;
-      // First visit: show after 2s
+    if (isFirstVisit) {
       const timer = setTimeout(() => {
         setVisible(true);
-        localStorage.setItem(FAB_GREETED_KEY(copilotName), 'true');
-        localStorage.setItem(FAB_LAST_SHOWN_KEY(copilotName), new Date().toISOString());
+        safeStorage(() => localStorage.setItem(FAB_GREETED_KEY(copilotName), 'true'));
+        safeStorage(() => localStorage.setItem(FAB_LAST_SHOWN_KEY(copilotName), new Date().toISOString()));
       }, 2000);
       return () => clearTimeout(timer);
     }
 
     // Return visit: check cooldown
-    if (lastShown && now - new Date(lastShown).getTime() < FAB_COOLDOWN_MS) return;
+    const lastShown = safeStorage(() => localStorage.getItem(FAB_LAST_SHOWN_KEY(copilotName)));
+    if (lastShown && Date.now() - new Date(lastShown).getTime() < FAB_COOLDOWN_MS) return;
 
-    // Show after 5s
     const timer = setTimeout(() => {
       setVisible(true);
-      localStorage.setItem(FAB_LAST_SHOWN_KEY(copilotName), new Date().toISOString());
+      safeStorage(() => localStorage.setItem(FAB_LAST_SHOWN_KEY(copilotName), new Date().toISOString()));
     }, 5000);
     return () => clearTimeout(timer);
-  }, [copilotName]);
+  }, [copilotName, isFirstVisit]);
 
-  // Auto-hide timer
+  // Auto-hide timer (return visits only — first visit stays until user interacts)
   useEffect(() => {
-    if (!visible) return;
-    const duration = isFirstVisit.current ? 8000 : 5000;
-    const timer = setTimeout(() => setDismissed(true), duration);
+    if (!visible || isFirstVisit) return;
+    const timer = setTimeout(() => setDismissed(true), 5000);
     return () => clearTimeout(timer);
-  }, [visible]);
+  }, [visible, isFirstVisit]);
 
-  // Scroll dismissal
+  // Scroll dismissal (return visits only)
   useEffect(() => {
-    if (!visible || dismissed) return;
+    if (!visible || dismissed || isFirstVisit) return;
     const handleScroll = () => setDismissed(true);
     window.addEventListener('scroll', handleScroll, { passive: true, once: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [visible, dismissed]);
+  }, [visible, dismissed, isFirstVisit]);
 
-  const handleClick = () => {
+  const handleTryNow = () => {
     setDismissed(true);
     onClick();
   };
 
+  const handleDismiss = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissed(true);
+  };
+
   const firstVisitText = fabTooltip?.firstVisit
-    ? fabTooltip.firstVisit.replace('{name}', copilotName)
-    : `I'm ${copilotName}, your virtual civil servant. How may I help you?`;
+    ? fabTooltip.firstVisit.replaceAll('{name}', copilotName)
+    : `I'm ${copilotName}, your virtual civil servant.\nHow may I help you?`;
   const returnVisitText = fabTooltip?.returnVisit ?? 'How may I help you?';
 
   const show = visible && !dismissed;
@@ -226,6 +229,8 @@ function CopilotFABTooltip({ onClick, dismissed: externalDismissed }: { onClick:
     <AnimatePresence>
       {show && (
         <motion.div
+          role="status"
+          aria-live="polite"
           data-testid="voice-agent-fab-tooltip"
           initial={prefersReduced ? { opacity: 0 } : { opacity: 0, x: 20 }}
           animate={prefersReduced ? { opacity: 1 } : { opacity: 1, x: 0 }}
@@ -235,50 +240,68 @@ function CopilotFABTooltip({ onClick, dismissed: externalDismissed }: { onClick:
               ? { duration: 0.2 }
               : { type: 'spring', stiffness: 300, damping: 25 }
           }
-          onClick={handleClick}
+          onClick={isFirstVisit ? undefined : handleTryNow}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 0,
-            cursor: 'pointer',
+            cursor: isFirstVisit ? 'default' : 'pointer',
           }}
         >
           <div
             style={{
               background: 'white',
               borderRadius: 20,
-              padding: isFirstVisit.current ? '12px 20px' : '10px 18px',
+              padding: isFirstVisit ? '12px 20px' : '10px 18px',
               boxShadow: '0 2px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)',
               maxWidth: 340,
             }}
           >
             <div
               style={{
-                fontSize: isFirstVisit.current ? 14 : 13,
+                fontSize: isFirstVisit ? 14 : 13,
                 color: '#1a1a1a',
                 fontWeight: 500,
                 lineHeight: 1.4,
+                whiteSpace: 'pre-line',
               }}
             >
-              {isFirstVisit.current ? firstVisitText : returnVisitText}
+              {isFirstVisit ? firstVisitText : returnVisitText}
             </div>
-            {isFirstVisit.current && (
-              <button
-                data-testid="voice-agent-fab-tooltip-cta"
-                style={{
-                  marginTop: 8,
-                  padding: '6px 16px',
-                  background: colors.primary,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: 12,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Try it now
-              </button>
+            {isFirstVisit && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button
+                  data-testid="voice-agent-fab-tooltip-cta"
+                  aria-label={`Open ${copilotName} voice assistant`}
+                  onClick={handleTryNow}
+                  style={{
+                    padding: '6px 16px',
+                    background: colors.primary,
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 12,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Try it now
+                </button>
+                <button
+                  onClick={handleDismiss}
+                  style={{
+                    padding: '6px 12px',
+                    background: 'transparent',
+                    color: '#6b7280',
+                    border: 'none',
+                    borderRadius: 12,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Maybe later
+                </button>
+              </div>
             )}
           </div>
           {/* Arrow pointing right toward FAB */}
@@ -1377,8 +1400,8 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
 
       <AnimatePresence>
         {!isVisible && (
-          <motion.div ref={fabRef} key="copilot-fab" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.25, ease: 'easeOut' }} className="fixed" style={{ bottom: PANEL_BOTTOM, right: PANEL_RIGHT, zIndex: PANEL_Z_INDEX, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <CopilotFABTooltip onClick={handleOpen} dismissed={isVisible} />
+          <motion.div ref={fabRef} key="copilot-fab" initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.25, ease: 'easeOut' }} className="fixed" style={{ bottom: PANEL_BOTTOM, right: PANEL_RIGHT, zIndex: PANEL_Z_INDEX, display: 'flex', alignItems: 'flex-end', gap: 12 }}>
+            <CopilotFABTooltip onClick={handleOpen} />
             <CopilotFAB onClick={handleOpen} portraitSrc={resolvedPortrait} isOffline={fabOffline} />
           </motion.div>
         )}
