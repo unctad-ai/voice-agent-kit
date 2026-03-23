@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 5.2.2
+
+### Patch Changes
+
+- a919830: Add excludeRoutes config to hide voice agent on specific pages. Increase FAB avatar to 80px.
+  - @unctad-ai/voice-agent-registries@5.2.2
+
 ## 5.2.1
 
 ### Patch Changes
