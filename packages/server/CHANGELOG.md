@@ -1,5 +1,11 @@
 # @unctad-ai/voice-agent-server
 
+## 5.2.1
+
+### Patch Changes
+
+- @unctad-ai/voice-agent-core@5.2.1
+
 ## 5.2.0
 
 ### Patch Changes

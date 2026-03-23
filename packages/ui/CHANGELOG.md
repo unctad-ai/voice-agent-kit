@@ -1,5 +1,13 @@
 # @unctad-ai/voice-agent-ui
 
+## 5.2.1
+
+### Patch Changes
+
+- d687fb6: Bigger panel avatar (56px), animated mic button background pulse when listening, shadow for pressable affordance.
+  - @unctad-ai/voice-agent-core@5.2.1
+  - @unctad-ai/voice-agent-registries@5.2.1
+
 ## 5.2.0
 
 ### Minor Changes
