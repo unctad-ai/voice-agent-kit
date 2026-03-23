@@ -10,7 +10,7 @@ import {
   type ErrorInfo,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { ChevronDown, X, Mic, ArrowUp, Keyboard, RotateCw, Settings, VolumeX, Flag } from 'lucide-react';
 import {
   useVoiceAgent,
@@ -136,6 +136,166 @@ function CopilotFAB({ onClick, portraitSrc, isOffline = false }: { onClick: () =
         </div>
       </div>
     </motion.button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FAB Tooltip — animated greeting to the left of the FAB
+// ---------------------------------------------------------------------------
+const FAB_GREETED_KEY = (name: string) => `voice-fab-greeted:${name}`;
+const FAB_LAST_SHOWN_KEY = (name: string) => `voice-fab-last-shown:${name}`;
+const FAB_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
+const FAB_TOOLTIP_MIN_WIDTH = 480; // hide tooltip on narrow viewports
+
+function CopilotFABTooltip({ onClick, dismissed: externalDismissed }: { onClick: () => void; dismissed?: boolean }) {
+  const { copilotName, colors, fabTooltip } = useSiteConfig();
+  const prefersReduced = useReducedMotion();
+  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  const isFirstVisit = useRef(false);
+
+  // Hide on narrow viewports
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < FAB_TOOLTIP_MIN_WIDTH) {
+      setDismissed(true);
+    }
+  }, []);
+
+  // External dismissal (e.g. FAB clicked)
+  useEffect(() => {
+    if (externalDismissed) setDismissed(true);
+  }, [externalDismissed]);
+
+  useEffect(() => {
+    const greeted = localStorage.getItem(FAB_GREETED_KEY(copilotName));
+    const lastShown = localStorage.getItem(FAB_LAST_SHOWN_KEY(copilotName));
+    const now = Date.now();
+
+    if (!greeted) {
+      isFirstVisit.current = true;
+      // First visit: show after 2s
+      const timer = setTimeout(() => {
+        setVisible(true);
+        localStorage.setItem(FAB_GREETED_KEY(copilotName), 'true');
+        localStorage.setItem(FAB_LAST_SHOWN_KEY(copilotName), new Date().toISOString());
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+
+    // Return visit: check cooldown
+    if (lastShown && now - new Date(lastShown).getTime() < FAB_COOLDOWN_MS) return;
+
+    // Show after 5s
+    const timer = setTimeout(() => {
+      setVisible(true);
+      localStorage.setItem(FAB_LAST_SHOWN_KEY(copilotName), new Date().toISOString());
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [copilotName]);
+
+  // Auto-hide timer
+  useEffect(() => {
+    if (!visible) return;
+    const duration = isFirstVisit.current ? 8000 : 5000;
+    const timer = setTimeout(() => setDismissed(true), duration);
+    return () => clearTimeout(timer);
+  }, [visible]);
+
+  // Scroll dismissal
+  useEffect(() => {
+    if (!visible || dismissed) return;
+    const handleScroll = () => setDismissed(true);
+    window.addEventListener('scroll', handleScroll, { passive: true, once: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [visible, dismissed]);
+
+  const handleClick = () => {
+    setDismissed(true);
+    onClick();
+  };
+
+  const firstVisitText = fabTooltip?.firstVisit
+    ? fabTooltip.firstVisit.replace('{name}', copilotName)
+    : `I'm ${copilotName}, your virtual civil servant. How may I help you?`;
+  const returnVisitText = fabTooltip?.returnVisit ?? 'How may I help you?';
+
+  const show = visible && !dismissed;
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          data-testid="voice-agent-fab-tooltip"
+          initial={prefersReduced ? { opacity: 0 } : { opacity: 0, x: 20 }}
+          animate={prefersReduced ? { opacity: 1 } : { opacity: 1, x: 0 }}
+          exit={prefersReduced ? { opacity: 0 } : { opacity: 0, x: 10 }}
+          transition={
+            prefersReduced
+              ? { duration: 0.2 }
+              : { type: 'spring', stiffness: 300, damping: 25 }
+          }
+          onClick={handleClick}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0,
+            cursor: 'pointer',
+          }}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 20,
+              padding: isFirstVisit.current ? '12px 20px' : '10px 18px',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)',
+              maxWidth: 340,
+            }}
+          >
+            <div
+              style={{
+                fontSize: isFirstVisit.current ? 14 : 13,
+                color: '#1a1a1a',
+                fontWeight: 500,
+                lineHeight: 1.4,
+              }}
+            >
+              {isFirstVisit.current ? firstVisitText : returnVisitText}
+            </div>
+            {isFirstVisit.current && (
+              <button
+                data-testid="voice-agent-fab-tooltip-cta"
+                style={{
+                  marginTop: 8,
+                  padding: '6px 16px',
+                  background: colors.primary,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Try it now
+              </button>
+            )}
+          </div>
+          {/* Arrow pointing right toward FAB */}
+          <div
+            style={{
+              width: 0,
+              height: 0,
+              borderTop: '8px solid transparent',
+              borderBottom: '8px solid transparent',
+              borderLeft: '8px solid white',
+              flexShrink: 0,
+              filter: 'drop-shadow(2px 0 1px rgba(0,0,0,0.06))',
+            }}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
