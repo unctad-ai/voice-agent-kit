@@ -357,6 +357,7 @@ export default function VoiceTranscript({
   const config = useSiteConfig();
   const fontFamily = config.fontFamily ?? DEFAULT_FONT_FAMILY;
   const assistantLabel = config.copilotName || 'Assistant';
+  const { colors } = config;
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanel = variant === 'panel';
   const maxVisible = isPanel ? PANEL_MAX_VISIBLE_MESSAGES : MAX_VISIBLE_MESSAGES;
@@ -527,13 +528,17 @@ export default function VoiceTranscript({
                   <div
                     style={{
                       ...(isAI
-                        ? {}
+                        ? {
+                            backgroundColor: `${colors.primary}0D`,
+                            borderRadius: '14px 14px 14px 4px',
+                            padding: '10px 14px',
+                            maxWidth: '85%',
+                          }
                         : {
-                            backgroundColor: 'rgba(219,33,41,0.07)',
-                            border: '1px solid rgba(219,33,41,0.12)',
+                            backgroundColor: 'rgba(0,0,0,0.04)',
                             borderRadius: '14px 14px 4px 14px',
                             padding: '10px 14px',
-                            maxWidth: '88%',
+                            maxWidth: '85%',
                           }),
                     }}
                   >
