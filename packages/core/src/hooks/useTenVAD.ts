@@ -4,9 +4,9 @@
  * `@ricky0123/vad-react` with the same callback/state contract.
  *
  * Architecture:
- *   AudioContext (16 kHz) → AudioWorkletNode (ten-vad-processor.js)
- *     → postMessage Float32 chunks → main-thread WASM inference
- *     → speech segmentation state machine → callbacks
+ *   AudioContext (native rate) → AudioWorkletNode (ten-vad-processor.js)
+ *     → resample to 16 kHz → postMessage Float32 chunks
+ *     → main-thread WASM inference → speech segmentation → callbacks
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -335,7 +335,6 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          sampleRate: 16000,
           channelCount: 1,
           echoCancellation: true,
           noiseSuppression: true,
@@ -345,18 +344,24 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
 
       streamRef.current = stream;
 
-      // Create AudioContext at 16 kHz
-      const ctx = new AudioContext({ sampleRate: 16000 });
+      // Create AudioContext at native device rate — Chrome throws if it
+      // doesn't match the MediaStream sample rate (Firefox resamples silently).
+      // The AudioWorklet resamples to 16 kHz internally.
+      const ctx = new AudioContext();
       audioCtxRef.current = ctx;
 
-      // Inline AudioWorklet processor — no external file needed
+      // Inline AudioWorklet processor with built-in resampling to 16 kHz
       const workletSource = `
 class TenVADProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
     this.hopSize = options?.processorOptions?.hopSize ?? 256;
+    this.targetRate = 16000;
+    this.nativeRate = sampleRate; // AudioWorklet global
+    this.ratio = this.nativeRate / this.targetRate;
     this.buffer = new Float32Array(this.hopSize);
     this.offset = 0;
+    this.resamplePos = 0; // fractional position in the native-rate input
     this.active = true;
     this.port.onmessage = (e) => { if (e.data?.type === 'stop') this.active = false; };
   }
@@ -364,17 +369,36 @@ class TenVADProcessor extends AudioWorkletProcessor {
     if (!this.active) return false;
     const input = inputs[0]?.[0];
     if (!input) return true;
-    let srcOffset = 0;
-    while (srcOffset < input.length) {
-      const toCopy = Math.min(this.hopSize - this.offset, input.length - srcOffset);
-      this.buffer.set(input.subarray(srcOffset, srcOffset + toCopy), this.offset);
-      this.offset += toCopy;
-      srcOffset += toCopy;
+
+    // If native rate matches target, skip resampling
+    if (this.ratio <= 1.0001) {
+      let srcOffset = 0;
+      while (srcOffset < input.length) {
+        const toCopy = Math.min(this.hopSize - this.offset, input.length - srcOffset);
+        this.buffer.set(input.subarray(srcOffset, srcOffset + toCopy), this.offset);
+        this.offset += toCopy;
+        srcOffset += toCopy;
+        if (this.offset >= this.hopSize) {
+          this.port.postMessage({ type: 'audio', samples: this.buffer.slice() });
+          this.offset = 0;
+        }
+      }
+      return true;
+    }
+
+    // Resample: linear interpolation from nativeRate to 16 kHz
+    while (this.resamplePos < input.length - 1) {
+      const idx = Math.floor(this.resamplePos);
+      const frac = this.resamplePos - idx;
+      this.buffer[this.offset] = input[idx] * (1 - frac) + input[idx + 1] * frac;
+      this.offset++;
+      this.resamplePos += this.ratio;
       if (this.offset >= this.hopSize) {
         this.port.postMessage({ type: 'audio', samples: this.buffer.slice() });
         this.offset = 0;
       }
     }
+    this.resamplePos -= input.length;
     return true;
   }
 }
