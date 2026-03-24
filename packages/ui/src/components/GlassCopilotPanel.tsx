@@ -711,29 +711,34 @@ function ComposerBar({
                         : 'rgba(0,0,0,0.45)',
                   }}
                 >
-                  {micPaused ? 'Paused' : STATE_LABELS[voiceState]}
+                  {micPaused ? 'Tap mic to resume' : STATE_LABELS[voiceState]}
                 </motion.p>
               </AnimatePresence>
             </div>
 
             <motion.button
-              whileHover={{ scale: 1.08 }}
-              whileTap={{ scale: 0.92 }}
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
               onClick={() => {
                 if (isListening) onMicToggle();
                 setMode('text');
               }}
-              className="shrink-0 rounded-full flex items-center justify-center cursor-pointer"
+              className="shrink-0 flex items-center gap-1.5 cursor-pointer"
               style={{
-                width: 44,
-                height: 44,
+                height: 36,
+                padding: '0 12px',
+                borderRadius: 18,
                 backgroundColor: 'rgba(0,0,0,0.05)',
                 color: 'rgba(0,0,0,0.4)',
+                border: 'none',
+                fontSize: 12,
+                fontWeight: 500,
               }}
               aria-label="Type a message"
               data-testid="voice-agent-keyboard"
             >
-              <Keyboard style={{ width: 18, height: 18 }} />
+              <Keyboard style={{ width: 14, height: 14 }} />
+              <span>Type</span>
             </motion.button>
           </motion.div>
         ) : mode === 'text' ? (
@@ -770,8 +775,8 @@ function ComposerBar({
                 onFocus={(e) => {
                   const pill = e.currentTarget.parentElement;
                   if (pill) {
-                    pill.style.borderColor = `${colors.primary}4D`;
-                    pill.style.boxShadow = `0 0 0 2px ${colors.primary}14`;
+                    pill.style.borderColor = 'rgba(0,0,0,0.15)';
+                    pill.style.boxShadow = '0 0 0 2px rgba(0,0,0,0.04)';
                   }
                 }}
                 onBlur={(e) => {
@@ -781,7 +786,7 @@ function ComposerBar({
                     pill.style.boxShadow = 'none';
                   }
                 }}
-                placeholder={disabled ? 'Reconnecting...' : 'Ask about services...'}
+                placeholder={disabled ? 'Reconnecting...' : 'Message...'}
                 aria-label="Type your question"
                 data-testid="voice-agent-input"
                 className="w-full"
@@ -959,7 +964,7 @@ function ExpandedContent({
       {/* Header (64px) */}
       <div
         className="flex items-center gap-3 shrink-0"
-        style={{ height: 64, padding: '12px 16px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}
+        style={{ height: 64, padding: '12px 16px', borderBottom: '1px solid rgba(0,0,0,0.06)', backgroundColor: `${colors.primary}08` }}
       >
         <motion.div
           animate={{ opacity: isOffline ? 0.35 : 1 }}
@@ -994,7 +999,7 @@ function ExpandedContent({
                   </button>
                 )}
               </span>
-            ) : micPaused ? 'Paused' : STATE_LABELS[voiceState]}
+            ) : micPaused ? 'Tap mic to resume' : STATE_LABELS[voiceState]}
           </p>
         </div>
 
@@ -1365,7 +1370,6 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
     const timer = setInterval(check, 500);
     return () => { window.removeEventListener('popstate', check); clearInterval(timer); };
   }, [config.excludeRoutes]);
-  if (routeHidden) return null;
 
   // Uncontrolled mode: manage open state internally when isOpen prop is not provided
   const [internalOpen, setInternalOpen] = useState(false);
@@ -1388,7 +1392,7 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
 
   const [fabOffline, setFabOffline] = useState(false);
   useEffect(() => {
-    if (isOpen) return; // WiredPanelInner handles health when panel is visible
+    if (isOpen || routeHidden) return; // Skip polling when panel visible or route excluded
     let cancelled = false;
     const check = () => {
       checkBackendHealth().then(({ available }) => {
@@ -1398,7 +1402,7 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
     check();
     const timer = setInterval(check, RECOVERY_POLL_MS);
     return () => { cancelled = true; clearInterval(timer); };
-  }, [isOpen]);
+  }, [isOpen, routeHidden]);
 
   const isVisible = panelState !== 'hidden';
   const isExpanded = panelState === 'expanded';
@@ -1416,6 +1420,8 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
 
   const [ariaAnnouncement, setAriaAnnouncement] = useState('');
   const handleStateChange = useCallback((orbState: OrbState) => { setAriaAnnouncement(ARIA_LIVE_LABELS[orbState]); onStateChange?.(orbState); }, [onStateChange]);
+
+  if (routeHidden) return null;
 
   return createPortal(
     <VoiceErrorBoundary onReset={handleClose}>
