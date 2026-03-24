@@ -1,5 +1,13 @@
 # @unctad-ai/voice-agent-ui
 
+## 5.2.5
+
+### Patch Changes
+
+- 38e5fe9: Paused label says "Tap mic to resume", tinted header, keyboard pill with label, neutral input focus ring, "Message..." placeholder.
+  - @unctad-ai/voice-agent-core@5.2.5
+  - @unctad-ai/voice-agent-registries@5.2.5
+
 ## 5.2.4
 
 ### Patch Changes
