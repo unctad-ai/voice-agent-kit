@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 5.3.1
+
+### Patch Changes
+
+- de06870: Message bubbles with tinting, empty state with suggested prompt chips, collapsed bar message preview. Fix text/voice race condition in sendTextMessage.
+  - @unctad-ai/voice-agent-registries@5.3.1
+
 ## 5.3.0
 
 ### Patch Changes
