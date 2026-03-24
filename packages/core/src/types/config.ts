@@ -81,4 +81,7 @@ export interface SiteConfig {
   /** Routes where the voice agent is hidden (exact match or prefix with trailing *).
    *  e.g. ['/', '/admin/*'] hides on homepage and all /admin/ pages. */
   excludeRoutes?: string[];
+
+  /** Suggested prompts shown in empty transcript state. Tappable chips. */
+  suggestedPrompts?: string[];
 }
