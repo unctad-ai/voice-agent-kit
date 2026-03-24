@@ -1,0 +1,21 @@
+{
+  "name": "@unctad-ai/voice-agent",
+  "version": "5.3.0",
+  "description": "Meta-package for voice-agent-kit client packages — installs core, registries, and ui in one dependency",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/unctad-ai/voice-agent-kit.git",
+    "directory": "packages/voice-agent"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18",
+    "react-router": ">=6"
+  },
+  "dependencies": {
+    "@unctad-ai/voice-agent-core": "workspace:*",
+    "@unctad-ai/voice-agent-ui": "workspace:*",
+    "@unctad-ai/voice-agent-registries": "workspace:*"
+  }
+}
