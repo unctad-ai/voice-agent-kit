@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 5.3.0
+
+### Patch Changes
+
+- e499ac9: Message bubbles with tinting, empty state with avatar and suggested prompt chips, collapsed bar message preview.
+  - @unctad-ai/voice-agent-registries@5.3.0
+
 ## 5.2.6
 
 ### Patch Changes

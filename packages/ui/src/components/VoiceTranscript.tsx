@@ -825,6 +825,7 @@ function EmptyStateGraphic({ primaryColor, voiceState, onStartMic, onSwitchToKey
   const isListening = voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING';
   const greeting = config.greetingMessage || 'How can I help you today?';
   const prompts = config.suggestedPrompts ?? ['What services are available?', 'Help me with an application'];
+  const sentRef = useRef(false);
 
   if (isListening) {
     return (
@@ -865,8 +866,6 @@ function EmptyStateGraphic({ primaryColor, voiceState, onStartMic, onSwitchToKey
         paddingTop: 48,
       }}
     >
-      <AgentAvatar state="idle" getAmplitude={() => 0} size={64} portraitSrc={portraitSrc} />
-
       <p style={{ fontSize: 17, fontWeight: 500, color: primaryColor, margin: 0, opacity: 0.6, textAlign: 'center', lineHeight: 1.4 }}>
         {greeting}
       </p>
@@ -875,7 +874,7 @@ function EmptyStateGraphic({ primaryColor, voiceState, onStartMic, onSwitchToKey
         {prompts.map((prompt) => (
           <button
             key={prompt}
-            onClick={() => onTextSubmit?.(prompt)}
+            onClick={() => { if (sentRef.current) return; sentRef.current = true; onTextSubmit?.(prompt); }}
             style={{
               padding: '8px 16px',
               borderRadius: 18,

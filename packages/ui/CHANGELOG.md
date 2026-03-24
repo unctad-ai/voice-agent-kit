@@ -1,5 +1,21 @@
 # @unctad-ai/voice-agent-ui
 
+## 5.3.0
+
+### Minor Changes
+
+- 02fd3f3: feat(ui): allow users to cancel during Processing and AI Speaking states
+
+  Mic button and keyboard button now work during PROCESSING/AI_SPEAKING to cancel
+  the current turn. After 2s in Processing, a "Tap mic to cancel" hint appears.
+
+### Patch Changes
+
+- e499ac9: Message bubbles with tinting, empty state with avatar and suggested prompt chips, collapsed bar message preview.
+- Updated dependencies [e499ac9]
+  - @unctad-ai/voice-agent-core@5.3.0
+  - @unctad-ai/voice-agent-registries@5.3.0
+
 ## 5.2.6
 
 ### Patch Changes
