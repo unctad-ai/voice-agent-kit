@@ -14,7 +14,6 @@ import {
 import type { VoiceMessage, ActionCategory } from '@unctad-ai/voice-agent-core';
 import type { VoiceErrorType } from './VoiceErrorDisplay';
 import { ArrowRight, PenLine, MousePointerClick, Search, Info, ChevronDown, Mic, Keyboard, Flag, Copy, Check } from 'lucide-react';
-import AgentAvatar from './AgentAvatar';
 
 /** Strip markdown/HTML artifacts, TTS paralinguistic tags, and emojis — preserves line breaks */
 function cleanForDisplay(text: string): string {
@@ -96,8 +95,6 @@ interface VoiceTranscriptProps {
   feedbackSentTurns?: Record<number, string>;
   /** Callback to submit a text message (for suggested prompt chips) */
   onTextSubmit?: (text: string) => void;
-  /** Portrait image URL for empty state avatar */
-  portraitSrc?: string;
 }
 
 /** Progressively reveals words while preserving FormattedText structure */
@@ -359,7 +356,6 @@ export default function VoiceTranscript({
   onReport,
   feedbackSentTurns,
   onTextSubmit,
-  portraitSrc,
 }: VoiceTranscriptProps) {
   const config = useSiteConfig();
   const fontFamily = config.fontFamily ?? DEFAULT_FONT_FAMILY;
@@ -655,7 +651,7 @@ export default function VoiceTranscript({
               </motion.div>
             ) : (
               <div style={{ paddingTop: 40 }}>
-                <EmptyStateGraphic primaryColor={config.colors.primary} onTextSubmit={onTextSubmit} portraitSrc={portraitSrc} />
+                <EmptyStateGraphic primaryColor={config.colors.primary} onTextSubmit={onTextSubmit} />
               </div>
             ))}
 
@@ -795,7 +791,6 @@ export default function VoiceTranscript({
             onStartMic={onStartMic}
             onSwitchToKeyboard={onSwitchToKeyboard}
             onTextSubmit={onTextSubmit}
-            portraitSrc={portraitSrc}
           />
         )}
 
@@ -813,19 +808,17 @@ export default function VoiceTranscript({
   );
 }
 
-function EmptyStateGraphic({ primaryColor, voiceState, onStartMic, onSwitchToKeyboard, onTextSubmit, portraitSrc }: {
+function EmptyStateGraphic({ primaryColor, voiceState, onStartMic, onSwitchToKeyboard, onTextSubmit }: {
   primaryColor: string;
   voiceState?: string;
   onStartMic?: () => void;
   onSwitchToKeyboard?: () => void;
   onTextSubmit?: (text: string) => void;
-  portraitSrc?: string;
 }) {
   const config = useSiteConfig();
   const isListening = voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING';
   const greeting = config.greetingMessage || 'How can I help you today?';
   const prompts = config.suggestedPrompts ?? ['What services are available?', 'Help me with an application'];
-  const sentRef = useRef(false);
 
   if (isListening) {
     return (
@@ -874,7 +867,7 @@ function EmptyStateGraphic({ primaryColor, voiceState, onStartMic, onSwitchToKey
         {prompts.map((prompt) => (
           <button
             key={prompt}
-            onClick={() => { if (sentRef.current) return; sentRef.current = true; onTextSubmit?.(prompt); }}
+            onClick={() => onTextSubmit?.(prompt)}
             style={{
               padding: '8px 16px',
               borderRadius: 18,

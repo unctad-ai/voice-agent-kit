@@ -1042,7 +1042,7 @@ function ExpandedContent({
       </div>
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div data-testid="voice-agent-transcript" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}><VoiceTranscript messages={messages} isTyping={isTyping} variant="panel" voiceError={voiceError} voiceState={voiceState} onStartMic={onStartMic} onSwitchToKeyboard={onSwitchToKeyboard} onReport={onReport} feedbackSentTurns={feedbackSentTurns} onTextSubmit={onTextSubmit} portraitSrc={portraitSrc} /></div>
+        <div data-testid="voice-agent-transcript" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}><VoiceTranscript messages={messages} isTyping={isTyping} variant="panel" voiceError={voiceError} voiceState={voiceState} onStartMic={onStartMic} onSwitchToKeyboard={onSwitchToKeyboard} onReport={onReport} feedbackSentTurns={feedbackSentTurns} onTextSubmit={onTextSubmit} /></div>
         <div style={{ flexShrink: 0 }}>
           <PipelineMetricsBar timings={lastTimings ?? null} show={showPipelineMetrics} autoHideMs={pipelineMetricsAutoHideMs} />
           {isOffline && onRetry && (

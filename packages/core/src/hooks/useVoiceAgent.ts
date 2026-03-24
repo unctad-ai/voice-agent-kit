@@ -580,10 +580,14 @@ export function useVoiceAgent({
     const last = wsMessages[wsMessages.length - 1];
     if (last.role === 'user') {
       setCurrentTranscript(last.content);
-      setMessages((prev) => [
-        ...prev,
-        { role: 'user', text: last.content, timestamp: Date.now() },
-      ]);
+      // Skip adding user message if text pipeline already added it locally
+      // (sendTextMessage adds the message before submitText, then the server echoes it back)
+      if (!textPipelineRef.current) {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'user', text: last.content, timestamp: Date.now() },
+        ]);
+      }
     } else if (last.role === 'assistant') {
       const cleaned = sanitizeForTranscript(last.content);
 
@@ -866,28 +870,32 @@ export function useVoiceAgent({
       processingRef.current = true;
       textPipelineRef.current = true;
 
+      // If the voice pipeline is active, stop VAD, cancel any in-flight
+      // server response, and clear audio buffer before sending text.
+      const wasListening = stateRef.current === 'LISTENING' || stateRef.current === 'USER_SPEAKING';
+      if (wasListening) {
+        vad.pause();
+        audioFrameBufferRef.current = [];
+        if (voiceWs.isConnected) {
+          voiceWs.cancelResponse();
+          voiceWs.clearAudio();
+          // Give server a tick to process cancellation before new turn
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      }
+
       setMessages((prev) => [...prev, { role: 'user', text, timestamp: Date.now() }]);
       setCurrentTranscript(text);
       setState('PROCESSING');
 
-      // For text messages, we don't use the WebSocket audio pipeline.
-      // Instead we add the user message to the session and commit.
-      // The server-side session.update includes the conversation,
-      // so we send a text-only turn through the WebSocket.
-      // The WebSocket protocol handles this via session.update + commit.
       if (!voiceWs.isConnected) {
         voiceWs.connect([]);
-        // Wait briefly for connection
         await new Promise((r) => setTimeout(r, 500));
       }
 
-      // Send text directly — bypasses STT, goes straight to LLM → TTS
       voiceWs.submitText(text);
-
-      // The response will come through the WebSocket event handlers
-      // and update state/messages via the effects above.
     },
-    [voiceWs],
+    [vad, voiceWs],
   );
 
   // Safety net: if WebSocket is idle but voice state is stuck on PROCESSING
