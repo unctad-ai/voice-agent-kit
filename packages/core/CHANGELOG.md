@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 5.2.3
+
+### Patch Changes
+
+- a793f8c: Increase default mic idle timeout from 15s to 30s.
+  - @unctad-ai/voice-agent-registries@5.2.3
+
 ## 5.2.2
 
 ### Patch Changes

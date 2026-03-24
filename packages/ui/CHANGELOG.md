@@ -1,5 +1,13 @@
 # @unctad-ai/voice-agent-ui
 
+## 5.2.3
+
+### Patch Changes
+
+- Updated dependencies [a793f8c]
+  - @unctad-ai/voice-agent-core@5.2.3
+  - @unctad-ai/voice-agent-registries@5.2.3
+
 ## 5.2.2
 
 ### Patch Changes
