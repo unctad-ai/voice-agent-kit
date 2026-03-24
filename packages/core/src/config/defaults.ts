@@ -59,7 +59,7 @@ export const RECOVERY_POLL_MS = 30_000;
 // Overlay & Idle
 // ---------------------------------------------------------------------------
 
-export const IDLE_TIMEOUT_MS = 15_000;
+export const IDLE_TIMEOUT_MS = 30_000;
 export const WIND_DOWN_MS = 10_000;
 export const EXIT_ANIMATION_MS = 550;
 
@@ -147,7 +147,7 @@ export const DEFAULT_VOLUME = 1.0;
 export const DEFAULT_PLAYBACK_SPEED = 1.0;
 export const DEFAULT_TTS_ENABLED = true;
 export const DEFAULT_AUTO_LISTEN = true;
-export const DEFAULT_IDLE_TIMEOUT_MS = 15_000;
+export const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 export const DEFAULT_EXPRESSIVENESS = 0.9;
 export const DEFAULT_RESPONSE_LENGTH = 60;
 export const DEFAULT_SHOW_PIPELINE_METRICS = false;
