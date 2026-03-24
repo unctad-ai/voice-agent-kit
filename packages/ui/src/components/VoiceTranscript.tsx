@@ -14,6 +14,7 @@ import {
 import type { VoiceMessage, ActionCategory } from '@unctad-ai/voice-agent-core';
 import type { VoiceErrorType } from './VoiceErrorDisplay';
 import { ArrowRight, PenLine, MousePointerClick, Search, Info, ChevronDown, Mic, Keyboard, Flag, Copy, Check } from 'lucide-react';
+import AgentAvatar from './AgentAvatar';
 
 /** Strip markdown/HTML artifacts, TTS paralinguistic tags, and emojis — preserves line breaks */
 function cleanForDisplay(text: string): string {
@@ -93,6 +94,10 @@ interface VoiceTranscriptProps {
   onReport?: (turnNumber: number, assistantMessage: string, userMessage?: string) => void;
   /** Map of turn numbers to ticket IDs for sent feedback */
   feedbackSentTurns?: Record<number, string>;
+  /** Callback to submit a text message (for suggested prompt chips) */
+  onTextSubmit?: (text: string) => void;
+  /** Portrait image URL for empty state avatar */
+  portraitSrc?: string;
 }
 
 /** Progressively reveals words while preserving FormattedText structure */
@@ -353,6 +358,8 @@ export default function VoiceTranscript({
   onSwitchToKeyboard,
   onReport,
   feedbackSentTurns,
+  onTextSubmit,
+  portraitSrc,
 }: VoiceTranscriptProps) {
   const config = useSiteConfig();
   const fontFamily = config.fontFamily ?? DEFAULT_FONT_FAMILY;
@@ -648,7 +655,7 @@ export default function VoiceTranscript({
               </motion.div>
             ) : (
               <div style={{ paddingTop: 40 }}>
-                <EmptyStateGraphic primaryColor={config.colors.primary} />
+                <EmptyStateGraphic primaryColor={config.colors.primary} onTextSubmit={onTextSubmit} portraitSrc={portraitSrc} />
               </div>
             ))}
 
@@ -787,6 +794,8 @@ export default function VoiceTranscript({
             voiceState={voiceState}
             onStartMic={onStartMic}
             onSwitchToKeyboard={onSwitchToKeyboard}
+            onTextSubmit={onTextSubmit}
+            portraitSrc={portraitSrc}
           />
         )}
 
@@ -804,13 +813,18 @@ export default function VoiceTranscript({
   );
 }
 
-function EmptyStateGraphic({ primaryColor, voiceState, onStartMic, onSwitchToKeyboard }: {
+function EmptyStateGraphic({ primaryColor, voiceState, onStartMic, onSwitchToKeyboard, onTextSubmit, portraitSrc }: {
   primaryColor: string;
   voiceState?: string;
   onStartMic?: () => void;
   onSwitchToKeyboard?: () => void;
+  onTextSubmit?: (text: string) => void;
+  portraitSrc?: string;
 }) {
+  const config = useSiteConfig();
   const isListening = voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING';
+  const greeting = config.greetingMessage || 'How can I help you today?';
+  const prompts = config.suggestedPrompts ?? ['What services are available?', 'Help me with an application'];
 
   if (isListening) {
     return (
@@ -828,7 +842,7 @@ function EmptyStateGraphic({ primaryColor, voiceState, onStartMic, onSwitchToKey
         }}
       >
         <p style={{ fontSize: 16, fontWeight: 500, color: primaryColor, margin: 0, opacity: 0.7 }}>
-          Listening...
+          I'm listening...
         </p>
         <p style={{ fontSize: 12, color: 'rgba(0,0,0,0.3)', margin: 0 }}>
           Go ahead, I can hear you
@@ -847,67 +861,67 @@ function EmptyStateGraphic({ primaryColor, voiceState, onStartMic, onSwitchToKey
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 16,
-        paddingTop: 60,
+        gap: 20,
+        paddingTop: 48,
       }}
     >
-      <p style={{ fontSize: 18, fontWeight: 500, color: primaryColor, margin: 0, opacity: 0.6 }}>
-        How can I help?
+      <AgentAvatar state="idle" getAmplitude={() => 0} size={64} portraitSrc={portraitSrc} />
+
+      <p style={{ fontSize: 17, fontWeight: 500, color: primaryColor, margin: 0, opacity: 0.6, textAlign: 'center', lineHeight: 1.4 }}>
+        {greeting}
       </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 320 }}>
+        {prompts.map((prompt) => (
+          <button
+            key={prompt}
+            onClick={() => onTextSubmit?.(prompt)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 18,
+              border: '1px solid rgba(0,0,0,0.1)',
+              backgroundColor: 'transparent',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: 13,
+              color: 'rgba(0,0,0,0.55)',
+              transition: 'background-color 0.15s, border-color 0.15s',
+              lineHeight: 1.3,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = `${primaryColor}0A`;
+              e.currentTarget.style.borderColor = `${primaryColor}33`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)';
+            }}
+          >
+            {prompt}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, marginTop: 4 }}>
         {onStartMic && (
           <button
             onClick={onStartMic}
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              padding: '8px 16px',
-              borderRadius: 20,
-              border: `1px solid ${primaryColor}22`,
-              backgroundColor: `${primaryColor}08`,
+              gap: 6,
+              padding: '6px 14px',
+              borderRadius: 16,
+              border: 'none',
+              backgroundColor: `${primaryColor}0A`,
               cursor: 'pointer',
               fontFamily: 'inherit',
-              fontSize: 13,
-              color: 'rgba(0,0,0,0.5)',
-              transition: 'background-color 0.15s, border-color 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = `${primaryColor}14`;
-              e.currentTarget.style.borderColor = `${primaryColor}33`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = `${primaryColor}08`;
-              e.currentTarget.style.borderColor = `${primaryColor}22`;
+              fontSize: 12,
+              color: 'rgba(0,0,0,0.4)',
             }}
           >
-            <Mic style={{ width: 14, height: 14, color: primaryColor, opacity: 0.7 }} />
-            Start talking
-          </button>
-        )}
-        {onSwitchToKeyboard && (
-          <button
-            onClick={onSwitchToKeyboard}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 16px',
-              borderRadius: 20,
-              border: '1px solid rgba(0,0,0,0.06)',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              fontSize: 13,
-              color: 'rgba(0,0,0,0.35)',
-              transition: 'background-color 0.15s',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.03)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-          >
-            <Keyboard style={{ width: 14, height: 14, opacity: 0.5 }} />
-            Type a message
+            <Mic style={{ width: 12, height: 12, opacity: 0.5 }} />
+            or speak
           </button>
         )}
       </div>
