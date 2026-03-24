@@ -31,19 +31,21 @@ function PersonaSettingsInner({ adminPassword }: { adminPassword: string | null 
   const config = useSiteConfig();
   const persona = usePersonaContext();
   const [showRecording, setShowRecording] = useState(false);
-  if (!persona) return null;
-  const { persona: data, isLoaded, uploadAvatar, uploadVoice, deleteVoice, setActiveVoice, previewVoice, updateConfig } = persona;
 
   const isAdmin = adminPassword !== null;
 
+  const updateConfigFn = persona?.updateConfig;
   const handleSharedSave = useCallback(async (fields: Record<string, string>) => {
-    if (!adminPassword) return;
+    if (!adminPassword || !updateConfigFn) return;
     try {
-      await updateConfig(fields, adminPassword);
+      await updateConfigFn(fields, adminPassword);
     } catch (err) {
       console.error('Settings save failed:', err);
     }
-  }, [adminPassword, updateConfig]);
+  }, [adminPassword, updateConfigFn]);
+
+  if (!persona) return null;
+  const { persona: data, isLoaded, uploadAvatar, uploadVoice, deleteVoice, setActiveVoice, previewVoice, updateConfig } = persona;
 
   if (!isLoaded) {
     return (
