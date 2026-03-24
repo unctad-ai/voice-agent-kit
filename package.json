@@ -1,11 +1,13 @@
 {
   "name": "voice-agent-kit",
   "private": true,
+  "type": "module",
   "scripts": {
     "test": "pnpm -r test",
     "build": "pnpm -r build",
     "dev": "pnpm -r --parallel dev",
     "typecheck": "pnpm -r typecheck",
+    "lint": "eslint packages/*/src/",
     "changeset": "changeset",
     "version": "changeset version",
     "validate": "bash scripts/validate-release.sh",
@@ -15,11 +17,16 @@
     "docker:kenya:logs": "cd ../Swkenya && docker compose -f docker-compose.dev.yml logs -f"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "@changesets/cli": "^2.30.0",
+    "eslint": "^10.1.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "husky": "^9.1.7",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.2"
   }
 }
