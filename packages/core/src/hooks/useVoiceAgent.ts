@@ -573,9 +573,11 @@ export function useVoiceAgent({
   }, [location.pathname, uiActions?.length, formRegistry?.fields?.length, voiceWs.isConnected, buildClientState, voiceWs]);
 
   // Update transcript and messages from WebSocket conversation items
+  const processedWsMsgCount = useRef(0);
   useEffect(() => {
     const wsMessages = voiceWs.messages;
-    if (wsMessages.length === 0) return;
+    if (wsMessages.length === 0 || wsMessages.length <= processedWsMsgCount.current) return;
+    processedWsMsgCount.current = wsMessages.length;
 
     const last = wsMessages[wsMessages.length - 1];
     if (last.role === 'user') {
@@ -823,6 +825,7 @@ export function useVoiceAgent({
       actionSeqRef.current = 0;
       processedToolCalls.clear();
     }
+    processedWsMsgCount.current = 0;
     voiceWs.connect(hasConversation ? messagesRef.current.map(m => ({ role: m.role === 'action' ? 'assistant' : m.role, content: m.text })) : []);
 
     setState('LISTENING');
@@ -889,11 +892,19 @@ export function useVoiceAgent({
       setState('PROCESSING');
 
       if (!voiceWs.isConnected) {
+        processedWsMsgCount.current = 0;
         voiceWs.connect([]);
         await new Promise((r) => setTimeout(r, 500));
       }
 
-      voiceWs.submitText(text);
+      try {
+        voiceWs.submitText(text);
+      } catch (err) {
+        console.warn('[VoiceAgent] submitText failed:', err);
+        textPipelineRef.current = false;
+        processingRef.current = false;
+        setState('IDLE');
+      }
     },
     [vad, voiceWs],
   );
