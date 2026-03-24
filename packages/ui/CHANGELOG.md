@@ -1,5 +1,13 @@
 # @unctad-ai/voice-agent-ui
 
+## 5.2.4
+
+### Patch Changes
+
+- a0724c5: Mic icon swaps to MicOff when not listening, humanized state labels, smaller secondary buttons, consistent collapsed bar mic behavior.
+  - @unctad-ai/voice-agent-core@5.2.4
+  - @unctad-ai/voice-agent-registries@5.2.4
+
 ## 5.2.3
 
 ### Patch Changes
