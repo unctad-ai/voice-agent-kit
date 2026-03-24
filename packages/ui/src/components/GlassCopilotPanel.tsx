@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import { ChevronDown, X, Mic, ArrowUp, Keyboard, RotateCw, Settings, VolumeX, Flag } from 'lucide-react';
+import { ChevronDown, X, Mic, MicOff, ArrowUp, Keyboard, RotateCw, Settings, VolumeX, Flag } from 'lucide-react';
 import {
   useVoiceAgent,
   voiceStateToOrbState,
@@ -53,10 +53,10 @@ const RETRY_MAX_MS = 30000;
 // ---------------------------------------------------------------------------
 const STATE_LABELS: Record<VoiceState, string> = {
   IDLE: 'Tap mic to speak',
-  LISTENING: 'Listening...',
-  USER_SPEAKING: 'Listening...',
-  PROCESSING: 'Processing...',
-  AI_SPEAKING: 'Speaking...',
+  LISTENING: "I'm listening...",
+  USER_SPEAKING: "I'm listening...",
+  PROCESSING: 'Thinking...',
+  AI_SPEAKING: 'Responding...',
 };
 
 // ---------------------------------------------------------------------------
@@ -475,42 +475,44 @@ function CollapsedBar({
       </div>
 
       {/* Mic toggle button */}
-      {!isOffline && onMicToggle && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onMicToggle();
-          }}
-          className="shrink-0 rounded-full flex items-center justify-center transition-all cursor-pointer relative"
-          style={{
-            width: 44,
-            height: 44,
-            backgroundColor:
-              voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING'
-                ? colors.primary
-                : 'rgba(0,0,0,0.06)',
-            color:
-              voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING'
-                ? 'white'
-                : 'rgba(0,0,0,0.45)',
-          }}
-          aria-label={
-            voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING'
-              ? 'Stop listening'
-              : 'Start listening'
-          }
-        >
-          {(voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING') && (
-            <motion.span
-              className="absolute inset-0 rounded-full"
-              animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ backgroundColor: `${colors.primary}40` }}
-            />
-          )}
-          <Mic style={{ width: 16, height: 16, position: 'relative', zIndex: 1 }} />
-        </button>
-      )}
+      {!isOffline && onMicToggle && (() => {
+        const barListening = voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING';
+        return (
+          <motion.button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMicToggle();
+            }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.93 }}
+            animate={barListening
+              ? { backgroundColor: [colors.primary, `${colors.primary}BB`, colors.primary] }
+              : { backgroundColor: 'rgba(0,0,0,0.06)' }
+            }
+            transition={barListening
+              ? { backgroundColor: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } }
+              : { duration: 0.3 }
+            }
+            className="shrink-0 rounded-full flex items-center justify-center cursor-pointer relative"
+            style={{
+              width: 44,
+              height: 44,
+              color: barListening ? 'white' : 'rgba(0,0,0,0.45)',
+              border: 'none',
+              padding: 0,
+              boxShadow: barListening
+                ? `0 2px 8px ${colors.primary}40, 0 1px 3px rgba(0,0,0,0.12)`
+                : '0 1px 4px rgba(0,0,0,0.10)',
+            }}
+            aria-label={barListening ? 'Stop listening' : 'Start listening'}
+          >
+            {barListening
+              ? <Mic style={{ width: 16, height: 16, position: 'relative', zIndex: 1 }} />
+              : <MicOff style={{ width: 16, height: 16, position: 'relative', zIndex: 1 }} />
+            }
+          </motion.button>
+        );
+      })()}
 
       {/* Offline status dot */}
       {isOffline && (
@@ -532,8 +534,8 @@ function CollapsedBar({
         }}
         className="shrink-0 rounded-full flex items-center justify-center transition-colors cursor-pointer"
         style={{
-          width: 44,
-          height: 44,
+          width: 32,
+          height: 32,
           color: 'rgba(0,0,0,0.4)',
         }}
         onMouseEnter={(e) => {
@@ -544,7 +546,7 @@ function CollapsedBar({
         }}
         aria-label="Close voice assistant"
       >
-        <X style={{ width: 18, height: 18 }} />
+        <X style={{ width: 14, height: 14 }} />
       </button>
     </div>
   );
@@ -684,7 +686,10 @@ function ComposerBar({
               aria-label={isListening ? 'Stop listening' : 'Start listening'}
               data-testid="voice-agent-mic"
             >
-              <Mic style={{ width: 18, height: 18, position: 'relative', zIndex: 1 }} />
+              {isListening
+                ? <Mic style={{ width: 18, height: 18, position: 'relative', zIndex: 1 }} />
+                : <MicOff style={{ width: 18, height: 18, position: 'relative', zIndex: 1 }} />
+              }
             </motion.button>
 
             <div className="flex-1 min-w-0">
@@ -998,19 +1003,19 @@ function ExpandedContent({
           className="shrink-0 rounded-full transition-colors cursor-pointer"
           style={{
             color: showSettings ? colors.primary : 'rgba(0,0,0,0.4)',
-            width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backgroundColor: showSettings ? `${colors.primary}14` : 'rgba(0,0,0,0.05)',
+            width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: showSettings ? `${colors.primary}14` : 'transparent',
           }}
           aria-label={showSettings ? 'Close settings' : 'Open settings'}
           data-testid="voice-agent-settings"
         >
-          <Settings style={{ width: 16, height: 16 }} />
+          <Settings style={{ width: 14, height: 14 }} />
         </button>
-        <button onClick={onCollapse} className="shrink-0 rounded-full transition-colors cursor-pointer" style={{ color: 'rgba(0,0,0,0.4)', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.05)' }} aria-label="Minimize panel" data-testid="voice-agent-minimize">
-          <ChevronDown style={{ width: 16, height: 16 }} />
+        <button onClick={onCollapse} className="shrink-0 rounded-full transition-colors cursor-pointer" style={{ color: 'rgba(0,0,0,0.4)', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }} aria-label="Minimize panel" data-testid="voice-agent-minimize">
+          <ChevronDown style={{ width: 14, height: 14 }} />
         </button>
-        <button onClick={onClose} className="shrink-0 rounded-full transition-colors cursor-pointer" style={{ color: 'rgba(0,0,0,0.4)', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.05)' }} aria-label="Close voice assistant" data-testid="voice-agent-close">
-          <X style={{ width: 16, height: 16 }} />
+        <button onClick={onClose} className="shrink-0 rounded-full transition-colors cursor-pointer" style={{ color: 'rgba(0,0,0,0.4)', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' }} aria-label="Close voice assistant" data-testid="voice-agent-close">
+          <X style={{ width: 14, height: 14 }} />
         </button>
       </div>
 
