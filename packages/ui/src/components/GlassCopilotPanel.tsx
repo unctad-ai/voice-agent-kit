@@ -353,6 +353,7 @@ function CollapsedBar({
   ttsEnabled = true,
   copilotName,
   portraitSrc,
+  lastMessage,
 }: {
   orbState: OrbState;
   getAmplitude: () => number;
@@ -369,6 +370,7 @@ function CollapsedBar({
   ttsEnabled?: boolean;
   copilotName: string;
   portraitSrc?: string;
+  lastMessage?: string;
 }) {
   const { colors } = useSiteConfig();
   const isOffline = voiceError === 'network_error';
@@ -466,8 +468,10 @@ function CollapsedBar({
                 </button>
               )}
             </span>
+          ) : (micPaused || voiceState === 'IDLE') && lastMessage ? (
+            lastMessage.length > 40 ? lastMessage.slice(0, 40).trimEnd() + '...' : lastMessage
           ) : micPaused ? (
-            'Paused'
+            'Tap mic to resume'
           ) : (
             STATE_LABELS[voiceState]
           )}
@@ -1339,7 +1343,8 @@ function WiredPanelInner({
   }, [showSettings]);
 
   if (panelState === 'collapsed') {
-    return <CollapsedBar orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} onExpand={onExpand} onClose={onClose} onRetry={handleRetryClick} isRetrying={isRetrying} retryCountdown={retryCountdown} voiceError={effectiveError} micPaused={micPaused} onMicToggle={handleMicToggle} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} />;
+    const lastAssistantMsg = messages.slice().reverse().find(m => m.role === 'assistant')?.text;
+    return <CollapsedBar orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} onExpand={onExpand} onClose={onClose} onRetry={handleRetryClick} isRetrying={isRetrying} retryCountdown={retryCountdown} voiceError={effectiveError} micPaused={micPaused} onMicToggle={handleMicToggle} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} lastMessage={lastAssistantMsg} />;
   }
 
   return (
