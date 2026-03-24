@@ -565,6 +565,7 @@ function ComposerBar({
   micPaused = false,
   onTextSubmit,
   onMicToggle,
+  onCancel,
   disabled = false,
   switchToTextRef,
   feedbackTarget,
@@ -576,6 +577,7 @@ function ComposerBar({
   micPaused?: boolean;
   onTextSubmit: (text: string) => void;
   onMicToggle: () => void;
+  onCancel?: () => void;
   disabled?: boolean;
   switchToTextRef?: React.RefObject<(() => void) | null>;
   feedbackTarget?: { assistantMessage: string; userMessage?: string; turnNumber: number } | null;
@@ -585,7 +587,15 @@ function ComposerBar({
   const { colors } = useSiteConfig();
   const [mode, setMode] = useState<'voice' | 'text' | 'feedback'>(disabled ? 'text' : 'voice');
   const [text, setText] = useState('');
+  const [showCancelHint, setShowCancelHint] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // After 2s in PROCESSING, show "Tap mic to cancel" hint
+  useEffect(() => {
+    if (voiceState !== 'PROCESSING') { setShowCancelHint(false); return; }
+    const timer = setTimeout(() => setShowCancelHint(true), 2000);
+    return () => clearTimeout(timer);
+  }, [voiceState]);
 
   // Expose switch-to-text for external triggers (empty state CTA)
   useEffect(() => {
@@ -699,7 +709,7 @@ function ComposerBar({
             <div className="flex-1 min-w-0">
               <AnimatePresence mode="wait">
                 <motion.p
-                  key={micPaused ? 'paused' : voiceState}
+                  key={micPaused ? 'paused' : showCancelHint ? 'cancel-hint' : voiceState}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
@@ -710,12 +720,14 @@ function ComposerBar({
                     fontWeight: 400,
                     color: micPaused
                       ? 'rgba(0,0,0,0.35)'
-                      : voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING'
-                        ? colors.primary
-                        : 'rgba(0,0,0,0.45)',
+                      : showCancelHint
+                        ? 'rgba(0,0,0,0.35)'
+                        : voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING'
+                          ? colors.primary
+                          : 'rgba(0,0,0,0.45)',
                   }}
                 >
-                  {micPaused ? 'Tap mic to resume' : STATE_LABELS[voiceState]}
+                  {micPaused ? 'Tap mic to resume' : showCancelHint ? 'Tap mic to cancel' : STATE_LABELS[voiceState]}
                 </motion.p>
               </AnimatePresence>
             </div>
@@ -724,7 +736,8 @@ function ComposerBar({
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               onClick={() => {
-                if (isListening) onMicToggle();
+                if (voiceState === 'PROCESSING' || voiceState === 'AI_SPEAKING') onCancel?.();
+                else if (isListening) onMicToggle();
                 setMode('text');
               }}
               className="shrink-0 flex items-center gap-1.5 cursor-pointer"
@@ -932,7 +945,7 @@ function ComposerBar({
 function ExpandedContent({
   orbState, getAmplitude, analyser, voiceState, messages, isTyping,
   toolResult, voiceError, dismissError, onCollapse, onClose, onTextSubmit,
-  onMicToggle, micPaused = false, onToolDismiss, onInteraction, onRetry,
+  onMicToggle, onCancel, micPaused = false, onToolDismiss, onInteraction, onRetry,
   isRetrying = false, retryCountdown, lastTimings, showPipelineMetrics, pipelineMetricsAutoHideMs,
   showSettings, onSettingsToggle, ttsEnabled = true, copilotName, portraitSrc,
   onStartMic, onSwitchToKeyboard, switchToTextRef,
@@ -942,7 +955,7 @@ function ExpandedContent({
   voiceState: VoiceState; messages: VoiceMessage[]; isTyping: boolean;
   toolResult: VoiceToolResult | null; voiceError: VoiceErrorType; dismissError: () => void;
   onCollapse: () => void; onClose: () => void; onTextSubmit: (text: string) => void;
-  onMicToggle: () => void; micPaused?: boolean; onToolDismiss: () => void;
+  onMicToggle: () => void; onCancel?: () => void; micPaused?: boolean; onToolDismiss: () => void;
   onInteraction: () => void; onRetry?: () => void; isRetrying?: boolean; retryCountdown?: number | null;
   lastTimings?: PipelineTimings | null; showPipelineMetrics?: boolean;
   pipelineMetricsAutoHideMs?: number; showSettings: boolean; onSettingsToggle: () => void;
@@ -1050,7 +1063,7 @@ function ExpandedContent({
       </div>
 
       <div className="shrink-0">
-        <ComposerBar voiceState={voiceState} isListening={isListening} micPaused={micPaused} onTextSubmit={onTextSubmit} onMicToggle={onMicToggle} disabled={voiceError === 'network_error' || voiceError === 'stt_failed'} switchToTextRef={switchToTextRef} feedbackTarget={feedbackTarget} onFeedbackSubmit={onFeedbackSubmit} onFeedbackCancel={onFeedbackCancel} />
+        <ComposerBar voiceState={voiceState} isListening={isListening} micPaused={micPaused} onTextSubmit={onTextSubmit} onMicToggle={onMicToggle} onCancel={onCancel} disabled={voiceError === 'network_error' || voiceError === 'stt_failed'} switchToTextRef={switchToTextRef} feedbackTarget={feedbackTarget} onFeedbackSubmit={onFeedbackSubmit} onFeedbackCancel={onFeedbackCancel} />
       </div>
     </div>
   );
@@ -1212,11 +1225,17 @@ function WiredPanelInner({
 
   const bumpActivity = useCallback(() => { setActivity((c) => c + 1); }, []);
 
+  const handleCancel = useCallback(() => {
+    if (state === 'PROCESSING' || state === 'AI_SPEAKING') { stop(); return true; }
+    return false;
+  }, [state, stop]);
+
   const handleMicToggle = useCallback(() => {
     setMicPaused(false); bumpActivity();
     if (state === 'LISTENING' || state === 'USER_SPEAKING') { stop(); }
     else if (state === 'IDLE') { start(); }
-  }, [state, start, stop, bumpActivity]);
+    else if (handleCancel()) { start(); }
+  }, [state, start, stop, bumpActivity, handleCancel]);
 
   useEffect(() => { if (panelState === 'hidden') stopRef.current(true); }, [panelState]);
 
@@ -1349,7 +1368,7 @@ function WiredPanelInner({
 
   return (
     <div className="relative h-full">
-      <ExpandedContent orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} messages={messages} isTyping={isTyping} toolResult={toolResult} voiceError={effectiveError} dismissError={dismissError} onCollapse={onCollapse} onClose={onClose} onTextSubmit={handleTextSubmit} onMicToggle={handleMicToggle} micPaused={micPaused} onToolDismiss={() => setToolResult(null)} onInteraction={bumpActivity} onRetry={handleRetryClick} isRetrying={isRetrying} retryCountdown={retryCountdown} lastTimings={lastTimings} showPipelineMetrics={settings.showPipelineMetrics} pipelineMetricsAutoHideMs={settings.pipelineMetricsAutoHideMs} showSettings={showSettings} onSettingsToggle={toggleSettings} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} onStartMic={handleMicToggle} onSwitchToKeyboard={handleSwitchToKeyboard} switchToTextRef={switchToTextRef} onReport={handleReport} feedbackSentTurns={feedbackSentTurns} feedbackTarget={feedbackTarget} onFeedbackSubmit={handleFeedbackSubmit} onFeedbackCancel={handleFeedbackCancel} />
+      <ExpandedContent orbState={orbState} getAmplitude={getAmplitude} analyser={analyser} voiceState={state} messages={messages} isTyping={isTyping} toolResult={toolResult} voiceError={effectiveError} dismissError={dismissError} onCollapse={onCollapse} onClose={onClose} onTextSubmit={handleTextSubmit} onMicToggle={handleMicToggle} onCancel={handleCancel} micPaused={micPaused} onToolDismiss={() => setToolResult(null)} onInteraction={bumpActivity} onRetry={handleRetryClick} isRetrying={isRetrying} retryCountdown={retryCountdown} lastTimings={lastTimings} showPipelineMetrics={settings.showPipelineMetrics} pipelineMetricsAutoHideMs={settings.pipelineMetricsAutoHideMs} showSettings={showSettings} onSettingsToggle={toggleSettings} ttsEnabled={settings.ttsEnabled} copilotName={config.copilotName} portraitSrc={resolvedPortrait} onStartMic={handleMicToggle} onSwitchToKeyboard={handleSwitchToKeyboard} switchToTextRef={switchToTextRef} onReport={handleReport} feedbackSentTurns={feedbackSentTurns} feedbackTarget={feedbackTarget} onFeedbackSubmit={handleFeedbackSubmit} onFeedbackCancel={handleFeedbackCancel} />
       <AnimatePresence>
         {showSettings && (<Suspense fallback={null}><VoiceSettingsView onBack={toggleSettings} onVolumeChange={applyVolume} /></Suspense>)}
       </AnimatePresence>

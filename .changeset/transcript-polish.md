@@ -1,0 +1,6 @@
+---
+'@unctad-ai/voice-agent-core': patch
+'@unctad-ai/voice-agent-ui': patch
+---
+
+Message bubbles with tinting, empty state with avatar and suggested prompt chips, collapsed bar message preview.
