@@ -84,7 +84,4 @@ export interface SiteConfig {
 
   /** Suggested prompts shown in empty transcript state. Tappable chips. */
   suggestedPrompts?: string[];
-
-  /** Enable mic toggle sound feedback. Default: true. */
-  micSoundEnabled?: boolean;
 }
