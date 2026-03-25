@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ArrowLeft,
@@ -27,6 +27,10 @@ import {
   SlidersHorizontal,
   Wrench,
   Globe,
+  Palette,
+  Type,
+  TextCursorInput,
+  Sparkle,
 } from 'lucide-react';
 import { useVoiceSettings } from '../contexts/VoiceSettingsContext';
 import { VAD, useSiteConfig, usePersonaContext } from '@unctad-ai/voice-agent-core';
@@ -295,6 +299,111 @@ export function SelectSetting({
   );
 }
 
+/** Text input setting row — saves on blur, matches SelectSetting visual style */
+function TextInputSetting({
+  icon,
+  label,
+  description,
+  value,
+  onSave,
+  multiline,
+  rows = 2,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  description?: string;
+  value: string;
+  onSave: (v: string) => void;
+  multiline?: boolean;
+  rows?: number;
+}) {
+  const [local, setLocal] = useState(value);
+  const [focused, setFocused] = useState(false);
+  useEffect(() => { setLocal(value); }, [value]);
+
+  const handleBlur = () => {
+    setFocused(false);
+    if (local !== value) onSave(local);
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    fontSize: 12,
+    fontWeight: 500,
+    color: '#374151',
+    padding: '6px 10px',
+    borderRadius: 8,
+    border: `1px solid ${focused ? '#9ca3af' : '#e5e7eb'}`,
+    backgroundColor: '#f9fafb',
+    outline: 'none',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+    resize: multiline ? 'vertical' : 'none',
+    transition: 'border-color 0.15s',
+  };
+
+  return (
+    <div style={{ paddingTop: 10, paddingBottom: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {icon}
+        <div style={{ flex: 1 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>{label}</span>
+          {description && <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>{description}</p>}
+        </div>
+      </div>
+      {multiline ? (
+        <textarea
+          value={local}
+          onChange={(e) => setLocal(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={handleBlur}
+          rows={rows}
+          style={inputStyle}
+        />
+      ) : (
+        <input
+          type="text"
+          value={local}
+          onChange={(e) => setLocal(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={handleBlur}
+          style={inputStyle}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Color picker setting row */
+function ColorInputSetting({
+  icon,
+  label,
+  value,
+  onSave,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  onSave: (v: string) => void;
+}) {
+  const [local, setLocal] = useState(value);
+  useEffect(() => { setLocal(value); }, [value]);
+
+  return (
+    <div style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+      {icon}
+      <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#111827' }}>{label}</span>
+      <input
+        type="color"
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => { if (local !== value) onSave(local); }}
+        style={{ width: 34, height: 28, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', padding: 0 }}
+      />
+    </div>
+  );
+}
+
 export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSettingsViewProps) {
   const { settings, updateSetting, resetSettings } = useVoiceSettings();
   const config = useSiteConfig();
@@ -316,6 +425,13 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
   const [passwordInput, setPasswordInput] = useState('');
   const [authError, setAuthError] = useState('');
   const isAdmin = adminPassword !== null;
+
+  const updateConfigFn = persona?.updateConfig;
+  const handleSharedSave = useCallback(async (fields: Record<string, string>) => {
+    if (!adminPassword || !updateConfigFn) return;
+    try { await updateConfigFn(fields, adminPassword); }
+    catch (err) { console.error('Settings save failed:', err); }
+  }, [adminPassword, updateConfigFn]);
 
   const handleAdminLogin = useCallback(async (pw: string) => {
     if (!persona) return;
@@ -402,6 +518,56 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
         {config.personaEndpoint && (
           <SettingsSection title="Persona" icon={<User style={sectionIconStyle} />} {...sectionProps('persona')}>
             <PersonaSettings adminPassword={adminPassword} />
+          </SettingsSection>
+        )}
+
+        {/* Agent Configuration (admin-only) */}
+        {config.personaEndpoint && isAdmin && persona?.persona && (
+          <SettingsSection title="Agent" icon={<Sparkle style={sectionIconStyle} />} {...sectionProps('agent')}>
+            <TextInputSetting
+              icon={<Type style={iconStyle} />}
+              label="Portal context"
+              description="What this portal offers — helps the AI understand the domain"
+              value={persona.persona.siteTitle || config.siteTitle || ''}
+              onSave={(v) => handleSharedSave({ siteTitle: v })}
+            />
+            <Divider />
+            <TextInputSetting
+              icon={<MessageSquare style={iconStyle} />}
+              label="Greeting"
+              description="Shown when the panel opens with no conversation"
+              value={persona.persona.greetingMessage || config.greetingMessage || ''}
+              onSave={(v) => handleSharedSave({ greetingMessage: v })}
+              multiline
+            />
+            <Divider />
+            <TextInputSetting
+              icon={<TextCursorInput style={iconStyle} />}
+              label="Suggested prompts"
+              description="Tappable chips in the empty state (one per line)"
+              value={persona.persona.suggestedPrompts || config.suggestedPrompts?.join('\n') || ''}
+              onSave={(v) => handleSharedSave({ suggestedPrompts: v })}
+              multiline
+              rows={3}
+            />
+            <Divider />
+            <TextInputSetting
+              icon={<Info style={iconStyle} />}
+              label="System prompt intro"
+              description="Prefixed to every LLM conversation. Use {name} for the agent's name."
+              value={persona.persona.systemPromptIntro || config.systemPromptIntro || ''}
+              onSave={(v) => handleSharedSave({ systemPromptIntro: v })}
+              multiline
+              rows={4}
+            />
+            <Divider />
+            <SelectSetting
+              icon={<Globe style={iconStyle} />}
+              label="Default language"
+              value={persona.persona.language || config.language || 'en'}
+              onChange={(v) => handleSharedSave({ language: v })}
+              options={LANGUAGE_OPTIONS}
+            />
           </SettingsSection>
         )}
 
@@ -647,7 +813,7 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
         {showPasswordInput ? (
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'center', padding: '4px 0' }}>
             <input
-              type="password"
+              type="text"
               placeholder="Admin password"
               value={passwordInput}
               onChange={e => { setPasswordInput(e.target.value); setAuthError(''); }}
@@ -656,11 +822,15 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
                 if (e.key === 'Escape') { setShowPasswordInput(false); setPasswordInput(''); setAuthError(''); }
               }}
               autoFocus
+              autoComplete="off"
+              data-1p-ignore
+              data-lpignore="true"
               style={{
                 fontSize: 11, padding: '3px 8px', borderRadius: 6,
                 border: `1px solid ${authError ? '#ef4444' : '#e5e7eb'}`,
                 outline: 'none', fontFamily: 'inherit', width: 110,
-              }}
+                WebkitTextSecurity: 'disc',
+              } as React.CSSProperties}
             />
             <button
               onClick={() => handleAdminLogin(passwordInput)}

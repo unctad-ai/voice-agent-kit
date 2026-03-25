@@ -90,63 +90,12 @@ function PersonaSettingsInner({ adminPassword }: { adminPassword: string | null 
             onRecord={() => setShowRecording(true)}
           />
 
-          {/* Shared settings */}
-          <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>Copilot settings</span>
-
+          <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: 10 }}>
             <ColorSettingRow
-              label="Color"
-              value={data?.copilotColor || config.colors.primary || '#1B5E20'}
+              label="Brand color"
+              value={data?.copilotColor || config.colors.primary || '#DB2129'}
               onSave={v => handleSharedSave({ copilotColor: v })}
             />
-
-            <TextSettingRow
-              label="Site title"
-              value={data?.siteTitle || ''}
-              onSave={v => handleSharedSave({ siteTitle: v })}
-            />
-
-            <TextAreaSettingRow
-              label="Greeting"
-              value={data?.greetingMessage || ''}
-              onSave={v => handleSharedSave({ greetingMessage: v })}
-            />
-
-            <TextAreaSettingRow
-              label="Farewell"
-              value={data?.farewellMessage || ''}
-              onSave={v => handleSharedSave({ farewellMessage: v })}
-            />
-
-            <TextAreaSettingRow
-              label="System prompt intro"
-              value={data?.systemPromptIntro || ''}
-              onSave={v => handleSharedSave({ systemPromptIntro: v })}
-              rows={4}
-            />
-
-            <TextAreaSettingRow
-              label="Suggested prompts (one per line)"
-              value={data?.suggestedPrompts || ''}
-              onSave={v => handleSharedSave({ suggestedPrompts: v })}
-              rows={3}
-            />
-
-            <SettingRow label="Default language">
-              <select
-                value={data?.language || 'en'}
-                onChange={e => handleSharedSave({ language: e.target.value })}
-                style={{
-                  fontSize: 12, borderRadius: 6, border: '1px solid #e5e7eb',
-                  padding: '4px 8px', outline: 'none', fontFamily: 'inherit',
-                  backgroundColor: '#fff',
-                }}
-              >
-                {LANGUAGE_OPTIONS.map(l => (
-                  <option key={l.value} value={l.value}>{l.label}</option>
-                ))}
-              </select>
-            </SettingRow>
           </div>
 
         </>
