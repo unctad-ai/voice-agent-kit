@@ -1482,7 +1482,7 @@ export default function GlassCopilotPanel({ isOpen: isOpenProp, onOpen: onOpenPr
             <div className="absolute inset-0 pointer-events-none" style={{ borderRadius: PANEL_BORDER_RADIUS, overflow: 'hidden', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', filter: 'url(#liquid-glass-panel)', isolation: 'isolate' }} />
             <div className="absolute inset-0 pointer-events-none" style={{ borderRadius: PANEL_BORDER_RADIUS, overflow: 'hidden', backdropFilter: 'blur(14px) saturate(1.4)', WebkitBackdropFilter: 'blur(14px) saturate(1.4)', backgroundColor: 'rgba(230,232,245,0.32)', border: '1px solid rgba(255,255,255,0.4)', boxShadow: 'inset 0 0 20px -5px rgba(255,255,255,0.3), inset 0 1px 0 0 rgba(255,255,255,0.8), 0 0 0 1px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.14), 0 24px 48px rgba(0,0,0,0.10)' }} />
             <div className="absolute inset-0 pointer-events-none" style={{ borderRadius: PANEL_BORDER_RADIUS, background: 'linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 20%)' }} />
-            <div style={{ position: 'relative', zIndex: 1, height: '100%', overflow: 'hidden', borderRadius: PANEL_BORDER_RADIUS }}>
+            <div style={{ position: 'relative', zIndex: 1, height: '100%', overflow: 'hidden', borderRadius: PANEL_BORDER_RADIUS, backgroundColor: 'rgba(255,255,255,0.78)' }}>
               <WiredPanel panelState={panelState} onCollapse={handleCollapse} onExpand={handleExpand} onClose={handleClose} onStateChange={handleStateChange} portraitSrc={resolvedPortrait} />
             </div>
           </motion.div>

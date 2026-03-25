@@ -142,7 +142,8 @@ export function useVoiceWebSocket({
 
       manager.onEvent('response.text.done', (event: ResponseTextDoneEvent) => {
         pendingTextRef.current = '';
-        // Update the last assistant message with the final text
+        // Update the last assistant message with the final text.
+        // Never append — conversation.item.created is the canonical add.
         setMessages((prev) => {
           const lastIdx = prev.length - 1;
           if (lastIdx >= 0 && prev[lastIdx].role === 'assistant') {
@@ -150,7 +151,7 @@ export function useVoiceWebSocket({
             updated[lastIdx] = { ...updated[lastIdx], content: event.text };
             return updated;
           }
-          return [...prev, { role: 'assistant', content: event.text }];
+          return prev;
         });
       });
 
