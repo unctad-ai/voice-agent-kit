@@ -108,6 +108,12 @@ describe('buildSystemPrompt', () => {
 
   // --- TONE ---
 
+  it('includes brand-aligned tone (trustworthy, clear, capable)', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toContain('trustworthy, clear, and capable');
+    expect(prompt).toContain('friendly guide to government services');
+  });
+
   it('includes "You are welcome" template to prevent contraction', () => {
     const prompt = buildSystemPrompt(stubConfig);
     expect(prompt).toContain('You are welcome');
