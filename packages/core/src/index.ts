@@ -18,3 +18,4 @@ export type { UsePersonaResult } from './hooks/usePersona';
 export { useVoiceRecorder } from './hooks/useVoiceRecorder';
 export type { UseVoiceRecorderReturn, RecorderState } from './hooks/useVoiceRecorder';
 export type { QualityWarning } from './hooks/wavEncoder';
+export { playMicOnSound, playMicOffSound } from './utils/micSound';

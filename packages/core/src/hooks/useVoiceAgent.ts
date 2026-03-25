@@ -10,6 +10,7 @@ import type { VoiceErrorType } from '../types/errors';
 import type { VoiceSettings } from '../types/settings';
 import type { ClientState, TimingsEvent } from '../protocol/events';
 import { summarizeToolResult } from '../utils/summarizeToolResult';
+import { playMicOnSound, playMicOffSound } from '../utils/micSound.js';
 import {
   BARGE_IN,
   GUARD_DELAY_MS,
@@ -830,7 +831,8 @@ export function useVoiceAgent({
 
     setState('LISTENING');
     vad.start();
-  }, [vad, voiceWs]);
+    if (config.micSoundEnabled !== false) playMicOnSound(settings.volume);
+  }, [vad, voiceWs, config.micSoundEnabled, settings.volume]);
 
   const stop = useCallback(
     (force?: boolean) => {
@@ -847,8 +849,9 @@ export function useVoiceAgent({
       vad.pause();
       voiceWs.disconnect();
       setState('IDLE');
+      if (config.micSoundEnabled !== false && !force) playMicOffSound(settings.volume);
     },
-    [vad, stopAudio, voiceWs],
+    [vad, stopAudio, voiceWs, config.micSoundEnabled, settings.volume],
   );
 
   // Cleanup on unmount
