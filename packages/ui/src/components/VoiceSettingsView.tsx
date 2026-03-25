@@ -313,17 +313,28 @@ function TextInputSetting({
   label: string;
   description?: string;
   value: string;
-  onSave: (v: string) => void;
+  onSave: (v: string) => Promise<boolean> | void;
   multiline?: boolean;
   rows?: number;
 }) {
   const [local, setLocal] = useState(value);
   const [focused, setFocused] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
   useEffect(() => { setLocal(value); }, [value]);
 
-  const handleBlur = () => {
+  useEffect(() => {
+    if (saveStatus === 'saved') {
+      const t = setTimeout(() => setSaveStatus('idle'), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [saveStatus]);
+
+  const handleBlur = async () => {
     setFocused(false);
-    if (local !== value) onSave(local);
+    if (local !== value) {
+      const ok = await onSave(local);
+      if (typeof ok === 'boolean') setSaveStatus(ok ? 'saved' : 'error');
+    }
   };
 
   const inputStyle: React.CSSProperties = {
@@ -348,6 +359,12 @@ function TextInputSetting({
         {icon}
         <div style={{ flex: 1 }}>
           <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>{label}</span>
+          {saveStatus === 'saved' && (
+            <span style={{ marginLeft: 6, fontSize: 11, color: '#22c55e', fontWeight: 400, transition: 'opacity 0.2s', opacity: 1 }}>Saved</span>
+          )}
+          {saveStatus === 'error' && (
+            <span style={{ marginLeft: 6, fontSize: 11, color: '#ef4444', fontWeight: 400 }}>Save failed</span>
+          )}
           {description && <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>{description}</p>}
         </div>
       </div>
@@ -384,20 +401,43 @@ function ColorInputSetting({
   icon: React.ReactNode;
   label: string;
   value: string;
-  onSave: (v: string) => void;
+  onSave: (v: string) => Promise<boolean> | void;
 }) {
   const [local, setLocal] = useState(value);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
   useEffect(() => { setLocal(value); }, [value]);
+
+  useEffect(() => {
+    if (saveStatus === 'saved') {
+      const t = setTimeout(() => setSaveStatus('idle'), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [saveStatus]);
+
+  const handleBlur = async () => {
+    if (local !== value) {
+      const ok = await onSave(local);
+      if (typeof ok === 'boolean') setSaveStatus(ok ? 'saved' : 'error');
+    }
+  };
 
   return (
     <div style={{ paddingTop: 12, paddingBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
       {icon}
-      <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#111827' }}>{label}</span>
+      <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#111827' }}>
+        {label}
+        {saveStatus === 'saved' && (
+          <span style={{ marginLeft: 6, fontSize: 11, color: '#22c55e', fontWeight: 400, transition: 'opacity 0.2s', opacity: 1 }}>Saved</span>
+        )}
+        {saveStatus === 'error' && (
+          <span style={{ marginLeft: 6, fontSize: 11, color: '#ef4444', fontWeight: 400 }}>Save failed</span>
+        )}
+      </span>
       <input
         type="color"
         value={local}
         onChange={(e) => setLocal(e.target.value)}
-        onBlur={() => { if (local !== value) onSave(local); }}
+        onBlur={handleBlur}
         style={{ width: 34, height: 28, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', padding: 0 }}
       />
     </div>
@@ -427,10 +467,10 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
   const isAdmin = adminPassword !== null;
 
   const updateConfigFn = persona?.updateConfig;
-  const handleSharedSave = useCallback(async (fields: Record<string, string>) => {
-    if (!adminPassword || !updateConfigFn) return;
-    try { await updateConfigFn(fields, adminPassword); }
-    catch (err) { console.error('Settings save failed:', err); }
+  const handleSharedSave = useCallback(async (fields: Record<string, string>): Promise<boolean> => {
+    if (!adminPassword || !updateConfigFn) return false;
+    try { await updateConfigFn(fields, adminPassword); return true; }
+    catch (err) { console.error('Settings save failed:', err); return false; }
   }, [adminPassword, updateConfigFn]);
 
   const handleAdminLogin = useCallback(async (pw: string) => {
