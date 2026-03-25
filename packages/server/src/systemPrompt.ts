@@ -55,7 +55,10 @@ GOODBYE: Warm farewell for "goodbye" or "that is all". "Thank you" is conversati
 
 export function buildSystemPrompt(config: SiteConfig, clientState?: ClientState): string {
   // Identity layer — from config
-  let prompt = `You are ${config.copilotName}, a friendly voice assistant for ${config.siteTitle}. ${config.systemPromptIntro} Your name is ${config.copilotName}.\n\n`;
+  const intro = config.systemPromptIntro
+    .replace(/\{name\}/g, config.copilotName)
+    .replace(/\{siteTitle\}/g, config.siteTitle);
+  let prompt = `You are ${config.copilotName}, a friendly voice assistant for ${config.siteTitle}. ${intro} Your name is ${config.copilotName}.\n\n`;
 
   // Base rules layer — package-owned
   prompt += BASE_RULES;

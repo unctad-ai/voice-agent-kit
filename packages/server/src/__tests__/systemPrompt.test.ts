@@ -201,4 +201,31 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt(stubConfig);
     expect(prompt).not.toContain('/no_think');
   });
+
+  // --- Template variables in systemPromptIntro ---
+
+  it('replaces {name} in systemPromptIntro with copilotName', () => {
+    const config = { ...stubConfig, systemPromptIntro: 'I am {name}, here to help.' };
+    const prompt = buildSystemPrompt(config);
+    expect(prompt).toContain('I am TestBot, here to help.');
+    expect(prompt).not.toContain('{name}');
+  });
+
+  it('replaces {siteTitle} in systemPromptIntro with siteTitle', () => {
+    const config = { ...stubConfig, systemPromptIntro: 'Welcome to {siteTitle}.' };
+    const prompt = buildSystemPrompt(config);
+    expect(prompt).toContain('Welcome to Test Portal.');
+    expect(prompt).not.toContain('{siteTitle}');
+  });
+
+  it('replaces both {name} and {siteTitle} in the same intro', () => {
+    const config = { ...stubConfig, systemPromptIntro: '{name} assists on {siteTitle}.' };
+    const prompt = buildSystemPrompt(config);
+    expect(prompt).toContain('TestBot assists on Test Portal.');
+  });
+
+  it('leaves intro unchanged when no template variables present', () => {
+    const prompt = buildSystemPrompt(stubConfig);
+    expect(prompt).toContain('You help users with tests.');
+  });
 });
