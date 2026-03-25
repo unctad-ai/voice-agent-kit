@@ -355,21 +355,21 @@ function TextInputSetting({
 
   return (
     <div style={{ paddingTop: 10, paddingBottom: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        {icon}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 16, height: 20, flexShrink: 0 }}>{icon}</div>
         <div style={{ flex: 1 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>
-            {label}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, minHeight: 20 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>{label}</span>
             <AnimatePresence>
               {saveStatus === 'saved' && (
-                <motion.span key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} style={{ marginLeft: 6, fontSize: 11, color: '#22c55e', fontWeight: 400 }}>Saved</motion.span>
+                <motion.span key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} style={{ fontSize: 11, color: '#22c55e', fontWeight: 400 }}>Saved</motion.span>
               )}
               {saveStatus === 'error' && (
-                <motion.span key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} style={{ marginLeft: 6, fontSize: 11, color: '#ef4444', fontWeight: 400 }}>Save failed</motion.span>
+                <motion.span key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} style={{ fontSize: 11, color: '#ef4444', fontWeight: 400 }}>Save failed</motion.span>
               )}
             </AnimatePresence>
-          </span>
-          {description && <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>{description}</p>}
+          </div>
+          {description && <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0', lineHeight: 1.4 }}>{description}</p>}
         </div>
       </div>
       {multiline ? (
@@ -584,7 +584,6 @@ export default function VoiceSettingsView({ onBack, onVolumeChange }: VoiceSetti
               description="Shown when the panel opens with no conversation"
               value={persona.persona.greetingMessage || config.greetingMessage || ''}
               onSave={(v) => handleSharedSave({ greetingMessage: v })}
-              multiline
             />
             <Divider />
             <TextInputSetting
