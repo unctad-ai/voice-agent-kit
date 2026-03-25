@@ -75,6 +75,18 @@ const ARIA_LIVE_LABELS: Record<OrbState, string> = {
 // ---------------------------------------------------------------------------
 type PanelState = 'hidden' | 'collapsed' | 'expanded';
 
+// ---------------------------------------------------------------------------
+// Scrollbar-hiding CSS for suggestion chips
+// ---------------------------------------------------------------------------
+let chipScrollStylesInjected = false;
+function ensureChipScrollStyles() {
+  if (chipScrollStylesInjected || typeof document === 'undefined') return;
+  chipScrollStylesInjected = true;
+  const style = document.createElement('style');
+  style.textContent = `.suggestion-chips::-webkit-scrollbar { display: none }`;
+  document.head.appendChild(style);
+}
+
 interface GlassCopilotPanelProps {
   /** Controlled open state. When omitted, the panel manages its own open/close state. */
   isOpen?: boolean;
@@ -968,7 +980,8 @@ function ExpandedContent({
   onFeedbackSubmit?: (text: string, target: { assistantMessage: string; userMessage?: string; turnNumber: number }) => void;
   onFeedbackCancel?: () => void;
 }) {
-  const { colors } = useSiteConfig();
+  const config = useSiteConfig();
+  const { colors } = config;
   const isListening = voiceState === 'LISTENING' || voiceState === 'USER_SPEAKING';
   const isOffline = voiceError === 'network_error';
 
@@ -1061,6 +1074,46 @@ function ExpandedContent({
           <div style={{ padding: '0 16px 8px' }}><VoiceToolCard result={toolResult} onDismiss={onToolDismiss} variant="capsule" /></div>
         </div>
       </div>
+
+      {micPaused && messages.length === 0 && (() => {
+        ensureChipScrollStyles();
+        const prompts = config.suggestedPrompts ?? ['What services are available?', 'Help me with an application'];
+        return (
+          <div className="suggestion-chips" style={{
+            padding: '0 16px 4px',
+            display: 'flex',
+            gap: 8,
+            overflowX: 'auto',
+            flexShrink: 0,
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+          }}>
+            {prompts.map((prompt, i) => (
+              <button
+                key={i}
+                onClick={() => onTextSubmit(prompt)}
+                style={{
+                  flexShrink: 0,
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: colors.primary,
+                  backgroundColor: `${colors.primary}0a`,
+                  border: `1px solid ${colors.primary}20`,
+                  borderRadius: 20,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'background-color 0.15s',
+                }}
+                onMouseEnter={(e) => { (e.target as HTMLElement).style.backgroundColor = `${colors.primary}18`; }}
+                onMouseLeave={(e) => { (e.target as HTMLElement).style.backgroundColor = `${colors.primary}0a`; }}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
       <div className="shrink-0">
         <ComposerBar voiceState={voiceState} isListening={isListening} micPaused={micPaused} onTextSubmit={onTextSubmit} onMicToggle={onMicToggle} onCancel={onCancel} disabled={voiceError === 'network_error' || voiceError === 'stt_failed'} switchToTextRef={switchToTextRef} feedbackTarget={feedbackTarget} onFeedbackSubmit={onFeedbackSubmit} onFeedbackCancel={onFeedbackCancel} />
