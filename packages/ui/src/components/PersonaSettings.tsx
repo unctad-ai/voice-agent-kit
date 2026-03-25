@@ -133,6 +133,7 @@ function SettingRow({ label, children }: { label: string; children: React.ReactN
 
 function ColorSettingRow({ label, value, onSave }: { label: string; value: string; onSave: (v: string) => void }) {
   const [local, setLocal] = useState(value);
+  const [focused, setFocused] = useState(false);
   useEffect(() => { setLocal(value); }, [value]);
 
   return (
@@ -140,8 +141,9 @@ function ColorSettingRow({ label, value, onSave }: { label: string; value: strin
       <input type="color"
         value={local}
         onChange={e => setLocal(e.target.value)}
-        onBlur={() => { if (local !== value) onSave(local); }}
-        style={{ width: 32, height: 26, border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer', padding: 0 }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => { setFocused(false); if (local !== value) onSave(local); }}
+        style={{ width: 32, height: 26, border: `1px solid ${focused ? '#9ca3af' : '#e5e7eb'}`, borderRadius: 4, cursor: 'pointer', padding: 0, transition: 'border-color 0.15s' }}
       />
     </SettingRow>
   );
@@ -149,6 +151,7 @@ function ColorSettingRow({ label, value, onSave }: { label: string; value: strin
 
 function TextSettingRow({ label, value, onSave }: { label: string; value: string; onSave: (v: string) => void }) {
   const [local, setLocal] = useState(value);
+  const [focused, setFocused] = useState(false);
   useEffect(() => { setLocal(value); }, [value]);
 
   return (
@@ -157,11 +160,12 @@ function TextSettingRow({ label, value, onSave }: { label: string; value: string
         type="text"
         value={local}
         onChange={e => setLocal(e.target.value)}
-        onBlur={() => { if (local !== value) onSave(local); }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => { setFocused(false); if (local !== value) onSave(local); }}
         style={{
           width: '100%', fontSize: 12, padding: '4px 8px', borderRadius: 6,
-          border: '1px solid #e5e7eb', outline: 'none', fontFamily: 'inherit',
-          boxSizing: 'border-box',
+          border: `1px solid ${focused ? '#9ca3af' : '#e5e7eb'}`, outline: 'none', fontFamily: 'inherit',
+          boxSizing: 'border-box', transition: 'border-color 0.15s',
         }}
       />
     </SettingRow>
@@ -172,6 +176,7 @@ function TextAreaSettingRow({ label, value, onSave, rows = 2 }: {
   label: string; value: string; onSave: (v: string) => void; rows?: number;
 }) {
   const [local, setLocal] = useState(value);
+  const [focused, setFocused] = useState(false);
   useEffect(() => { setLocal(value); }, [value]);
 
   return (
@@ -180,12 +185,13 @@ function TextAreaSettingRow({ label, value, onSave, rows = 2 }: {
       <textarea
         value={local}
         onChange={e => setLocal(e.target.value)}
-        onBlur={() => { if (local !== value) onSave(local); }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => { setFocused(false); if (local !== value) onSave(local); }}
         rows={rows}
         style={{
           width: '100%', fontSize: 12, padding: '6px 8px', borderRadius: 6,
-          border: '1px solid #e5e7eb', outline: 'none', fontFamily: 'inherit',
-          resize: 'vertical', boxSizing: 'border-box',
+          border: `1px solid ${focused ? '#9ca3af' : '#e5e7eb'}`, outline: 'none', fontFamily: 'inherit',
+          resize: 'vertical', boxSizing: 'border-box', transition: 'border-color 0.15s',
         }}
       />
     </div>

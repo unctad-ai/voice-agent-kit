@@ -358,20 +358,24 @@ function TextInputSetting({
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {icon}
         <div style={{ flex: 1 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>{label}</span>
-          {saveStatus === 'saved' && (
-            <span style={{ marginLeft: 6, fontSize: 11, color: '#22c55e', fontWeight: 400, transition: 'opacity 0.2s', opacity: 1 }}>Saved</span>
-          )}
-          {saveStatus === 'error' && (
-            <span style={{ marginLeft: 6, fontSize: 11, color: '#ef4444', fontWeight: 400 }}>Save failed</span>
-          )}
+          <span style={{ fontSize: 13, fontWeight: 500, color: '#111827' }}>
+            {label}
+            <AnimatePresence>
+              {saveStatus === 'saved' && (
+                <motion.span key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} style={{ marginLeft: 6, fontSize: 11, color: '#22c55e', fontWeight: 400 }}>Saved</motion.span>
+              )}
+              {saveStatus === 'error' && (
+                <motion.span key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} style={{ marginLeft: 6, fontSize: 11, color: '#ef4444', fontWeight: 400 }}>Save failed</motion.span>
+              )}
+            </AnimatePresence>
+          </span>
           {description && <p style={{ fontSize: 11, color: '#9ca3af', margin: '2px 0 0' }}>{description}</p>}
         </div>
       </div>
       {multiline ? (
         <textarea
           value={local}
-          onChange={(e) => setLocal(e.target.value)}
+          onChange={(e) => { setLocal(e.target.value); if (saveStatus === 'error') setSaveStatus('idle'); }}
           onFocus={() => setFocused(true)}
           onBlur={handleBlur}
           rows={rows}
@@ -381,7 +385,7 @@ function TextInputSetting({
         <input
           type="text"
           value={local}
-          onChange={(e) => setLocal(e.target.value)}
+          onChange={(e) => { setLocal(e.target.value); if (saveStatus === 'error') setSaveStatus('idle'); }}
           onFocus={() => setFocused(true)}
           onBlur={handleBlur}
           style={inputStyle}
@@ -426,17 +430,19 @@ function ColorInputSetting({
       {icon}
       <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: '#111827' }}>
         {label}
-        {saveStatus === 'saved' && (
-          <span style={{ marginLeft: 6, fontSize: 11, color: '#22c55e', fontWeight: 400, transition: 'opacity 0.2s', opacity: 1 }}>Saved</span>
-        )}
-        {saveStatus === 'error' && (
-          <span style={{ marginLeft: 6, fontSize: 11, color: '#ef4444', fontWeight: 400 }}>Save failed</span>
-        )}
+        <AnimatePresence>
+          {saveStatus === 'saved' && (
+            <motion.span key="saved" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} style={{ marginLeft: 6, fontSize: 11, color: '#22c55e', fontWeight: 400 }}>Saved</motion.span>
+          )}
+          {saveStatus === 'error' && (
+            <motion.span key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} style={{ marginLeft: 6, fontSize: 11, color: '#ef4444', fontWeight: 400 }}>Save failed</motion.span>
+          )}
+        </AnimatePresence>
       </span>
       <input
         type="color"
         value={local}
-        onChange={(e) => setLocal(e.target.value)}
+        onChange={(e) => { setLocal(e.target.value); if (saveStatus === 'error') setSaveStatus('idle'); }}
         onBlur={handleBlur}
         style={{ width: 34, height: 28, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', padding: 0 }}
       />
