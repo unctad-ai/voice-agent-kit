@@ -14,6 +14,7 @@ export interface StoredPersona {
   farewellMessage?: string;
   systemPromptIntro?: string;
   language?: string;
+  suggestedPrompts?: string;
 }
 
 export interface FullConfig {
@@ -24,6 +25,7 @@ export interface FullConfig {
   farewellMessage: string;
   systemPromptIntro: string;
   language: string;
+  suggestedPrompts: string;
   avatarFilename: string;
   activeVoiceId: string;
   voices: { id: string; name: string; filename: string; cachedAt: string }[];
@@ -77,6 +79,7 @@ export class PersonaStore {
       farewellMessage: this.data.farewellMessage ?? sc?.farewellMessage ?? '',
       systemPromptIntro: this.data.systemPromptIntro ?? sc?.systemPromptIntro ?? '',
       language: this.data.language ?? sc?.language ?? 'en',
+      suggestedPrompts: this.data.suggestedPrompts ?? sc?.suggestedPrompts?.join('\n') ?? '',
       avatarFilename: this.data.avatarFilename,
       activeVoiceId: this.data.activeVoiceId,
       voices: this.data.voices ?? [],
@@ -87,7 +90,7 @@ export class PersonaStore {
     partial: Partial<Pick<StoredPersona,
       'copilotName' | 'activeVoiceId' |
       'copilotColor' | 'siteTitle' | 'greetingMessage' |
-      'farewellMessage' | 'systemPromptIntro' | 'language'
+      'farewellMessage' | 'systemPromptIntro' | 'language' | 'suggestedPrompts'
     >>,
   ): Promise<StoredPersona> {
     if (partial.copilotName !== undefined) this.data.copilotName = partial.copilotName;
@@ -98,6 +101,7 @@ export class PersonaStore {
     if (partial.farewellMessage !== undefined) this.data.farewellMessage = partial.farewellMessage;
     if (partial.systemPromptIntro !== undefined) this.data.systemPromptIntro = partial.systemPromptIntro;
     if (partial.language !== undefined) this.data.language = partial.language;
+    if (partial.suggestedPrompts !== undefined) this.data.suggestedPrompts = partial.suggestedPrompts;
     await this.save();
     return this.get();
   }

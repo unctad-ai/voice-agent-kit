@@ -32,6 +32,9 @@ export function SiteConfigProvider({
         farewellMessage: p.farewellMessage ?? config.farewellMessage,
         systemPromptIntro: p.systemPromptIntro ?? config.systemPromptIntro,
         language: p.language ?? config.language,
+        suggestedPrompts: p.suggestedPrompts
+          ? p.suggestedPrompts.split('\n').filter((s: string) => s.trim())
+          : config.suggestedPrompts,
         colors: p.copilotColor
           ? { ...config.colors, primary: p.copilotColor }
           : config.colors,

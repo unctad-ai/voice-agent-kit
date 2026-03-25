@@ -10,6 +10,7 @@ export interface PersonaData {
   farewellMessage: string;
   systemPromptIntro: string;
   language: string;
+  suggestedPrompts: string;
 }
 
 export interface VoiceEntry {

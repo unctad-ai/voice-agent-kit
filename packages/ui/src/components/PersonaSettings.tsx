@@ -125,6 +125,13 @@ function PersonaSettingsInner({ adminPassword }: { adminPassword: string | null 
               rows={4}
             />
 
+            <TextAreaSettingRow
+              label="Suggested prompts (one per line)"
+              value={data?.suggestedPrompts || ''}
+              onSave={v => handleSharedSave({ suggestedPrompts: v })}
+              rows={3}
+            />
+
             <SettingRow label="Default language">
               <select
                 value={data?.language || 'en'}

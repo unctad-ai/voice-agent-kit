@@ -79,7 +79,7 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
     if (!requireAdmin(req, res)) return;
     try {
       const { copilotName, activeVoiceId, copilotColor, siteTitle,
-              greetingMessage, farewellMessage, systemPromptIntro, language } = req.body;
+              greetingMessage, farewellMessage, systemPromptIntro, language, suggestedPrompts } = req.body;
       await store.update({
         ...(copilotName !== undefined && { copilotName }),
         ...(activeVoiceId !== undefined && { activeVoiceId }),
@@ -89,6 +89,7 @@ export function createPersonaRoutes(options: PersonaRoutesOptions): { router: Ro
         ...(farewellMessage !== undefined && { farewellMessage }),
         ...(systemPromptIntro !== undefined && { systemPromptIntro }),
         ...(language !== undefined && { language }),
+        ...(suggestedPrompts !== undefined && { suggestedPrompts }),
       });
       const config = store.getFullConfig();
       options.broadcast?.({ type: 'config.updated', config });
