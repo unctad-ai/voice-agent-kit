@@ -281,11 +281,11 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
 
     (async () => {
       try {
-        // Dynamic import of the Emscripten glue — Vite bundles it as ESM
-        // Vite alias 'ten-vad-glue' → node_modules/@gooney-001/ten-vad-lib/ten_vad.js
+        // Dynamic import of the Emscripten glue (browser-compatible entry).
+        // The package's default export uses Node.js APIs — ten_vad.js is the
+        // browser build that works with Web Audio + WASM.
         const { default: createVADModule } = await import(
-          /* @vite-ignore */
-          'ten-vad-glue'
+          '@gooney-001/ten-vad-lib/ten_vad.js'
         );
 
         const mod: TenVADModule = await createVADModule({

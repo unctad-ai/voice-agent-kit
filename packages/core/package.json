@@ -32,10 +32,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@gooney-001/ten-vad-lib": "^1.0.2",
     "@unctad-ai/voice-agent-registries": "workspace:*"
   },
   "peerDependencies": {
-    "@gooney-001/ten-vad-lib": "^1.0.2",
     "react": ">=18",
     "react-router": ">=6",
     "zod": "^3.25.0 || ^4.0.0"

@@ -13,11 +13,3 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
-
-/** Type declaration for ten-vad-glue — Emscripten WASM module loaded at runtime via Vite alias */
-declare module 'ten-vad-glue' {
-  const createVADModule: (options?: {
-    locateFile?: (filename: string) => string;
-  }) => Promise<any>;
-  export default createVADModule;
-}
