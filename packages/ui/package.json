@@ -1,6 +1,6 @@
 {
   "name": "@unctad-ai/voice-agent-ui",
-  "version": "5.4.2",
+  "version": "5.4.3",
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",

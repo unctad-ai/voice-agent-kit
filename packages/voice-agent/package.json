@@ -1,6 +1,6 @@
 {
   "name": "@unctad-ai/voice-agent",
-  "version": "5.4.2",
+  "version": "5.4.3",
   "description": "Meta-package for voice-agent-kit client packages — installs core, registries, and ui in one dependency",
   "license": "MIT",
   "repository": {
