@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 5.4.2
+
+### Patch Changes
+
+- 9c091e0: fix(core): vendor TEN-VAD WASM module — removes @gooney-001/ten-vad-lib external dependency and eliminates the Vite alias requirement for consuming projects
+  - @unctad-ai/voice-agent-registries@5.4.2
+
 ## 5.4.1
 
 ### Patch Changes
