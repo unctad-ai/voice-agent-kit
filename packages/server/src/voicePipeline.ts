@@ -282,8 +282,11 @@ export class VoicePipeline {
       this.logger.info('llm:done', `"${assistantText}"`, llmMs);
 
       // Send text response
-      send(createEvent('response.text.done', { text: assistantText }));
       this.session.conversation.push({ role: 'assistant', content: assistantText });
+      send(createEvent('response.text.done', { text: assistantText }));
+      send(createEvent('conversation.item.created', {
+        item: { id: `msg_${Date.now()}`, role: 'assistant', content: assistantText },
+      }));
 
       // Silent check on raw text (before sanitization strips the tag)
       if (assistantText.includes('<silent')) {
