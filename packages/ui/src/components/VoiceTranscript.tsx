@@ -548,7 +548,7 @@ export default function VoiceTranscript({
                     {isAI && isLast && isTyping ? (
                       <TypewriterFormattedText
                         text={displayText}
-                        
+
                         style={{
                           fontSize: '14px',
                           fontWeight: 400,
@@ -556,10 +556,12 @@ export default function VoiceTranscript({
                           color: '#1a1a1a',
                         }}
                       />
+                    ) : isAI && isLast && voiceState === 'PROCESSING' ? (
+                      null /* hide until typewriter starts to prevent flash */
                     ) : (
                       <FormattedText
                         text={displayText}
-                        
+
                         style={{
                           fontSize: '14px',
                           fontWeight: isAI ? 400 : 450,
