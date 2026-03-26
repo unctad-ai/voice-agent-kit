@@ -1,5 +1,11 @@
 # @unctad-ai/voice-agent-registries
 
+## 5.4.4
+
+### Patch Changes
+
+- @unctad-ai/voice-agent-core@5.4.4
+
 ## 5.4.3
 
 ### Patch Changes

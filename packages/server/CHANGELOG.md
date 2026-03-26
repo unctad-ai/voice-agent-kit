@@ -1,5 +1,17 @@
 # @unctad-ai/voice-agent-server
 
+## 5.4.4
+
+### Patch Changes
+
+- 1f4e2d1: fix(server): emit conversation.item.created for assistant in voice pipeline
+
+  The voice pipeline only sent response.text.done but not conversation.item.created
+  for assistant messages. The client relies on conversation.item.created to add messages
+  to the transcript — without it, LLM responses were never shown in the panel.
+
+  - @unctad-ai/voice-agent-core@5.4.4
+
 ## 5.4.3
 
 ### Patch Changes
