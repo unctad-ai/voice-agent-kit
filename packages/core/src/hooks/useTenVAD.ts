@@ -281,12 +281,9 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
 
     (async () => {
       try {
-        // Dynamic import of the Emscripten glue (browser-compatible entry).
-        // The package's default export uses Node.js APIs — ten_vad.js is the
-        // browser build that works with Web Audio + WASM.
-        const { default: createVADModule } = await import(
-          '@gooney-001/ten-vad-lib/ten_vad.js'
-        );
+        // Vendored Emscripten glue for TEN-VAD (MIT licensed).
+        // Bundled directly to avoid fragile npm alias / exports issues.
+        const { default: createVADModule } = await import('../vad/ten_vad.js');
 
         const mod: TenVADModule = await createVADModule({
           locateFile: (filename: string) => {

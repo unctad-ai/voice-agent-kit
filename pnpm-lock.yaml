@@ -29,9 +29,6 @@ importers:
 
   packages/core:
     dependencies:
-      '@gooney-001/ten-vad-lib':
-        specifier: ^1.0.2
-        version: 1.0.2
       '@unctad-ai/voice-agent-registries':
         specifier: workspace:*
         version: link:../registries
@@ -597,10 +594,6 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
-
-  '@gooney-001/ten-vad-lib@1.0.2':
-    resolution: {integrity: sha512-n7Or9GKd5a6pj1EbHL7Apk+GXKKJL+tv5s6ReQ/zCbiGWFWJwGdJT7n6TDHrSOT0JN+hdJSHCHJ0SLTQ2Y+PXQ==}
-    engines: {node: '>=14.0.0'}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -3136,8 +3129,6 @@ snapshots:
       levn: 0.4.1
 
   '@exodus/bytes@1.15.0': {}
-
-  '@gooney-001/ten-vad-lib@1.0.2': {}
 
   '@humanfs/core@0.19.1': {}
 

@@ -25,14 +25,13 @@
     "directory": "packages/core"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && mkdir -p dist/vad && cp src/vad/ten_vad.js src/vad/ten_vad.d.ts src/vad/ten_vad.wasm dist/vad/",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@gooney-001/ten-vad-lib": "^1.0.2",
     "@unctad-ai/voice-agent-registries": "workspace:*"
   },
   "peerDependencies": {
