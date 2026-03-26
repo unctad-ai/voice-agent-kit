@@ -10,10 +10,3 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
-
-declare module 'ten-vad-glue' {
-  const createVADModule: (options?: {
-    locateFile?: (filename: string) => string;
-  }) => Promise<any>;
-  export default createVADModule;
-}

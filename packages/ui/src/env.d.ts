@@ -16,11 +16,3 @@ interface ImportMeta {
 
 /** Build-time constant injected by tsup — holds the kit version string */
 declare const __KIT_VERSION__: string;
-
-/** Type declaration for ten-vad-glue — Emscripten WASM module loaded at runtime via Vite alias */
-declare module 'ten-vad-glue' {
-  const createVADModule: (options?: {
-    locateFile?: (filename: string) => string;
-  }) => Promise<any>;
-  export default createVADModule;
-}
