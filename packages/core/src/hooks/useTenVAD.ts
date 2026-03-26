@@ -395,7 +395,11 @@ class TenVADProcessor extends AudioWorkletProcessor {
         this.offset = 0;
       }
     }
-    this.resamplePos -= input.length;
+    // Carry fractional position into the next process() block.
+    // When resamplePos lands exactly on (input.length - 1), the loop exits
+    // without processing, and subtracting input.length yields -1 — causing
+    // input[-1] = undefined → NaN on the next call. Clamp to 0.
+    this.resamplePos = Math.max(0, this.resamplePos - input.length);
     return true;
   }
 }
