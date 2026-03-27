@@ -207,7 +207,7 @@ function WiredOverlayContent({
 
       {/* Error display */}
       <div style={{ pointerEvents: 'auto' }}>
-        <VoiceErrorDisplay error={voiceError} onDismiss={dismissError} />
+        <VoiceErrorDisplay error={voiceError} onDismiss={dismissError} onRetry={voiceError === 'mic_busy' ? () => { dismissError(); stop(); setTimeout(start, 200); } : undefined} />
       </div>
 
       {/* Tool result card */}

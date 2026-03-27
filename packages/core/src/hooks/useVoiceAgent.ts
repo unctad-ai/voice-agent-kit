@@ -134,6 +134,7 @@ export interface UseVoiceAgentOptions {
 function classifyError(err: unknown): VoiceErrorType {
   if (err instanceof DOMException && err.name === 'NotAllowedError') return 'mic_denied';
   if (err instanceof DOMException && err.name === 'NotFoundError') return 'mic_unavailable';
+  if (err instanceof DOMException && err.name === 'NotReadableError') return 'mic_busy';
   const msg = err instanceof Error ? err.message : String(err);
   if (msg.includes('STT') || msg.includes('Transcription')) return 'stt_failed';
   if (msg.includes('TTS') || msg.includes('synthesis')) return 'tts_failed';
@@ -798,6 +799,8 @@ export function useVoiceAgent({
         setVoiceError('mic_denied');
       } else if (errMsg.includes('NotFound') || errMsg.includes('no audio')) {
         setVoiceError('mic_unavailable');
+      } else if (errMsg.includes('timed out') || errMsg.includes('NotReadable')) {
+        setVoiceError('mic_busy');
       } else {
         setVoiceError('vad_load_failed');
       }

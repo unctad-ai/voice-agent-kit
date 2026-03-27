@@ -1,10 +1,11 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { AlertTriangle, Hourglass, Mic, MicOff, VolumeX, Wifi, WifiOff } from 'lucide-react';
+import { AlertTriangle, Hourglass, Mic, MicOff, RefreshCw, VolumeX, Wifi, WifiOff } from 'lucide-react';
 import { cn } from '../utils';
 
 export type VoiceErrorType =
   | 'mic_denied'
   | 'mic_unavailable'
+  | 'mic_busy'
   | 'vad_load_failed'
   | 'stt_failed'
   | 'tts_failed'
@@ -18,6 +19,7 @@ export type VoiceErrorType =
 interface VoiceErrorDisplayProps {
   error: VoiceErrorType;
   onDismiss: () => void;
+  onRetry?: () => void;
 }
 
 type Severity = 'error' | 'warning' | 'info';
@@ -51,7 +53,7 @@ const SEVERITY_STYLES: Record<
 
 const ERROR_CONFIG: Record<
   NonNullable<VoiceErrorType>,
-  { icon: typeof AlertTriangle; title: string; severity: Severity }
+  { icon: typeof AlertTriangle; title: string; severity: Severity; retryable?: boolean }
 > = {
   mic_denied: {
     icon: MicOff,
@@ -62,6 +64,12 @@ const ERROR_CONFIG: Record<
     icon: MicOff,
     title: 'No microphone found',
     severity: 'error',
+  },
+  mic_busy: {
+    icon: Mic,
+    title: 'Could not access your microphone. Close video call apps (Teams, Zoom) and retry.',
+    severity: 'warning',
+    retryable: true,
   },
   vad_load_failed: {
     icon: AlertTriangle,
@@ -105,7 +113,7 @@ const ERROR_CONFIG: Record<
   },
 };
 
-export default function VoiceErrorDisplay({ error, onDismiss }: VoiceErrorDisplayProps) {
+export default function VoiceErrorDisplay({ error, onDismiss, onRetry }: VoiceErrorDisplayProps) {
   return (
     <AnimatePresence>
       {error && (
@@ -131,6 +139,15 @@ export default function VoiceErrorDisplay({ error, onDismiss }: VoiceErrorDispla
               <div className="flex items-center gap-2">
                 <Icon className={cn('h-4 w-4 shrink-0', styles.icon)} />
                 <span className={cn('text-xs flex-1', styles.text)}>{config.title}</span>
+                {config.retryable && onRetry && (
+                  <button
+                    onClick={onRetry}
+                    className={cn('text-xs font-medium transition-colors cursor-pointer', styles.text, 'hover:underline flex items-center gap-1')}
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    Retry
+                  </button>
+                )}
                 <button
                   onClick={onDismiss}
                   className={cn('text-xs transition-colors cursor-pointer', styles.dismiss)}

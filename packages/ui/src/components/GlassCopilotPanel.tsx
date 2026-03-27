@@ -1069,7 +1069,7 @@ function ExpandedContent({
             </div>
           )}
           {voiceError !== 'network_error' && (
-            <div style={{ padding: '0 16px 8px' }}><VoiceErrorDisplay error={voiceError} onDismiss={dismissError} /></div>
+            <div style={{ padding: '0 16px 8px' }}><VoiceErrorDisplay error={voiceError} onDismiss={dismissError} onRetry={voiceError === 'mic_busy' ? () => { dismissError(); onMicToggle(); setTimeout(onMicToggle, 200); } : undefined} /></div>
           )}
           <div style={{ padding: '0 16px 8px' }}><VoiceToolCard result={toolResult} onDismiss={onToolDismiss} variant="capsule" /></div>
         </div>

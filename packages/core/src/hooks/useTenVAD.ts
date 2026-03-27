@@ -190,6 +190,7 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
       let sumSq = 0;
       for (let j = 0; j < samples.length; j++) sumSq += samples[j] * samples[j];
       const rms = Math.sqrt(sumSq / samples.length);
+
       cbRef.current.onFrameProcessed?.({ isSpeech: probability, rms });
 
       // ---- Speech segmentation state machine ----
@@ -328,9 +329,16 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
   const start = useCallback(async () => {
     if (activeRef.current) return;
     activeRef.current = true;
+    setErrored(false);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // getUserMedia can hang indefinitely in Chrome when another app (e.g.
+      // Teams, Zoom) holds the mic via a virtual audio device. Race against
+      // a timeout so the user gets actionable feedback instead of a silent
+      // freeze.
+      const MIC_TIMEOUT_MS = 6000;
+      let timedOut = false;
+      const micPromise = navigator.mediaDevices.getUserMedia({
         audio: {
           channelCount: 1,
           echoCancellation: true,
@@ -338,6 +346,21 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
           autoGainControl: true,
         },
       });
+      // Clean up orphaned stream if getUserMedia resolves after timeout
+      micPromise.then(s => { if (timedOut) s.getTracks().forEach(t => t.stop()); })
+                .catch(() => {});
+      const stream = await Promise.race([
+        micPromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => {
+            timedOut = true;
+            reject(new DOMException(
+              'Microphone access timed out — another app may be using it',
+              'NotReadableError',
+            ));
+          }, MIC_TIMEOUT_MS),
+        ),
+      ]);
 
       streamRef.current = stream;
 
@@ -345,6 +368,10 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
       // doesn't match the MediaStream sample rate (Firefox resamples silently).
       // The AudioWorklet resamples to 16 kHz internally.
       const ctx = new AudioContext();
+      // Chrome suspends AudioContext created after an async gap (getUserMedia
+      // above breaks the user-gesture chain). resume() is a no-op if already
+      // running (Brave/Firefox) but required for Chrome.
+      if (ctx.state === 'suspended') await ctx.resume();
       audioCtxRef.current = ctx;
 
       // Inline AudioWorklet processor with built-in resampling to 16 kHz
