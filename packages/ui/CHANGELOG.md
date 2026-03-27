@@ -1,5 +1,14 @@
 # @unctad-ai/voice-agent-ui
 
+## 5.4.5
+
+### Patch Changes
+
+- 05017ed: fix: detect mic blocked by other apps (Teams, Zoom) and show retry
+- Updated dependencies [05017ed]
+  - @unctad-ai/voice-agent-core@5.4.5
+  - @unctad-ai/voice-agent-registries@5.4.5
+
 ## 5.4.4
 
 ### Patch Changes
