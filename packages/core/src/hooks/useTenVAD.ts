@@ -165,6 +165,9 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
   // Process a single frame from the AudioWorklet
   // -----------------------------------------------------------------------
   const diagFrameRef = useRef(0);
+  const diagMaxRmsRef = useRef(0);
+  const diagMaxProbRef = useRef(0);
+  const diagSpeechSeenRef = useRef(false);
   const processFrame = useCallback(
     (samples: Float32Array) => {
       const mod = moduleRef.current;
@@ -194,6 +197,18 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
       let sumSq = 0;
       for (let j = 0; j < samples.length; j++) sumSq += samples[j] * samples[j];
       const rms = Math.sqrt(sumSq / samples.length);
+
+      // Diagnostics: track audio levels to help debug silent-mic issues
+      if (rms > diagMaxRmsRef.current) diagMaxRmsRef.current = rms;
+      if (probability > diagMaxProbRef.current) diagMaxProbRef.current = probability;
+      const fc = diagFrameRef.current;
+      if (fc === 100 || fc === 500) {
+        console.warn(`[VAD] @${fc}frames maxRms=${diagMaxRmsRef.current.toFixed(4)} maxProb=${diagMaxProbRef.current.toFixed(3)}`);
+      }
+      if (!diagSpeechSeenRef.current && probability >= positiveSpeechThreshold) {
+        diagSpeechSeenRef.current = true;
+        console.warn(`[VAD] speech detected @frame${fc} prob=${probability.toFixed(3)} rms=${rms.toFixed(4)}`);
+      }
 
       cbRef.current.onFrameProcessed?.({ isSpeech: probability, rms });
 
