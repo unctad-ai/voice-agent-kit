@@ -1,5 +1,13 @@
 # @unctad-ai/voice-agent-server
 
+## 5.4.7
+
+### Patch Changes
+
+- d10f145: Server-side system prompt now respects persona overrides (copilotName, systemPromptIntro, etc.) set via the admin settings UI. Also adds {name} and {siteTitle} variable support in greetingMessage and farewellMessage.
+- Updated dependencies [d10f145]
+  - @unctad-ai/voice-agent-core@5.4.7
+
 ## 5.4.6
 
 ### Patch Changes
