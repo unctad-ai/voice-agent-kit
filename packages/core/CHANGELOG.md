@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 5.4.6
+
+### Patch Changes
+
+- b8c4a3e: fix(core): add VAD pipeline diagnostics for Chrome mic detection issues
+  - @unctad-ai/voice-agent-registries@5.4.6
+
 ## 5.4.5
 
 ### Patch Changes
