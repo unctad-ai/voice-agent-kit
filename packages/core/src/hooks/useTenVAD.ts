@@ -164,10 +164,14 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
   // -----------------------------------------------------------------------
   // Process a single frame from the AudioWorklet
   // -----------------------------------------------------------------------
+  const diagFrameRef = useRef(0);
   const processFrame = useCallback(
     (samples: Float32Array) => {
       const mod = moduleRef.current;
       if (!mod || !vadHandleRef.current) return;
+      diagFrameRef.current++;
+      if (diagFrameRef.current === 1) console.warn('[VAD] first frame received');
+      if (diagFrameRef.current === 100) console.warn('[VAD] 100 frames processed');
 
       const ptrs = allocPtrs(mod);
       const i16 = float32ToInt16(samples);
@@ -309,9 +313,10 @@ export function useTenVAD(options: UseTenVADOptions = {}) {
         moduleRef.current = mod;
         vadHandleRef.current = handle;
         setLoading(false);
+        console.warn('[VAD] WASM loaded, handle ready');
       } catch (err) {
         if (!cancelled) {
-          console.error('[useTenVAD] Failed to load WASM module:', err);
+          console.error('[VAD] WASM FAILED:', err);
           setErrored(err instanceof Error ? err : { message: String(err) });
           setLoading(false);
         }
@@ -452,9 +457,10 @@ registerProcessor('ten-vad-processor', TenVADProcessor);`;
       source.connect(worklet);
       // Don't connect to destination — we don't want to hear the mic
       workletNodeRef.current = worklet;
+      console.warn('[VAD] mic + worklet ready, listening');
     } catch (err) {
       activeRef.current = false;
-      console.error('[useTenVAD] start failed:', err);
+      console.error('[VAD] start FAILED:', err);
       setErrored(err instanceof Error ? err : { message: String(err) });
     }
   }, [hopSize]);
