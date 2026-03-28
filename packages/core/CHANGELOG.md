@@ -1,5 +1,12 @@
 # @unctad-ai/voice-agent-core
 
+## 5.4.8
+
+### Patch Changes
+
+- a239fd2: Add RMS and speech probability diagnostics to VAD pipeline for debugging Chrome silent-mic issues.
+  - @unctad-ai/voice-agent-registries@5.4.8
+
 ## 5.4.7
 
 ### Patch Changes
