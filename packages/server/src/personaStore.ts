@@ -135,6 +135,22 @@ export class PersonaStore {
     return fs.existsSync(p) ? p : null;
   }
 
+  /** Returns siteConfig with persona overrides applied (copilotName, systemPromptIntro, etc.) */
+  getMergedSiteConfig(): SiteConfig | undefined {
+    if (!this.siteConfig) return undefined;
+    const p = this.data;
+    return {
+      ...this.siteConfig,
+      ...(p.copilotName && { copilotName: p.copilotName }),
+      ...(p.siteTitle != null && { siteTitle: p.siteTitle }),
+      ...(p.greetingMessage != null && { greetingMessage: p.greetingMessage }),
+      ...(p.farewellMessage != null && { farewellMessage: p.farewellMessage }),
+      ...(p.systemPromptIntro != null && { systemPromptIntro: p.systemPromptIntro }),
+      ...(p.language != null && { language: p.language }),
+      ...(p.copilotColor ? { colors: { ...this.siteConfig.colors, primary: p.copilotColor } } : {}),
+    };
+  }
+
   getActiveVoiceId(): string {
     return this.data.activeVoiceId;
   }

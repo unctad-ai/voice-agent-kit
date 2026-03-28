@@ -109,6 +109,10 @@ export function createVoiceWebSocketHandler(
       logger.warn('tts:unavailable', `provider=${ttsConfig.ttsProvider} — no URL configured, text-only mode`);
     }
 
+    // Merge persona overrides (copilotName, systemPromptIntro, etc.) so the LLM
+    // system prompt matches the name/settings shown in the client UI.
+    const siteConfig = options.getSiteConfig?.() ?? options.config;
+
     pipeline = new VoicePipeline({
       logger,
       sttClient,
@@ -118,7 +122,7 @@ export function createVoiceWebSocketHandler(
       groqModel: options.groqModel,
       send: safeSend,
       sendBinary: safeSendBinary,
-      siteConfig: options.config,
+      siteConfig,
       sttHallucinationFilter: options.sttHallucinationFilter ?? (process.env.STT_HALLUCINATION_FILTER !== 'false'),
     });
 

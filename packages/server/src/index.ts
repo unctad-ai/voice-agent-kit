@@ -39,6 +39,7 @@ export function attachVoicePipeline(
     ...options,
     dataDir,
     getActiveVoiceId: personaStore ? () => personaStore!.getActiveVoiceId() : undefined,
+    getSiteConfig: personaStore ? () => personaStore!.getMergedSiteConfig() ?? options.config : undefined,
   });
 
   if (personaStore && app) {

@@ -31,4 +31,6 @@ export interface VoiceServerOptions {
   adminPassword?: string;
   /** Directory for persistent data (traces, feedback). Derived from personaDir if not set. */
   dataDir?: string;
+  /** Returns siteConfig with persona overrides applied. Called per WebSocket connection. */
+  getSiteConfig?: () => SiteConfig;
 }

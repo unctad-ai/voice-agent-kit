@@ -21,15 +21,19 @@ export function SiteConfigProvider({
 
   const mergedConfig = useMemo<SiteConfig>(() => {
     const base = { ...config, personaEndpoint };
+    const replaceVars = (s: string | undefined, name: string, title: string) =>
+      s?.replace(/\{name\}/g, name).replace(/\{siteTitle\}/g, title);
     if (personaResult.persona) {
       const p = personaResult.persona;
+      const name = p.copilotName ?? config.copilotName;
+      const title = p.siteTitle ?? config.siteTitle;
       return {
         ...base,
-        copilotName: p.copilotName ?? config.copilotName,
+        copilotName: name,
         avatarUrl: p.avatarUrl ?? config.avatarUrl,
-        siteTitle: p.siteTitle ?? config.siteTitle,
-        greetingMessage: p.greetingMessage ?? config.greetingMessage,
-        farewellMessage: p.farewellMessage ?? config.farewellMessage,
+        siteTitle: title,
+        greetingMessage: replaceVars(p.greetingMessage ?? config.greetingMessage, name, title),
+        farewellMessage: replaceVars(p.farewellMessage ?? config.farewellMessage, name, title),
         systemPromptIntro: p.systemPromptIntro ?? config.systemPromptIntro,
         language: p.language ?? config.language,
         suggestedPrompts: p.suggestedPrompts
