@@ -20,6 +20,99 @@ function isFilled(value: unknown): boolean {
   return true; // booleans, numbers, arrays are valid filled values
 }
 
+/** Collect text items from flex-row list patterns (SVG + span/p). */
+function extractListItems(container: Element): string[] {
+  const items: string[] = [];
+  for (const row of container.querySelectorAll('.flex.items-start, .flex.items-center')) {
+    const text = (row.querySelector('span') || row.querySelector('p'))?.textContent?.trim();
+    if (text) items.push(text);
+  }
+  return items;
+}
+
+/** Find the tightest container for a heading matching keywords (card > section). */
+function findSectionByHeading(root: Element, ...keywords: string[]): Element | null {
+  for (const h of root.querySelectorAll('h4, h5')) {
+    const text = h.textContent?.toLowerCase().trim() ?? '';
+    if (keywords.some(k => text.includes(k))) {
+      // Prefer card wrapper (.bg-white) over outer section to avoid scope bleed
+      return h.closest('.bg-white') || h.closest('section') || h.parentElement;
+    }
+  }
+  return null;
+}
+
+/**
+ * Read visible service detail content from the DOM when config lacks rich data.
+ * Targets eRegistrations Single Window service page structure:
+ *   - <section class="mb-12"> with <h4> headings (left column)
+ *   - Tabbed panel with <h5> card headings for Requirements/Duration/Cost (right column)
+ * Returns null if not in a browser or no meaningful content found.
+ */
+function extractServicePageContent(): Record<string, unknown> | null {
+  if (typeof document === 'undefined') return null;
+  const root = document.getElementById('root') || document.body;
+  const result: Record<string, unknown> = {};
+
+  // Overview — hero section description
+  const heroP = root.querySelector('.bg-neutral-100 p.text-lg, .bg-neutral-100 p.text-base');
+  if (heroP?.textContent?.trim()) result.overview = heroP.textContent.trim().slice(0, 500);
+
+  // Left-column sections: "What you will get", "How to apply", "Who can apply", etc.
+  for (const section of root.querySelectorAll('section')) {
+    const h4 = section.querySelector('h4');
+    const heading = h4?.textContent?.toLowerCase().trim() ?? '';
+
+    if (heading.includes('what you will get') || heading.includes('deliverables')) {
+      const items = extractListItems(section);
+      if (items.length) result.deliverables = items;
+    } else if (heading.includes('how to apply') || heading.includes('process') || heading.includes('procedure')) {
+      const p = section.querySelector('p');
+      if (p?.textContent?.trim()) result.process = p.textContent.trim();
+    } else if (heading.includes('who can apply') || heading.includes('eligibility')) {
+      const items = extractListItems(section);
+      const intro = section.querySelector('p')?.textContent?.trim();
+      if (items.length || intro) result.eligibility = intro ? [intro, ...items] : items;
+    } else if (heading.includes('responsible') || heading.includes('authority')) {
+      const p = section.querySelector('p');
+      if (p?.textContent?.trim()) result.authority = p.textContent.trim();
+    } else if (heading.includes('legal basis')) {
+      const p = section.querySelector('p');
+      if (p?.textContent?.trim()) result.legalBasis = p.textContent.trim();
+    }
+  }
+
+  // Right-column tabbed cards: Requirements, Duration, Cost
+  // These live inside .bg-neutral-100 panels with .bg-white cards containing <h5>
+  const reqSection = findSectionByHeading(root, 'requirement');
+  if (reqSection) {
+    const items = extractListItems(reqSection);
+    if (items.length) result.requirements = items;
+  }
+
+  const durSection = findSectionByHeading(root, 'duration', 'processing time', 'timeframe');
+  if (durSection) {
+    const p = durSection.querySelector('p');
+    if (p?.textContent?.trim()) result.duration = p.textContent.trim();
+  }
+
+  const costSection = findSectionByHeading(root, 'cost', 'fee');
+  if (costSection) {
+    const entries: string[] = [];
+    for (const div of costSection.querySelectorAll('.space-y-3 > div, .space-y-2 > div')) {
+      const label = div.querySelector('.font-semibold, strong')?.textContent?.trim();
+      const values = Array.from(div.querySelectorAll('p'))
+        .map(p => p.textContent?.trim())
+        .filter((t): t is string => !!t && !t.includes(label ?? ''));
+      if (label && values.length) entries.push(`${label}: ${values.join('; ')}`);
+      else if (values.length) entries.push(values.join('; '));
+    }
+    if (entries.length) result.cost = entries.join('. ');
+  }
+
+  return Object.keys(result).length > 0 ? result : null;
+}
+
 interface ClientToolDeps {
   navigate: (path: string) => void;
   executeUIAction: (
@@ -58,6 +151,11 @@ export function createClientToolHandler(deps: ClientToolDeps) {
           || hasArray(details.requirements) || hasArray(details.steps)
           || hasArray(details.eligibility) || hasArray(details.process);
         if (!hasRichData) {
+          // Attempt to read visible page content when config lacks rich data
+          const pageContent = extractServicePageContent();
+          if (pageContent) {
+            return JSON.stringify({ ...details, ...pageContent });
+          }
           return JSON.stringify({
             ...details,
             _note: 'Only basic info is available to the assistant. The page may show additional details like duration, cost, and requirements that are not loaded here. Do not claim these details are absent — say you do not have that information.',
